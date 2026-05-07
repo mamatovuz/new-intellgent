@@ -4,7 +4,14 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import { HorizontalAlign, Jimp, loadFont } from "jimp";
-import { SANS_16_BLACK, SANS_32_BLACK, SANS_64_BLACK, SANS_64_WHITE } from "jimp/fonts";
+import {
+  SANS_16_BLACK,
+  SANS_16_WHITE,
+  SANS_32_BLACK,
+  SANS_32_WHITE,
+  SANS_64_BLACK,
+  SANS_64_WHITE
+} from "jimp/fonts";
 import QRCode from "qrcode";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
@@ -114,10 +121,19 @@ function getFonts() {
   if (!fontsPromise) {
     fontsPromise = Promise.all([
       loadFont(SANS_16_BLACK),
+      loadFont(SANS_16_WHITE),
       loadFont(SANS_32_BLACK),
+      loadFont(SANS_32_WHITE),
       loadFont(SANS_64_WHITE),
       loadFont(SANS_64_BLACK)
-    ]).then(([smallBlack, mediumBlack, largeWhite, largeBlack]) => ({ smallBlack, mediumBlack, largeWhite, largeBlack }));
+    ]).then(([smallBlack, smallWhite, mediumBlack, mediumWhite, largeWhite, largeBlack]) => ({
+      smallBlack,
+      smallWhite,
+      mediumBlack,
+      mediumWhite,
+      largeWhite,
+      largeBlack
+    }));
   }
 
   return fontsPromise;
@@ -192,7 +208,7 @@ export async function buildQrCodeAsset(value) {
 }
 
 async function buildReceiptPng(receipt) {
-  const { smallBlack, mediumBlack, largeWhite, largeBlack } = await getFonts();
+  const { smallBlack, smallWhite, mediumBlack, mediumWhite, largeWhite } = await getFonts();
   const qrBuffer = await createQrCodeBuffer(
     `${config.webUrl}/student/login?phone=${encodeURIComponent(receipt.phone || "")}&password=12345678`,
     250
@@ -207,45 +223,58 @@ async function buildReceiptPng(receipt) {
   const card = await createSolidImage(1228, 775, 0xffffffff);
   const hero = await createSolidImage(1228, 239, 0x124bcfff);
   const stripe = await createSolidImage(1228, 18, 0x25c75aff);
-  const logoCard = await createSolidImage(345, 58, 0xffffffff);
-  const amountCard = await createSolidImage(355, 122, 0x25c75aff);
-  const qrCard = await createSolidImage(325, 387, 0xffffffff);
-  const qrTop = await createSolidImage(325, 16, 0x25c75aff);
-  const footer = await createSolidImage(1140, 120, 0xe5efffff);
+  const logoCard = await createSolidImage(370, 62, 0xffffffff);
+  const amountCard = await createSolidImage(390, 140, 0x25c75aff);
+  const qrCard = await createSolidImage(330, 388, 0xffffffff);
+  const qrTop = await createSolidImage(330, 16, 0x25c75aff);
+  const footer = await createSolidImage(1146, 122, 0xe5efffff);
   const okBadge = await createSolidImage(64, 64, 0x2454d5ff);
-  const divider = await createSolidImage(2, 404, 0xe5edf8ff);
+  const divider = await createSolidImage(2, 346, 0xe5edf8ff);
 
   canvas.composite(card, 26, 26);
   canvas.composite(hero, 26, 26);
   canvas.composite(stripe, 26, 243);
   canvas.composite(logoCard, 84, 144);
-  canvas.composite(amountCard, 869, 67);
-  canvas.composite(qrCard, 891, 279);
-  canvas.composite(qrTop, 891, 279);
-  canvas.composite(footer, 78, 697);
-  canvas.composite(okBadge, 99, 725);
-  canvas.composite(divider, 937, 293);
-  canvas.composite(qrImage, 933, 317);
+  canvas.composite(amountCard, 835, 79);
+  canvas.composite(qrCard, 889, 294);
+  canvas.composite(qrTop, 889, 294);
+  canvas.composite(footer, 78, 686);
+  canvas.composite(okBadge, 99, 714);
+  canvas.composite(divider, 835, 308);
+  canvas.composite(qrImage, 930, 334);
 
   canvas.print({ font: largeWhite, x: 84, y: 58, text: "TO'LOV QABUL QILINDI" });
-  canvas.print({ font: mediumBlack, x: 156, y: 154, text: "INTELLIGENT PAY" });
-  canvas.print({ font: smallBlack, x: 84, y: 214, text: "Intelligent Education | Oylik to'lov cheki" });
+  canvas.print({ font: mediumBlack, x: 166, y: 152, text: "INTELLIGENT" });
+  canvas.print({ font: mediumWhite, x: 506, y: 152, text: "PAY", maxWidth: 84 });
+  canvas.print({ font: smallWhite, x: 84, y: 214, text: "Intelligent Education | Oylik to'lov cheki" });
 
-  canvas.print({ font: smallBlack, x: 904, y: 90, text: "QABUL QILINGAN SUMMA" });
-  canvas.print({ font: largeWhite, x: 904, y: 122, text: amountText, maxWidth: 300 });
+  canvas.print({ font: mediumWhite, x: 865, y: 95, text: "QABUL QILINGAN SUMMA", maxWidth: 330 });
+  canvas.print({ font: largeWhite, x: 865, y: 142, text: amountText, maxWidth: 330 });
 
-  const iconCards = [294, 375, 456, 537, 618, 699];
+  const iconCards = [308, 389, 470, 551, 632, 713];
   for (const y of iconCards) {
     const iconCard = await createSolidImage(72, 72, 0xedf4ffff);
     canvas.composite(iconCard, 86, y);
   }
 
-  canvas.print({ font: mediumBlack, x: 112, y: 309, text: "A" });
-  canvas.print({ font: mediumBlack, x: 112, y: 390, text: "P" });
-  canvas.print({ font: mediumBlack, x: 112, y: 471, text: "K" });
-  canvas.print({ font: mediumBlack, x: 112, y: 552, text: "U" });
-  canvas.print({ font: mediumBlack, x: 112, y: 633, text: "S" });
-  canvas.print({ font: mediumBlack, x: 112, y: 714, text: "#" });
+  const line = await createSolidImage(26, 6, 0x2f66f0ff);
+  const stem = await createSolidImage(6, 26, 0x2f66f0ff);
+  const dot = await createSolidImage(16, 16, 0x2f66f0ff);
+  const drawMarker = (x, y, variant = "plus") => {
+    canvas.composite(line, x + 23, y + 33);
+    if (variant === "plus" || variant === "stem") {
+      canvas.composite(stem, x + 33, y + 23);
+    }
+    if (variant === "dot") {
+      canvas.composite(dot, x + 28, y + 28);
+    }
+  };
+  drawMarker(86, 308, "plus");
+  drawMarker(86, 389, "stem");
+  drawMarker(86, 470, "dot");
+  drawMarker(86, 551, "plus");
+  drawMarker(86, 632, "stem");
+  drawMarker(86, 713, "dot");
 
   const leftLabels = ["To'lovchi:", "Telefon:", "Kurs:", "Usul:", "Sana:", "Tranzaksiya ID:"];
   const leftValues = [
@@ -256,38 +285,44 @@ async function buildReceiptPng(receipt) {
     paidDate.format("DD.MM.YYYY"),
     String(receipt.id)
   ];
-  const leftY = [309, 390, 471, 552, 633, 714];
+  const leftY = [321, 402, 483, 564, 645, 726];
 
   leftLabels.forEach((label, index) => {
     canvas.print({ font: mediumBlack, x: 174, y: leftY[index], text: label, maxWidth: 210 });
-    canvas.print({ font: mediumBlack, x: 316, y: leftY[index], text: leftValues[index], maxWidth: 520 });
+    canvas.print({ font: mediumBlack, x: 316, y: leftY[index], text: leftValues[index], maxWidth: 480 });
   });
 
-  canvas.print({ font: mediumBlack, x: 590, y: 633, text: "Vaqt:" });
-  canvas.print({ font: mediumBlack, x: 677, y: 633, text: paidDate.format("HH:mm") });
+  canvas.print({ font: mediumBlack, x: 588, y: 645, text: "Vaqt:" });
+  canvas.print({ font: mediumBlack, x: 675, y: 645, text: paidDate.format("HH:mm") });
 
   canvas.print({
     font: smallBlack,
-    x: 940,
-    y: 560,
+    x: 927,
+    y: 598,
     text: "Kabinetga tez kirish QR",
-    maxWidth: 220
+    maxWidth: 240
   });
-  canvas.print({ font: smallBlack, x: 928, y: 590, text: "Default parol: 12345678", maxWidth: 220 });
+  canvas.print({
+    font: smallBlack,
+    x: 927,
+    y: 632,
+    text: "Default parol: 12345678",
+    maxWidth: 240
+  });
 
-  canvas.print({ font: mediumBlack, x: 205, y: 733, text: paymentCaption, maxWidth: 740 });
+  canvas.print({ font: mediumBlack, x: 205, y: 722, text: paymentCaption, maxWidth: 740 });
   canvas.print({
     font: smallBlack,
     x: 205,
-    y: 775,
+    y: 770,
     text: "Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.",
     maxWidth: 820
   });
 
   canvas.print({
-    font: largeBlack,
-    x: 113,
-    y: 742,
+    font: mediumWhite,
+    x: 108,
+    y: 728,
     text: { text: "OK", alignmentX: HorizontalAlign.CENTER },
     maxWidth: 34
   });
@@ -348,13 +383,13 @@ export async function buildUpcomingPaymentReminderAsset(student) {
   const imageBuffer = await buildAlertPng({
     title: "TO'LOV ESLATMASI",
     subtitle: `${student.fullName} uchun ${formatMoney(amount)} oylik to'lov muddati yaqinlashdi`,
-    badge: `${student.courseTitle || "Kurs"} � Muddat: ${dueDate}`,
+    badge: `${student.courseTitle || "Kurs"} | Muddat: ${dueDate}`,
     tone: "success",
     qrUrl
   });
 
   return {
-    caption: `? ${student.fullName}, ${student.courseTitle || "kursingiz"} uchun oylik to'lov muddati ${dueDate} sanada tugaydi.`,
+    caption: `${student.fullName}, ${student.courseTitle || "kursingiz"} uchun oylik to'lov muddati ${dueDate} sanada tugaydi.`,
     imageBuffer,
     imageDataUrl: encodeBufferDataUri(imageBuffer)
   };
@@ -366,13 +401,13 @@ export async function buildTrialFinishedReminderAsset(student) {
   const imageBuffer = await buildAlertPng({
     title: "SINOV MUDDATI TUGADI",
     subtitle: `${student.fullName} uchun sinov bosqichi yakunlandi`,
-    badge: `${student.courseTitle || "Kurs"} � To'lov: ${formatMoney(amount)} � Muddat: ${student.paymentDueDate || dayjs().format("YYYY-MM-DD")}`,
+    badge: `${student.courseTitle || "Kurs"} | To'lov: ${formatMoney(amount)} | Muddat: ${student.paymentDueDate || dayjs().format("YYYY-MM-DD")}`,
     tone: "warning",
     qrUrl
   });
 
   return {
-    caption: `?? ${student.fullName}, sinov muddati tugadi. Endi ${formatMoney(amount)} oylik to'lov talab qilinadi.`,
+    caption: `${student.fullName}, sinov muddati tugadi. Endi ${formatMoney(amount)} oylik to'lov talab qilinadi.`,
     imageBuffer,
     imageDataUrl: encodeBufferDataUri(imageBuffer)
   };
