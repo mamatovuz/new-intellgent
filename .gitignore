@@ -6,6 +6,7 @@ dist/
 backend/node_modules/
 backend/data/
 backend/backend/data/
+backend/src/backend/data/
 backend/uploads/
 backend/backend/uploads/
 backend/.env
