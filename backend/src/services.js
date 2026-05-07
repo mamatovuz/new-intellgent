@@ -6,7 +6,6 @@ import dayjs from "dayjs";
 import { HorizontalAlign, Jimp, loadFont } from "jimp";
 import { SANS_16_BLACK, SANS_32_BLACK, SANS_64_BLACK, SANS_64_WHITE } from "jimp/fonts";
 import QRCode from "qrcode";
-import sharp from "sharp";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
 
@@ -193,136 +192,107 @@ export async function buildQrCodeAsset(value) {
 }
 
 async function buildReceiptPng(receipt) {
+  const { smallBlack, mediumBlack, largeWhite, largeBlack } = await getFonts();
   const qrBuffer = await createQrCodeBuffer(
     `${config.webUrl}/student/login?phone=${encodeURIComponent(receipt.phone || "")}&password=12345678`,
     250
   );
-  const qrDataUrl = encodeBufferDataUri(qrBuffer);
+  const qrImage = await Jimp.read(qrBuffer);
   const paymentCaption = buildPaymentCaption(receipt);
   const paidDate = dayjs(receipt.paidAt);
   const amountText = formatMoney(receipt.amount);
   const methodText = String(receipt.method || "manual").toUpperCase();
-  const fontFamily = "DejaVu Sans, Liberation Sans, Arial, Helvetica, sans-serif";
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="853" viewBox="0 0 1280 853">
-      <defs>
-        <linearGradient id="heroBg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#1152da"/>
-          <stop offset="100%" stop-color="#11358a"/>
-        </linearGradient>
-        <linearGradient id="bodyGlow" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#fafdff"/>
-          <stop offset="100%" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="footerBg" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#eaf2ff"/>
-          <stop offset="100%" stop-color="#dfeeff"/>
-        </linearGradient>
-        <filter id="softShadow" x="-20%" y="-20%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0f2d79" flood-opacity="0.16"/>
-        </filter>
-      </defs>
 
-      <rect width="1280" height="853" fill="#eef3fb"/>
-      <rect x="26" y="26" width="1228" height="775" rx="30" fill="url(#bodyGlow)" filter="url(#softShadow)"/>
-      <rect x="26" y="26" width="1228" height="239" rx="30" fill="url(#heroBg)"/>
-      <rect x="26" y="243" width="1228" height="18" fill="#25c75a"/>
+  const canvas = await createSolidImage(1280, 853, 0xeef3fbff);
+  const card = await createSolidImage(1228, 775, 0xffffffff);
+  const hero = await createSolidImage(1228, 239, 0x124bcfff);
+  const stripe = await createSolidImage(1228, 18, 0x25c75aff);
+  const logoCard = await createSolidImage(345, 58, 0xffffffff);
+  const amountCard = await createSolidImage(355, 122, 0x25c75aff);
+  const qrCard = await createSolidImage(325, 387, 0xffffffff);
+  const qrTop = await createSolidImage(325, 16, 0x25c75aff);
+  const footer = await createSolidImage(1140, 120, 0xe5efffff);
+  const okBadge = await createSolidImage(64, 64, 0x2454d5ff);
+  const divider = await createSolidImage(2, 404, 0xe5edf8ff);
 
-      <path d="M1120 105 C1190 100, 1235 120, 1265 160" stroke="rgba(255,255,255,.12)" stroke-width="2" fill="none"/>
-      <path d="M1100 150 C1190 145, 1240 170, 1270 208" stroke="rgba(255,255,255,.10)" stroke-width="2" fill="none"/>
+  canvas.composite(card, 26, 26);
+  canvas.composite(hero, 26, 26);
+  canvas.composite(stripe, 26, 243);
+  canvas.composite(logoCard, 84, 144);
+  canvas.composite(amountCard, 869, 67);
+  canvas.composite(qrCard, 891, 279);
+  canvas.composite(qrTop, 891, 279);
+  canvas.composite(footer, 78, 697);
+  canvas.composite(okBadge, 99, 725);
+  canvas.composite(divider, 937, 293);
+  canvas.composite(qrImage, 933, 317);
 
-      <text x="84" y="118" fill="#ffffff" font-size="62" font-weight="800" font-family="${fontFamily}">TO'LOV QABUL QILINDI</text>
+  canvas.print({ font: largeWhite, x: 84, y: 58, text: "TO'LOV QABUL QILINDI" });
+  canvas.print({ font: mediumBlack, x: 156, y: 154, text: "INTELLIGENT PAY" });
+  canvas.print({ font: smallBlack, x: 84, y: 214, text: "Intelligent Education | Oylik to'lov cheki" });
 
-      <rect x="84" y="144" width="345" height="58" rx="14" fill="#ffffff"/>
-      <g transform="translate(106 157)">
-        <polygon points="0,7 17,0 34,7 34,29 17,37 0,29" fill="#2563eb"/>
-        <polygon points="17,0 34,7 17,15 0,7" fill="#7db8ff"/>
-        <polygon points="17,15 34,7 34,29 17,37" fill="#1cb35b"/>
-        <polygon points="17,15 0,7 0,29 17,37" fill="#3b82f6"/>
-      </g>
-      <text x="156" y="183" fill="#173b8d" font-size="26" font-weight="800" font-family="${fontFamily}">INTELLIGENT <tspan fill="#25c75a">PAY</tspan></text>
-      <text x="84" y="238" fill="#e7efff" font-size="24" font-weight="500" font-family="${fontFamily}">Intelligent Education | Oylik to'lov cheki</text>
+  canvas.print({ font: smallBlack, x: 904, y: 90, text: "QABUL QILINGAN SUMMA" });
+  canvas.print({ font: largeWhite, x: 904, y: 122, text: amountText, maxWidth: 300 });
 
-      <rect x="869" y="67" width="355" height="122" rx="20" fill="#25c75a"/>
-      <text x="904" y="108" fill="#ffffff" font-size="24" font-weight="700" font-family="${fontFamily}">QABUL QILINGAN SUMMA</text>
-      <text x="904" y="161" fill="#ffffff" font-size="54" font-weight="800" font-family="${fontFamily}">${escapeXml(amountText)}</text>
+  const iconCards = [294, 375, 456, 537, 618, 699];
+  for (const y of iconCards) {
+    const iconCard = await createSolidImage(72, 72, 0xedf4ffff);
+    canvas.composite(iconCard, 86, y);
+  }
 
-      <rect x="86" y="294" width="72" height="72" rx="18" fill="#edf4ff"/>
-      <rect x="86" y="375" width="72" height="72" rx="18" fill="#edf4ff"/>
-      <rect x="86" y="456" width="72" height="72" rx="18" fill="#edf4ff"/>
-      <rect x="86" y="537" width="72" height="72" rx="18" fill="#edf4ff"/>
-      <rect x="86" y="618" width="72" height="72" rx="18" fill="#edf4ff"/>
-      <rect x="86" y="699" width="72" height="72" rx="18" fill="#edf4ff"/>
+  canvas.print({ font: mediumBlack, x: 112, y: 309, text: "A" });
+  canvas.print({ font: mediumBlack, x: 112, y: 390, text: "P" });
+  canvas.print({ font: mediumBlack, x: 112, y: 471, text: "K" });
+  canvas.print({ font: mediumBlack, x: 112, y: 552, text: "U" });
+  canvas.print({ font: mediumBlack, x: 112, y: 633, text: "S" });
+  canvas.print({ font: mediumBlack, x: 112, y: 714, text: "#" });
 
-      <circle cx="122" cy="327" r="8" fill="#2a67ec"/>
-      <path d="M108 348c4-11 9-15 14-15 6 0 11 4 15 15" fill="#2a67ec"/>
+  const leftLabels = ["To'lovchi:", "Telefon:", "Kurs:", "Usul:", "Sana:", "Tranzaksiya ID:"];
+  const leftValues = [
+    receipt.fullName,
+    receipt.phone || "-",
+    receipt.courseTitle || "-",
+    methodText,
+    paidDate.format("DD.MM.YYYY"),
+    String(receipt.id)
+  ];
+  const leftY = [309, 390, 471, 552, 633, 714];
 
-      <path d="M112 395c4 9 12 16 18 20l10-10c2-2 4-2 6-1l6 4c2 1 3 4 1 7l-4 8c-1 2-3 3-6 3-22-3-44-26-47-48 0-3 1-5 3-6l8-4c2-1 5-1 7 1l4 6c1 2 1 4-1 6l-5 6z" fill="#2a67ec"/>
+  leftLabels.forEach((label, index) => {
+    canvas.print({ font: mediumBlack, x: 174, y: leftY[index], text: label, maxWidth: 210 });
+    canvas.print({ font: mediumBlack, x: 316, y: leftY[index], text: leftValues[index], maxWidth: 520 });
+  });
 
-      <polygon points="122,473 102,483 122,494 142,483" fill="#2a67ec"/>
-      <path d="M108 488v9c7 5 21 5 28 0v-9" fill="none" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+  canvas.print({ font: mediumBlack, x: 590, y: 633, text: "Vaqt:" });
+  canvas.print({ font: mediumBlack, x: 677, y: 633, text: paidDate.format("HH:mm") });
 
-      <rect x="113" y="550" width="18" height="24" rx="3" fill="none" stroke="#2a67ec" stroke-width="4"/>
-      <line x1="118" y1="556" x2="127" y2="556" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
-      <line x1="118" y1="564" x2="127" y2="564" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+  canvas.print({
+    font: smallBlack,
+    x: 940,
+    y: 560,
+    text: "Kabinetga tez kirish QR",
+    maxWidth: 220
+  });
+  canvas.print({ font: smallBlack, x: 928, y: 590, text: "Default parol: 12345678", maxWidth: 220 });
 
-      <rect x="108" y="632" width="28" height="24" rx="4" fill="none" stroke="#2a67ec" stroke-width="4"/>
-      <line x1="108" y1="640" x2="136" y2="640" stroke="#2a67ec" stroke-width="4"/>
-      <line x1="116" y1="627" x2="116" y2="634" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
-      <line x1="128" y1="627" x2="128" y2="634" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+  canvas.print({ font: mediumBlack, x: 205, y: 733, text: paymentCaption, maxWidth: 740 });
+  canvas.print({
+    font: smallBlack,
+    x: 205,
+    y: 775,
+    text: "Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.",
+    maxWidth: 820
+  });
 
-      <text x="122" y="735" text-anchor="middle" fill="#2a67ec" font-size="34" font-weight="700" font-family="${fontFamily}">#</text>
+  canvas.print({
+    font: largeBlack,
+    x: 113,
+    y: 742,
+    text: { text: "OK", alignmentX: HorizontalAlign.CENTER },
+    maxWidth: 34
+  });
 
-      <text x="174" y="326" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">To'lovchi:</text>
-      <text x="376" y="326" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(receipt.fullName)}</text>
-      <text x="174" y="407" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Telefon:</text>
-      <text x="316" y="407" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(receipt.phone || "-")}</text>
-      <text x="174" y="488" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Kurs:</text>
-      <text x="316" y="488" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(receipt.courseTitle || "-")}</text>
-      <text x="174" y="569" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Usul:</text>
-      <text x="316" y="569" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(methodText)}</text>
-      <text x="174" y="650" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Sana:</text>
-      <text x="316" y="650" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(paidDate.format("DD.MM.YYYY"))}</text>
-      <text x="492" y="650" fill="#cad5e7" font-size="32" font-weight="500" font-family="${fontFamily}">|</text>
-      <circle cx="560" cy="640" r="11" fill="none" stroke="#2a67ec" stroke-width="4"/>
-      <line x1="560" y1="640" x2="560" y2="632" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
-      <line x1="560" y1="640" x2="567" y2="640" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
-      <text x="590" y="650" fill="#2a67ec" font-size="32" font-weight="800" font-family="${fontFamily}">Vaqt:</text>
-      <text x="677" y="650" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(paidDate.format("HH:mm"))}</text>
-      <text x="174" y="731" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Tranzaksiya ID:</text>
-      <text x="425" y="731" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(String(receipt.id))}</text>
-
-      <line x1="937" y1="293" x2="937" y2="697" stroke="#e5edf8" stroke-width="2"/>
-      <circle cx="937" cy="495" r="8" fill="#e5edf8"/>
-
-      <rect x="891" y="279" width="325" height="387" rx="18" fill="#ffffff" stroke="#dbe6f3" stroke-width="2"/>
-      <rect x="891" y="279" width="325" height="16" rx="16" fill="#25c75a"/>
-      <image href="${qrDataUrl}" x="933" y="317" width="220" height="220"/>
-      <rect x="929" y="510" width="16" height="28" rx="3" fill="none" stroke="#25c75a" stroke-width="3"/>
-      <circle cx="937" cy="531" r="2" fill="#25c75a"/>
-      <text x="969" y="530" fill="#111827" font-size="18" font-weight="500" font-family="${fontFamily}">Kabinetga tez kirish QR</text>
-      <line x1="932" y1="552" x2="1148" y2="552" stroke="#e5edf8" stroke-width="2"/>
-      <text x="928" y="596" fill="#163a8c" font-size="16" font-weight="800" font-family="${fontFamily}">Default parol:</text>
-      <text x="1071" y="596" fill="#111827" font-size="16" font-weight="700" font-family="${fontFamily}">12345678</text>
-
-      <rect x="78" y="697" width="1140" height="120" rx="18" fill="url(#footerBg)"/>
-      <rect x="99" y="725" width="64" height="64" rx="16" fill="#2454d5"/>
-      <circle cx="131" cy="757" r="19" fill="#ffffff"/>
-      <circle cx="131" cy="757" r="12" fill="#25c75a"/>
-      <path d="M124 758l6 6 11-17" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="205" y="753" fill="#18357c" font-size="28" font-weight="800" font-family="${fontFamily}">${escapeXml(paymentCaption)}</text>
-      <text x="205" y="790" fill="#30405e" font-size="18" font-weight="500" font-family="${fontFamily}">Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.</text>
-
-      <g opacity="0.12">
-        <circle cx="1137" cy="756" r="46" fill="none" stroke="#2c5be4" stroke-width="2"/>
-        <circle cx="1137" cy="756" r="66" fill="none" stroke="#2c5be4" stroke-width="2"/>
-        <rect x="1116" y="742" width="42" height="30" rx="8" fill="#2c5be4"/>
-        <rect x="1125" y="724" width="24" height="22" rx="11" fill="none" stroke="#2c5be4" stroke-width="4"/>
-      </g>
-    </svg>
-  `;
-
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  return canvas.getBuffer("image/png");
 }
 
 async function buildAlertPng({ title, subtitle, badge, tone = "warning", qrUrl = "" }) {
