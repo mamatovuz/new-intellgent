@@ -3611,6 +3611,9 @@ function useStudentData(token) {
 
 function useReceptionData(token, query = {}) {
 	const [students, setStudents] = useState([])
+	const search = query.search || ''
+	const status = query.status || ''
+	const includeArchived = Boolean(query.includeArchived)
 
 	async function reload(next = query) {
 		const data = await api.getReceptionStudents(token, next)
@@ -3618,8 +3621,8 @@ function useReceptionData(token, query = {}) {
 	}
 
 	useEffect(() => {
-		reload(query)
-	}, [token])
+		reload({ search, status, includeArchived })
+	}, [token, search, status, includeArchived])
 
 	return { students, reload, setStudents }
 }
