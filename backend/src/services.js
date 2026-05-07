@@ -237,7 +237,7 @@ async function buildReceiptPng(receipt) {
   const amountCard = await createSolidImage(384, 146, 0x25c75aff);
   const qrCard = await createSolidImage(330, 388, 0xffffffff);
   const qrTop = await createSolidImage(330, 16, 0x25c75aff);
-  const footer = await createSolidImage(1146, 122, 0xe5efffff);
+  const footer = await createSolidImage(1146, 108, 0xe5efffff);
   const okBadge = await createSolidImage(64, 64, 0x2454d5ff);
   const divider = await createSolidImage(2, 346, 0xe5edf8ff);
   const qrDivider = await createSolidImage(218, 2, 0xe3e9f4ff);
@@ -249,15 +249,15 @@ async function buildReceiptPng(receipt) {
   canvas.composite(amountCard, 840, 79);
   canvas.composite(qrCard, 889, 294);
   canvas.composite(qrTop, 889, 294);
-  canvas.composite(footer, 78, 686);
-  canvas.composite(okBadge, 99, 714);
+  canvas.composite(footer, 78, 716);
+  canvas.composite(okBadge, 99, 738);
   canvas.composite(divider, 835, 308);
   canvas.composite(qrDivider, 942, 635);
   canvas.composite(qrImage, 930, 334);
 
   if (logoImage) {
-    logoImage.contain({ w: 118, h: 42 });
-    canvas.composite(logoImage, 100, 154);
+    logoImage.contain({ w: 102, h: 36 });
+    canvas.composite(logoImage, 98, 156);
   } else {
     const cubeLeft = await createSolidImage(18, 18, 0x69a9ffff);
     const cubeRight = await createSolidImage(18, 18, 0x25c75aff);
@@ -268,12 +268,12 @@ async function buildReceiptPng(receipt) {
   }
 
   canvas.print({ font: largeWhite, x: 84, y: 58, text: "TO'LOV QABUL QILINDI" });
-  canvas.print({ font: mediumBlack, x: 186, y: 152, text: "INTELLIGENT" });
-  canvas.print({ font: mediumWhite, x: 468, y: 152, text: "PAY", maxWidth: 92 });
+  canvas.print({ font: mediumBlack, x: 182, y: 152, text: "INTELLIGENT", maxWidth: 250 });
+  canvas.print({ font: mediumBlack, x: 352, y: 152, text: "PAY", maxWidth: 72 });
   canvas.print({ font: smallWhite, x: 84, y: 214, text: "Intelligent Education | Oylik to'lov cheki" });
 
-  canvas.print({ font: mediumWhite, x: 878, y: 94, text: "QABUL QILINGAN SUMMA", maxWidth: 318 });
-  canvas.print({ font: largeWhite, x: 878, y: 134, text: amountText, maxWidth: 318 });
+  canvas.print({ font: smallWhite, x: 886, y: 98, text: "QABUL QILINGAN SUMMA", maxWidth: 290 });
+  canvas.print({ font: mediumWhite, x: 886, y: 142, text: amountText, maxWidth: 290 });
 
   const iconCards = [308, 389, 470, 551, 632, 713];
   for (const y of iconCards) {
@@ -309,36 +309,38 @@ async function buildReceiptPng(receipt) {
     paidDate.format("DD.MM.YYYY"),
     String(receipt.id)
   ];
-  const leftY = [320, 401, 482, 563, 644, 725];
+  const leftY = [318, 390, 462, 534, 606, 678];
 
   leftLabels.forEach((label, index) => {
-    canvas.print({ font: mediumBlack, x: 174, y: leftY[index], text: label, maxWidth: 210 });
-    canvas.print({ font: mediumBlack, x: 344, y: leftY[index], text: leftValues[index], maxWidth: 452 });
+    const valueX = index === 5 ? 458 : 344;
+    const valueWidth = index === 5 ? 300 : 430;
+    canvas.print({ font: mediumBlack, x: 174, y: leftY[index], text: label, maxWidth: 250 });
+    canvas.print({ font: mediumBlack, x: valueX, y: leftY[index], text: leftValues[index], maxWidth: valueWidth });
   });
 
-  canvas.print({ font: mediumBlack, x: 552, y: 644, text: "Vaqt:" });
-  canvas.print({ font: mediumBlack, x: 652, y: 644, text: paidDate.format("HH:mm") });
+  canvas.print({ font: mediumBlack, x: 548, y: 606, text: "Vaqt:" });
+  canvas.print({ font: mediumBlack, x: 648, y: 606, text: paidDate.format("HH:mm") });
 
   canvas.print({
     font: smallBlack,
     x: 958,
-    y: 596,
+    y: 602,
     text: "Kabinetga tez kirish QR",
     maxWidth: 196
   });
   canvas.print({
     font: smallBlack,
     x: 947,
-    y: 665,
+    y: 676,
     text: "Default parol: 12345678",
     maxWidth: 220
   });
 
-  canvas.print({ font: mediumBlack, x: 205, y: 716, text: paymentCaption, maxWidth: 740 });
+  canvas.print({ font: mediumBlack, x: 205, y: 742, text: paymentCaption, maxWidth: 740 });
   canvas.print({
     font: smallBlack,
     x: 205,
-    y: 764,
+    y: 786,
     text: "Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.",
     maxWidth: 820
   });
@@ -346,7 +348,7 @@ async function buildReceiptPng(receipt) {
   canvas.print({
     font: mediumWhite,
     x: 108,
-    y: 728,
+    y: 752,
     text: { text: "OK", alignmentX: HorizontalAlign.CENTER },
     maxWidth: 34
   });
