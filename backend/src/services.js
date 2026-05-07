@@ -78,7 +78,7 @@ function persistProfileImage(profileImage) {
   const fileName = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const filePath = path.join(uploadsDir, fileName);
   fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
-  return `http://localhost:${config.port}/uploads/${fileName}`;
+  return `/uploads/${fileName}`;
 }
 
 function mapDeveloperRow(row) {
@@ -113,6 +113,14 @@ function normalizePhone(value = "") {
 
 function generateAccessToken() {
   return crypto.randomBytes(24).toString("hex");
+}
+
+function resolveReceiptLogoPath() {
+  const candidates = [
+    path.resolve(process.cwd(), "frontend", "public", "logointelligent.jpg"),
+    path.resolve(process.cwd(), "..", "frontend", "public", "logointelligent.jpg")
+  ];
+  return candidates.find(candidate => fs.existsSync(candidate)) || null;
 }
 
 let fontsPromise = null;
@@ -213,7 +221,9 @@ async function buildReceiptPng(receipt) {
     `${config.webUrl}/student/login?phone=${encodeURIComponent(receipt.phone || "")}&password=12345678`,
     250
   );
+  const receiptLogoPath = resolveReceiptLogoPath();
   const qrImage = await Jimp.read(qrBuffer);
+  const logoImage = receiptLogoPath ? await Jimp.read(receiptLogoPath) : null;
   const paymentCaption = buildPaymentCaption(receipt);
   const paidDate = dayjs(receipt.paidAt);
   const amountText = formatMoney(receipt.amount);
@@ -243,13 +253,25 @@ async function buildReceiptPng(receipt) {
   canvas.composite(divider, 835, 308);
   canvas.composite(qrImage, 930, 334);
 
+  if (logoImage) {
+    logoImage.contain({ w: 118, h: 42 });
+    canvas.composite(logoImage, 100, 154);
+  } else {
+    const cubeLeft = await createSolidImage(18, 18, 0x69a9ffff);
+    const cubeRight = await createSolidImage(18, 18, 0x25c75aff);
+    const cubeBase = await createSolidImage(18, 18, 0x2f66f0ff);
+    canvas.composite(cubeLeft, 102, 164);
+    canvas.composite(cubeRight, 118, 172);
+    canvas.composite(cubeBase, 102, 180);
+  }
+
   canvas.print({ font: largeWhite, x: 84, y: 58, text: "TO'LOV QABUL QILINDI" });
-  canvas.print({ font: mediumBlack, x: 166, y: 152, text: "INTELLIGENT" });
-  canvas.print({ font: mediumWhite, x: 506, y: 152, text: "PAY", maxWidth: 84 });
+  canvas.print({ font: mediumBlack, x: 186, y: 152, text: "INTELLIGENT" });
+  canvas.print({ font: mediumWhite, x: 468, y: 152, text: "PAY", maxWidth: 92 });
   canvas.print({ font: smallWhite, x: 84, y: 214, text: "Intelligent Education | Oylik to'lov cheki" });
 
   canvas.print({ font: mediumWhite, x: 865, y: 95, text: "QABUL QILINGAN SUMMA", maxWidth: 330 });
-  canvas.print({ font: largeWhite, x: 865, y: 142, text: amountText, maxWidth: 330 });
+  canvas.print({ font: mediumWhite, x: 865, y: 146, text: amountText, maxWidth: 330 });
 
   const iconCards = [308, 389, 470, 551, 632, 713];
   for (const y of iconCards) {

@@ -1,4 +1,29 @@
 const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const API_ROOT = API_URL.replace(/\/api$/, "");
+
+export function resolveAssetUrl(value) {
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("data:")) {
+    return value;
+  }
+
+  if (value.startsWith("/")) {
+    return API_ROOT ? `${API_ROOT}${value}` : value;
+  }
+
+  try {
+    const parsed = new URL(value);
+    if ((parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") && API_ROOT) {
+      return `${API_ROOT}${parsed.pathname}`;
+    }
+    return value;
+  } catch {
+    return API_ROOT ? `${API_ROOT}/${value.replace(/^\/+/, "")}` : value;
+  }
+}
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {

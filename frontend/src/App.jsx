@@ -12,7 +12,7 @@ import {
 	useParams,
 } from 'react-router-dom'
 import Swal from 'sweetalert2'
-import { api } from './api'
+import { api, resolveAssetUrl } from './api'
 
 const ROLE_DEFAULT_PATH = {
 	student: '/student/dashboard',
@@ -1515,7 +1515,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 						</div>
 						<div className='user-avatar'>
 							{user.profileImage ? (
-								<img src={user.profileImage} alt={user.fullName} />
+								<img src={resolveAssetUrl(user.profileImage)} alt={user.fullName} />
 							) : (
 								getInitials(user.fullName)
 							)}
@@ -2878,7 +2878,7 @@ function DevelopersPage() {
 					{developers.map(developer => (
 						<Link key={developer.slug} to={`/dasturchilar/${developer.slug}`} className='developer-card'>
 							<div className='developer-avatar'>
-								{developer.image ? <img src={developer.image} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
+								{developer.image ? <img src={resolveAssetUrl(developer.image)} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
 							</div>
 							<div className='developer-card-copy'>
 								<div className='developer-card-top'>
@@ -2916,9 +2916,9 @@ function DeveloperDetailPage() {
 	return (
 		<div className='marketing-page developers-standalone-page'>
 			<main className='marketing-main developer-detail-page'>
-				<section className='developer-hero' style={developer.bannerImage ? { backgroundImage: `linear-gradient(rgba(10,23,62,.65), rgba(10,23,62,.65)), url(${developer.bannerImage})` } : undefined}>
+				<section className='developer-hero' style={developer.bannerImage ? { backgroundImage: `linear-gradient(rgba(10,23,62,.65), rgba(10,23,62,.65)), url(${resolveAssetUrl(developer.bannerImage)})` } : undefined}>
 					<div className='developer-hero-avatar'>
-						{developer.image ? <img src={developer.image} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
+						{developer.image ? <img src={resolveAssetUrl(developer.image)} alt={developer.fullName} /> : <span>{getInitials(developer.fullName)}</span>}
 					</div>
 					<div className='developer-hero-copy'>
 						<Badge tone='success'>{developer.roleTitle}</Badge>
@@ -2949,7 +2949,7 @@ function DeveloperDetailPage() {
 					{developer.certificateImage ? (
 						<div className='card developer-certificate-card'>
 							<h3>Sertifikat</h3>
-							<img src={developer.certificateImage} alt='Sertifikat' />
+							<img src={resolveAssetUrl(developer.certificateImage)} alt='Sertifikat' />
 						</div>
 					) : null}
 				</section>
