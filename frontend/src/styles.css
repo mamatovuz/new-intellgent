@@ -728,6 +728,7 @@ a {
   align-items: center;
   gap: 12px;
   padding: 0 14px;
+  margin-bottom: 30px;
 }
 
 .search-icon {
