@@ -3,8 +3,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
-import { Jimp, loadFont } from "jimp";
-import { SANS_16_BLACK, SANS_32_BLACK, SANS_64_WHITE } from "jimp/fonts";
+import { HorizontalAlign, Jimp, loadFont } from "jimp";
+import { SANS_16_BLACK, SANS_32_BLACK, SANS_64_BLACK, SANS_64_WHITE } from "jimp/fonts";
 import QRCode from "qrcode";
 import sharp from "sharp";
 import { getDb } from "./db.js";
@@ -116,8 +116,9 @@ function getFonts() {
     fontsPromise = Promise.all([
       loadFont(SANS_16_BLACK),
       loadFont(SANS_32_BLACK),
-      loadFont(SANS_64_WHITE)
-    ]).then(([smallBlack, mediumBlack, largeWhite]) => ({ smallBlack, mediumBlack, largeWhite }));
+      loadFont(SANS_64_WHITE),
+      loadFont(SANS_64_BLACK)
+    ]).then(([smallBlack, mediumBlack, largeWhite, largeBlack]) => ({ smallBlack, mediumBlack, largeWhite, largeBlack }));
   }
 
   return fontsPromise;
@@ -160,11 +161,11 @@ function escapeXml(value = "") {
 
 function buildPaymentCaption(receipt) {
   const monthLabel = formatTelegramMonth(receipt.paidAt);
-  return `✅ ${monthLabel} oylik to'lovi to'ladi`;
+  return `${monthLabel} oylik to'lovi to'ladi`;
 }
 
 function buildDebtCaption(student) {
-  return `⚠️ Qarzingiz bor, iltimos to'lovni amalga oshiring`;
+  return `Qarzingiz bor, iltimos to'lovni amalga oshiring`;
 }
 
 async function createSolidImage(width, height, color) {
@@ -197,151 +198,126 @@ async function buildReceiptPng(receipt) {
     250
   );
   const qrDataUrl = encodeBufferDataUri(qrBuffer);
-  const paymentCaption = buildPaymentCaption(receipt).replace(/^✅\s*/, "");
+  const paymentCaption = buildPaymentCaption(receipt);
   const paidDate = dayjs(receipt.paidAt);
   const amountText = formatMoney(receipt.amount);
   const methodText = String(receipt.method || "manual").toUpperCase();
-
-  const rowIcons = [
-    {
-      y: 350,
-      markup: `
-        <circle cx="140" cy="376" r="7" fill="#2563eb"/>
-        <path d="M126 398c3-10 8-14 14-14s11 4 14 14" fill="#2563eb"/>
-      `
-    },
-    {
-      y: 431,
-      markup: `
-        <path d="M132 447c3 6 9 12 15 16l8-8c1-1 3-1 5 0l5 3c2 1 2 4 1 6l-3 6c-1 2-3 3-5 3-18-2-37-22-39-40 0-2 1-4 3-5l6-3c2-1 5-1 6 1l3 5c1 2 1 4 0 5l-5 6z" fill="#2563eb"/>
-      `
-    },
-    {
-      y: 512,
-      markup: `
-        <polygon points="140,527 123,536 140,545 157,536" fill="#2563eb"/>
-        <path d="M128 540v7c7 5 17 5 24 0v-7" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-      `
-    },
-    {
-      y: 593,
-      markup: `
-        <rect x="131" y="606" width="18" height="22" rx="2" fill="none" stroke="#2563eb" stroke-width="3"/>
-        <line x1="135" y1="612" x2="145" y2="612" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-        <line x1="135" y1="618" x2="145" y2="618" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-      `
-    },
-    {
-      y: 674,
-      markup: `
-        <rect x="129" y="687" width="22" height="18" rx="3" fill="none" stroke="#2563eb" stroke-width="3"/>
-        <line x1="129" y1="694" x2="151" y2="694" stroke="#2563eb" stroke-width="3"/>
-        <line x1="135" y1="684" x2="135" y2="690" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-        <line x1="145" y1="684" x2="145" y2="690" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-      `
-    },
-    {
-      y: 755,
-      markup: `
-        <text x="140" y="790" text-anchor="middle" font-size="30" font-weight="700" fill="#2563eb">#</text>
-      `
-    }
-  ].map(({ y, markup }) => `
-    <rect x="114" y="${y}" width="52" height="52" rx="15" fill="#edf4ff"/>
-    ${markup}
-  `).join("");
-
+  const fontFamily = "DejaVu Sans, Liberation Sans, Arial, Helvetica, sans-serif";
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024">
+    <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="853" viewBox="0 0 1280 853">
       <defs>
-        <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#0f58db"/>
-          <stop offset="100%" stop-color="#0b2e86"/>
+        <linearGradient id="heroBg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1152da"/>
+          <stop offset="100%" stop-color="#11358a"/>
         </linearGradient>
-        <linearGradient id="footer" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#edf4ff"/>
-          <stop offset="100%" stop-color="#dbeafe"/>
+        <linearGradient id="bodyGlow" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#fafdff"/>
+          <stop offset="100%" stop-color="#ffffff"/>
         </linearGradient>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="14" stdDeviation="24" flood-color="#11357f" flood-opacity="0.18"/>
+        <linearGradient id="footerBg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#eaf2ff"/>
+          <stop offset="100%" stop-color="#dfeeff"/>
+        </linearGradient>
+        <filter id="softShadow" x="-20%" y="-20%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0f2d79" flood-opacity="0.16"/>
         </filter>
       </defs>
-      <rect width="1536" height="1024" fill="#f4f7fb"/>
-      <rect x="32" y="27" width="1472" height="936" rx="28" fill="#ffffff" filter="url(#shadow)"/>
-      <rect x="32" y="27" width="1472" height="292" rx="28" fill="url(#hero)"/>
-      <rect x="32" y="292" width="1472" height="18" fill="#22c55e"/>
 
-      <path d="M1150 130 C1300 80, 1450 110, 1515 160" stroke="rgba(255,255,255,0.12)" stroke-width="2" fill="none"/>
-      <path d="M1110 170 C1260 120, 1420 150, 1505 205" stroke="rgba(255,255,255,0.10)" stroke-width="2" fill="none"/>
-      <path d="M1070 215 C1220 165, 1380 195, 1495 255" stroke="rgba(255,255,255,0.08)" stroke-width="2" fill="none"/>
+      <rect width="1280" height="853" fill="#eef3fb"/>
+      <rect x="26" y="26" width="1228" height="775" rx="30" fill="url(#bodyGlow)" filter="url(#softShadow)"/>
+      <rect x="26" y="26" width="1228" height="239" rx="30" fill="url(#heroBg)"/>
+      <rect x="26" y="243" width="1228" height="18" fill="#25c75a"/>
 
-      <text x="104" y="143" font-size="78" font-weight="800" fill="#ffffff" font-family="Arial, Helvetica, sans-serif">TO'LOV QABUL QILINDI</text>
+      <path d="M1120 105 C1190 100, 1235 120, 1265 160" stroke="rgba(255,255,255,.12)" stroke-width="2" fill="none"/>
+      <path d="M1100 150 C1190 145, 1240 170, 1270 208" stroke="rgba(255,255,255,.10)" stroke-width="2" fill="none"/>
 
-      <rect x="104" y="166" width="370" height="64" rx="16" fill="#ffffff"/>
-      <g transform="translate(126 181)">
-        <polygon points="0,8 18,0 36,8 36,31 18,40 0,31" fill="#1d4ed8"/>
-        <polygon points="18,0 36,8 18,17 0,8" fill="#60a5fa"/>
-        <polygon points="18,17 36,8 36,31 18,40" fill="#16a34a"/>
-        <polygon points="18,17 0,8 0,31 18,40" fill="#3b82f6"/>
+      <text x="84" y="118" fill="#ffffff" font-size="62" font-weight="800" font-family="${fontFamily}">TO'LOV QABUL QILINDI</text>
+
+      <rect x="84" y="144" width="345" height="58" rx="14" fill="#ffffff"/>
+      <g transform="translate(106 157)">
+        <polygon points="0,7 17,0 34,7 34,29 17,37 0,29" fill="#2563eb"/>
+        <polygon points="17,0 34,7 17,15 0,7" fill="#7db8ff"/>
+        <polygon points="17,15 34,7 34,29 17,37" fill="#1cb35b"/>
+        <polygon points="17,15 0,7 0,29 17,37" fill="#3b82f6"/>
       </g>
-      <text x="186" y="207" font-size="32" font-weight="800" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">INTELLIGENT <tspan fill="#22c55e">PAY</tspan></text>
-      <text x="104" y="269" font-size="28" font-weight="500" fill="#e9f2ff" font-family="Arial, Helvetica, sans-serif">Intelligent Education | Oylik to'lov cheki</text>
+      <text x="156" y="183" fill="#173b8d" font-size="26" font-weight="800" font-family="${fontFamily}">INTELLIGENT <tspan fill="#25c75a">PAY</tspan></text>
+      <text x="84" y="238" fill="#e7efff" font-size="24" font-weight="500" font-family="${fontFamily}">Intelligent Education | Oylik to'lov cheki</text>
 
-      <rect x="1038" y="79" width="414" height="149" rx="22" fill="#22c55e"/>
-      <text x="1081" y="130" font-size="28" font-weight="700" fill="#ffffff" font-family="Arial, Helvetica, sans-serif">QABUL QILINGAN SUMMA</text>
-      <text x="1081" y="193" font-size="58" font-weight="800" fill="#ffffff" font-family="Arial, Helvetica, sans-serif">${escapeXml(amountText)}</text>
+      <rect x="869" y="67" width="355" height="122" rx="20" fill="#25c75a"/>
+      <text x="904" y="108" fill="#ffffff" font-size="24" font-weight="700" font-family="${fontFamily}">QABUL QILINGAN SUMMA</text>
+      <text x="904" y="161" fill="#ffffff" font-size="54" font-weight="800" font-family="${fontFamily}">${escapeXml(amountText)}</text>
 
-      <rect x="96" y="350" width="910" height="448" fill="#ffffff"/>
-      <line x1="1002" y1="350" x2="1002" y2="798" stroke="#e5edf8" stroke-width="2"/>
-      <circle cx="1002" cy="574" r="8" fill="#e5edf8"/>
-      ${rowIcons}
-      <text x="208" y="391" font-size="34" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">To'lovchi:</text>
-      <text x="378" y="391" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(receipt.fullName)}</text>
+      <rect x="86" y="294" width="72" height="72" rx="18" fill="#edf4ff"/>
+      <rect x="86" y="375" width="72" height="72" rx="18" fill="#edf4ff"/>
+      <rect x="86" y="456" width="72" height="72" rx="18" fill="#edf4ff"/>
+      <rect x="86" y="537" width="72" height="72" rx="18" fill="#edf4ff"/>
+      <rect x="86" y="618" width="72" height="72" rx="18" fill="#edf4ff"/>
+      <rect x="86" y="699" width="72" height="72" rx="18" fill="#edf4ff"/>
 
-      <text x="208" y="472" font-size="34" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">Telefon:</text>
-      <text x="378" y="472" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(receipt.phone || "-")}</text>
+      <circle cx="122" cy="327" r="8" fill="#2a67ec"/>
+      <path d="M108 348c4-11 9-15 14-15 6 0 11 4 15 15" fill="#2a67ec"/>
 
-      <text x="208" y="553" font-size="34" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">Kurs:</text>
-      <text x="378" y="553" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(receipt.courseTitle || "-")}</text>
+      <path d="M112 395c4 9 12 16 18 20l10-10c2-2 4-2 6-1l6 4c2 1 3 4 1 7l-4 8c-1 2-3 3-6 3-22-3-44-26-47-48 0-3 1-5 3-6l8-4c2-1 5-1 7 1l4 6c1 2 1 4-1 6l-5 6z" fill="#2a67ec"/>
 
-      <text x="208" y="634" font-size="34" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">Usul:</text>
-      <text x="378" y="634" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(methodText)}</text>
+      <polygon points="122,473 102,483 122,494 142,483" fill="#2a67ec"/>
+      <path d="M108 488v9c7 5 21 5 28 0v-9" fill="none" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
 
-      <text x="208" y="715" font-size="34" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">Sana:</text>
-      <text x="378" y="715" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(paidDate.format("DD.MM.YYYY"))}</text>
-      <text x="566" y="715" font-size="34" font-weight="500" fill="#c7d2e8" font-family="Arial, Helvetica, sans-serif">|</text>
-      <circle cx="627" cy="703" r="11" fill="none" stroke="#2563eb" stroke-width="4"/>
-      <line x1="627" y1="703" x2="627" y2="695" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
-      <line x1="627" y1="703" x2="634" y2="703" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
-      <text x="655" y="715" font-size="34" font-weight="700" fill="#2563eb" font-family="Arial, Helvetica, sans-serif">Vaqt:</text>
-      <text x="772" y="715" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(paidDate.format("HH:mm"))}</text>
+      <rect x="113" y="550" width="18" height="24" rx="3" fill="none" stroke="#2a67ec" stroke-width="4"/>
+      <line x1="118" y1="556" x2="127" y2="556" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+      <line x1="118" y1="564" x2="127" y2="564" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
 
-      <text x="208" y="796" font-size="34" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">Tranzaksiya ID:</text>
-      <text x="469" y="796" font-size="34" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">${escapeXml(String(receipt.id))}</text>
+      <rect x="108" y="632" width="28" height="24" rx="4" fill="none" stroke="#2a67ec" stroke-width="4"/>
+      <line x1="108" y1="640" x2="136" y2="640" stroke="#2a67ec" stroke-width="4"/>
+      <line x1="116" y1="627" x2="116" y2="634" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+      <line x1="128" y1="627" x2="128" y2="634" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
 
-      <rect x="1072" y="336" width="390" height="462" rx="18" fill="#ffffff" stroke="#d7e3f7" stroke-width="2"/>
-      <rect x="1072" y="336" width="390" height="18" rx="18" fill="#22c55e"/>
-      <image href="${qrDataUrl}" x="1110" y="372" width="272" height="272"/>
-      <rect x="1118" y="682" width="16" height="28" rx="3" fill="none" stroke="#22c55e" stroke-width="3"/>
-      <circle cx="1126" cy="703" r="2" fill="#22c55e"/>
-      <text x="1160" y="698" font-size="18" font-weight="500" fill="#111827" font-family="Arial, Helvetica, sans-serif">Kabinetga tez kirish QR</text>
-      <line x1="1110" y1="720" x2="1406" y2="720" stroke="#e5edf8" stroke-width="2"/>
-      <text x="1110" y="764" font-size="18" font-weight="700" fill="#163a8c" font-family="Arial, Helvetica, sans-serif">Default parol:</text>
-      <text x="1280" y="764" font-size="18" font-weight="700" fill="#111827" font-family="Arial, Helvetica, sans-serif">12345678</text>
+      <text x="122" y="735" text-anchor="middle" fill="#2a67ec" font-size="34" font-weight="700" font-family="${fontFamily}">#</text>
 
-      <rect x="92" y="836" width="1376" height="130" rx="18" fill="url(#footer)"/>
-      <rect x="124" y="872" width="68" height="68" rx="16" fill="#1d4ed8"/>
-      <circle cx="158" cy="906" r="20" fill="#ffffff" opacity="0.95"/>
-      <circle cx="158" cy="906" r="12" fill="#22c55e"/>
-      <path d="M151 907l6 6 12-18" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="238" y="891" font-size="32" font-weight="800" fill="#142b6f" font-family="Arial, Helvetica, sans-serif">${escapeXml(paymentCaption)}</text>
-      <text x="238" y="938" font-size="20" font-weight="500" fill="#1f2937" font-family="Arial, Helvetica, sans-serif">Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.</text>
+      <text x="174" y="326" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">To'lovchi:</text>
+      <text x="376" y="326" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(receipt.fullName)}</text>
+      <text x="174" y="407" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Telefon:</text>
+      <text x="316" y="407" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(receipt.phone || "-")}</text>
+      <text x="174" y="488" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Kurs:</text>
+      <text x="316" y="488" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(receipt.courseTitle || "-")}</text>
+      <text x="174" y="569" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Usul:</text>
+      <text x="316" y="569" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(methodText)}</text>
+      <text x="174" y="650" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Sana:</text>
+      <text x="316" y="650" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(paidDate.format("DD.MM.YYYY"))}</text>
+      <text x="492" y="650" fill="#cad5e7" font-size="32" font-weight="500" font-family="${fontFamily}">|</text>
+      <circle cx="560" cy="640" r="11" fill="none" stroke="#2a67ec" stroke-width="4"/>
+      <line x1="560" y1="640" x2="560" y2="632" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+      <line x1="560" y1="640" x2="567" y2="640" stroke="#2a67ec" stroke-width="4" stroke-linecap="round"/>
+      <text x="590" y="650" fill="#2a67ec" font-size="32" font-weight="800" font-family="${fontFamily}">Vaqt:</text>
+      <text x="677" y="650" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(paidDate.format("HH:mm"))}</text>
+      <text x="174" y="731" fill="#163a8c" font-size="32" font-weight="800" font-family="${fontFamily}">Tranzaksiya ID:</text>
+      <text x="425" y="731" fill="#111827" font-size="32" font-weight="500" font-family="${fontFamily}">${escapeXml(String(receipt.id))}</text>
+
+      <line x1="937" y1="293" x2="937" y2="697" stroke="#e5edf8" stroke-width="2"/>
+      <circle cx="937" cy="495" r="8" fill="#e5edf8"/>
+
+      <rect x="891" y="279" width="325" height="387" rx="18" fill="#ffffff" stroke="#dbe6f3" stroke-width="2"/>
+      <rect x="891" y="279" width="325" height="16" rx="16" fill="#25c75a"/>
+      <image href="${qrDataUrl}" x="933" y="317" width="220" height="220"/>
+      <rect x="929" y="510" width="16" height="28" rx="3" fill="none" stroke="#25c75a" stroke-width="3"/>
+      <circle cx="937" cy="531" r="2" fill="#25c75a"/>
+      <text x="969" y="530" fill="#111827" font-size="18" font-weight="500" font-family="${fontFamily}">Kabinetga tez kirish QR</text>
+      <line x1="932" y1="552" x2="1148" y2="552" stroke="#e5edf8" stroke-width="2"/>
+      <text x="928" y="596" fill="#163a8c" font-size="16" font-weight="800" font-family="${fontFamily}">Default parol:</text>
+      <text x="1071" y="596" fill="#111827" font-size="16" font-weight="700" font-family="${fontFamily}">12345678</text>
+
+      <rect x="78" y="697" width="1140" height="120" rx="18" fill="url(#footerBg)"/>
+      <rect x="99" y="725" width="64" height="64" rx="16" fill="#2454d5"/>
+      <circle cx="131" cy="757" r="19" fill="#ffffff"/>
+      <circle cx="131" cy="757" r="12" fill="#25c75a"/>
+      <path d="M124 758l6 6 11-17" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="205" y="753" fill="#18357c" font-size="28" font-weight="800" font-family="${fontFamily}">${escapeXml(paymentCaption)}</text>
+      <text x="205" y="790" fill="#30405e" font-size="18" font-weight="500" font-family="${fontFamily}">Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.</text>
 
       <g opacity="0.12">
-        <circle cx="1330" cy="900" r="48" fill="none" stroke="#1d4ed8" stroke-width="2"/>
-        <circle cx="1330" cy="900" r="70" fill="none" stroke="#1d4ed8" stroke-width="2"/>
-        <rect x="1308" y="885" width="44" height="32" rx="8" fill="#1d4ed8"/>
-        <rect x="1318" y="866" width="24" height="24" rx="12" fill="none" stroke="#1d4ed8" stroke-width="4"/>
+        <circle cx="1137" cy="756" r="46" fill="none" stroke="#2c5be4" stroke-width="2"/>
+        <circle cx="1137" cy="756" r="66" fill="none" stroke="#2c5be4" stroke-width="2"/>
+        <rect x="1116" y="742" width="42" height="30" rx="8" fill="#2c5be4"/>
+        <rect x="1125" y="724" width="24" height="22" rx="11" fill="none" stroke="#2c5be4" stroke-width="4"/>
       </g>
     </svg>
   `;
@@ -402,13 +378,13 @@ export async function buildUpcomingPaymentReminderAsset(student) {
   const imageBuffer = await buildAlertPng({
     title: "TO'LOV ESLATMASI",
     subtitle: `${student.fullName} uchun ${formatMoney(amount)} oylik to'lov muddati yaqinlashdi`,
-    badge: `${student.courseTitle || "Kurs"} • Muddat: ${dueDate}`,
+    badge: `${student.courseTitle || "Kurs"} � Muddat: ${dueDate}`,
     tone: "success",
     qrUrl
   });
 
   return {
-    caption: `⏰ ${student.fullName}, ${student.courseTitle || "kursingiz"} uchun oylik to'lov muddati ${dueDate} sanada tugaydi.`,
+    caption: `? ${student.fullName}, ${student.courseTitle || "kursingiz"} uchun oylik to'lov muddati ${dueDate} sanada tugaydi.`,
     imageBuffer,
     imageDataUrl: encodeBufferDataUri(imageBuffer)
   };
@@ -420,13 +396,13 @@ export async function buildTrialFinishedReminderAsset(student) {
   const imageBuffer = await buildAlertPng({
     title: "SINOV MUDDATI TUGADI",
     subtitle: `${student.fullName} uchun sinov bosqichi yakunlandi`,
-    badge: `${student.courseTitle || "Kurs"} • To'lov: ${formatMoney(amount)} • Muddat: ${student.paymentDueDate || dayjs().format("YYYY-MM-DD")}`,
+    badge: `${student.courseTitle || "Kurs"} � To'lov: ${formatMoney(amount)} � Muddat: ${student.paymentDueDate || dayjs().format("YYYY-MM-DD")}`,
     tone: "warning",
     qrUrl
   });
 
   return {
-    caption: `🎓 ${student.fullName}, sinov muddati tugadi. Endi ${formatMoney(amount)} oylik to'lov talab qilinadi.`,
+    caption: `?? ${student.fullName}, sinov muddati tugadi. Endi ${formatMoney(amount)} oylik to'lov talab qilinadi.`,
     imageBuffer,
     imageDataUrl: encodeBufferDataUri(imageBuffer)
   };

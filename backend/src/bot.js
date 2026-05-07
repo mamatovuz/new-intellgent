@@ -32,11 +32,17 @@ function buildWebAppKeyboard(url) {
   ]).resize();
 }
 
+function buildPhoneRequestKeyboard() {
+  return Markup.keyboard([
+    [Markup.button.contactRequest("\u{1F4F1} Telefon raqamni yuborish")]
+  ]).resize().oneTime();
+}
+
 async function sendStudentWelcome(ctx, student) {
   const webAppUrl = getStudentAccessLinkByUserId(student.userId);
   await safeReply(
     ctx,
-    `\u{1F393} Assalomu alaykum, ${student.fullName}!\n\nTelegram akkauntingiz Intelligent tizimiga ulandi. Endi pastdagi tugma orqali kabinetingizga bir bosishda kirishingiz mumkin.`,
+    `Salom, ${student.fullName}!\n\nPastdagi tugmadan foydalaning.`,
     webAppUrl ? buildWebAppKeyboard(webAppUrl) : undefined
   );
 }
@@ -102,8 +108,29 @@ export function startBot() {
 
     await safeReply(
       ctx,
-      "\u{1F44B} Intelligent botiga xush kelibsiz.\n\n\u{1F4F1} Telefon raqamingizni `+998901234567` formatida yuboring.\n\u{1F511} Student kabinet uchun default parol: `12345678`",
-      { parse_mode: "Markdown" }
+      "Assalomu alaykum.\n\nTelefon raqamingizni kiriting.",
+      buildPhoneRequestKeyboard()
+    );
+  });
+
+  bot.on("contact", async (ctx) => {
+    const phone = ctx.message?.contact?.phone_number?.replace(/\\s+/g, "") || "";
+    if (!phone) {
+      await safeReply(ctx, "Telefon raqamni yuborishda xatolik bo'ldi. Qayta urinib ko'ring.");
+      return;
+    }
+
+    const normalizedPhone = phone.startsWith("+") ? phone : `+${phone}`;
+    const data = createTelegramLinkCode(normalizedPhone);
+
+    if (!data) {
+      await safeReply(ctx, "Bu raqam bo'yicha o'quvchi topilmadi. Iltimos, qabulxona bilan bog'laning.");
+      return;
+    }
+
+    await safeReply(
+      ctx,
+      `Tasdiqlash kodi: ${data.code}\n\nKodni shu chatga yuboring va akkauntingizni ulang.`
     );
   });
 
