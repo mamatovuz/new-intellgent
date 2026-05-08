@@ -4037,6 +4037,18 @@ background: #00236f;
   gap: 14px;
 }
 
+.section-title-row.compact {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9eef6;
+}
+
+.section-title-row.compact h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  color: var(--navy);
+}
+
 .payment-flow-card,
 .payment-workspace-card {
   border-radius: 12px;

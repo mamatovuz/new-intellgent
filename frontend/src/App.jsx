@@ -4560,16 +4560,6 @@ function PaymentCollectionWorkspace({
 						/>
 					</div>
 				</div>
-				<div className='attendance-hub-meta'>
-					<div className='metric-chip-card success'>
-						<strong>{groupedStudents.length} ta</strong>
-						<span>To'lov guruhlari</span>
-					</div>
-					<div className='metric-chip-card warning'>
-						<strong>{payments.length} ta</strong>
-						<span>Jami qabul qilingan tranzaksiya</span>
-					</div>
-				</div>
 				<div className='attendance-group-grid top-space'>
 					{visibleGroups.map(group => (
 						<button
@@ -4958,6 +4948,13 @@ function ReceptionStudentsPage({ token, meta }) {
 			</section>
 
 			<section className='card table-card'>
+				<div className='section-title-row compact'>
+					<div>
+						<span className='card-label'>Ro'yxat</span>
+						<h3>O'quvchilar bazasi</h3>
+					</div>
+					<Badge tone='default'>{students.length} ta</Badge>
+				</div>
 				<div className='table-shell responsive-cards'>
 					<table>
 						<thead>
@@ -5082,18 +5079,6 @@ function ReceptionStudentsPage({ token, meta }) {
 							))}
 						</tbody>
 					</table>
-				</div>
-
-				<div className='table-footer'>
-					<span>{students.length} ta student ko'rsatildi</span>
-					<div className='pagination'>
-						<button type='button' className='page-btn muted'>
-							<Icon name='chevron_left' /> Oldingi
-						</button>
-						<button type='button' className='page-btn'>
-							Keyingi <Icon name='chevron_right' />
-						</button>
-					</div>
 				</div>
 			</section>
 
@@ -5454,16 +5439,6 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 							value={groupSearch}
 							onChange={event => setGroupSearch(event.target.value)}
 						/>
-					</div>
-				</div>
-				<div className='attendance-hub-meta'>
-					<div className='metric-chip-card success'>
-						<strong>{groups.length} ta</strong>
-						<span>Bugungi guruh kartalari</span>
-					</div>
-					<div className='metric-chip-card warning'>
-						<strong>{visibleGroups.length} ta</strong>
-						<span>Ko'rsatilayotgan kartalar</span>
 					</div>
 				</div>
 				<div className='attendance-group-grid top-space'>
