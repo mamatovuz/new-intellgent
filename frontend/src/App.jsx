@@ -5350,26 +5350,23 @@ function groupStudentsForAttendance(students = []) {
 	return Array.from(map.values())
 }
 
-function AttendanceStatusSwitch({ value, onChange, disabled = false }) {
-	const statuses = ['present', 'late', 'excused', 'absent']
+function AttendancePresenceToggle({ checked, onChange, disabled = false }) {
 	return (
-		<div className={`attendance-status-switch ${disabled ? 'disabled' : ''}`}>
-			{statuses.map(status => {
-				const meta = getAttendanceStatusMeta(status)
-				return (
-					<button
-						key={status}
-						type='button'
-						className={`attendance-status-option ${value === status ? 'active' : ''}`}
-						onClick={() => !disabled && onChange(status)}
-						disabled={disabled}
-					>
-						<Icon name={meta.icon} />
-						<span>{meta.label}</span>
-					</button>
-				)
-			})}
-		</div>
+		<label className={`attendance-check-row ${disabled ? 'disabled' : ''}`}>
+			<input
+				type='checkbox'
+				checked={checked}
+				disabled={disabled}
+				onChange={event => onChange(event.target.checked ? 'present' : 'absent')}
+			/>
+			<span className={checked ? 'attendance-check-indicator active' : 'attendance-check-indicator'}>
+				{checked ? <Icon name='check' /> : null}
+			</span>
+			<span className='attendance-check-copy'>
+				<strong>{checked ? 'Keldi' : 'Kelmadi'}</strong>
+				<small>{checked ? 'Davomat belgilangan' : "Belgi qo'yilmagan"}</small>
+			</span>
+		</label>
 	)
 }
 
@@ -5450,7 +5447,7 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 				<div className='attendance-hub-top'>
 					<div>
 						<span className='card-label'>Guruh va sana</span>
-						<h3>Bugungi davomat oqimi</h3>
+						<h3>Reception davomat paneli</h3>
 						<p>{formatDateLabel(new Date(lessonDate))}</p>
 					</div>
 					<div className='attendance-hub-controls'>
@@ -5473,8 +5470,8 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 						<span>Ko'rsatilayotgan kartalar</span>
 					</div>
 					<div className='metric-chip-card navy'>
-						<strong>Reception yozadi</strong>
-						<span>Teacher bu ma'lumotni faqat kuzatadi</span>
+						<strong>Reception nazorat qiladi</strong>
+						<span>Kelgan studentga ptichka qo'yiladi, qolganlari kelmadi hisoblanadi</span>
 					</div>
 				</div>
 				<div className='attendance-group-grid top-space'>
@@ -5500,7 +5497,7 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 										<span>{schedule}</span>
 									</div>
 									<div className='attendance-group-meta'>
-										<span>Davomat olish uchun oching</span>
+										<span>Studentlar ro'yxatini oching</span>
 										<Icon name='chevron_right' />
 									</div>
 								</div>
@@ -5536,7 +5533,8 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 								</thead>
 								<tbody>
 									{visibleMembers.map((student, index) => {
-										const statusValue = attendanceMap[student.id] || historyMap[student.id] || 'present'
+										const statusValue = attendanceMap[student.id] || historyMap[student.id] || 'absent'
+										const isPresent = statusValue === 'present'
 										const meta = getAttendanceStatusMeta(statusValue)
 										return (
 											<tr key={student.id}>
@@ -5559,8 +5557,8 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 													<Badge tone={meta.tone}>{meta.label}</Badge>
 												</td>
 												<td data-label='Davomat'>
-													<AttendanceStatusSwitch
-														value={statusValue}
+													<AttendancePresenceToggle
+														checked={isPresent}
 														disabled={!editable}
 														onChange={value =>
 															setAttendanceMap(current => ({
