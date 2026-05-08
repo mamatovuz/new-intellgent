@@ -344,8 +344,8 @@ router.delete("/reception/students/:id", authenticate, authorize("reception", "d
 
 router.post("/reception/payments", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
-    const { studentId, amount, method } = req.body;
-    const receipt = recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id);
+    const { studentId, amount, method, reason } = req.body;
+    const receipt = recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
     const receiptResponse = {
       ...receipt,
@@ -421,7 +421,7 @@ router.get("/teacher/attendance/history", authenticate, authorize("teacher"), (r
 });
 
 router.post("/teacher/attendance", authenticate, authorize("teacher"), (_req, res) => {
-  res.status(403).json({ message: "Davomatni faqat reception yoki direktor belgilaydi" });
+  res.status(403).json({ message: "Davomatni faqat reception belgilaydi" });
 });
 
 router.get("/attendance/history", authenticate, authorize("reception"), (req, res) => {
@@ -539,7 +539,7 @@ router.get("/director/reports/export", authenticate, authorize("director"), (req
   if (format === "pdf") {
     buildDirectorPdfReport(reportFilters).then((buffer) => {
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=intelligent-report.pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=ilm-nest-report.pdf");
       res.send(buffer);
     }).catch((error) => {
       res.status(500).json({ message: error.message || "PDF report yaratilmadi" });
@@ -549,7 +549,7 @@ router.get("/director/reports/export", authenticate, authorize("director"), (req
 
   buildDirectorWorkbook(reportFilters).then((buffer) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", "attachment; filename=intelligent-report.xlsx");
+    res.setHeader("Content-Disposition", "attachment; filename=ilm-nest-report.xlsx");
     res.send(Buffer.from(buffer));
   }).catch((error) => {
     res.status(500).json({ message: error.message || "Excel report yaratilmadi" });
@@ -560,9 +560,9 @@ router.get("/director/reports/print", authenticate, authorize("director"), (_req
   const finance = getFinanceSummary();
   const students = listStudents({ includeArchived: true });
   const html = `
-    <html><head><meta charset="utf-8"><title>Intelligent Report</title></head>
+    <html><head><meta charset="utf-8"><title>ILM NEST Report</title></head>
     <body style="font-family: Inter, Arial; padding: 24px;">
-      <h1>Intelligent Hisobot</h1>
+      <h1>ILM NEST Hisobot</h1>
       <h2>Moliyaviy ko'rsatkichlar</h2>
       <p>Jami tushum: ${finance.totals.totalRevenue}</p>
       <p>Bugungi tushum: ${finance.totals.todayRevenue}</p>

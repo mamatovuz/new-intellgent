@@ -219,6 +219,7 @@ export function migrate() {
     `ALTER TABLE students ADD COLUMN payment_due_date TEXT`,
     `ALTER TABLE students ADD COLUMN is_registered INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE payments ADD COLUMN received_by_user_id INTEGER`,
+    `ALTER TABLE payments ADD COLUMN reason TEXT`,
     `ALTER TABLE student_auth ADD COLUMN access_token TEXT`,
     `ALTER TABLE users ADD COLUMN monthly_salary REAL NOT NULL DEFAULT 0`
   ];
@@ -518,7 +519,7 @@ export function seed() {
   `);
 
   [
-    ["center_name", "Intelligent Education"],
+    ["center_name", "ILM NEST"],
     ["center_phone", "+998 90 123 45 67"],
     ["center_address", "Toshkent shahri"],
     ["payment_rekvizit", "Click / Payme / Naqd"],

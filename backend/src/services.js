@@ -268,9 +268,9 @@ async function buildReceiptPng(receipt) {
   }
 
   canvas.print({ font: largeWhite, x: 84, y: 58, text: "TO'LOV QABUL QILINDI" });
-  canvas.print({ font: mediumBlack, x: 182, y: 152, text: "INTELLIGENT", maxWidth: 250 });
-  canvas.print({ font: mediumBlack, x: 352, y: 152, text: "PAY", maxWidth: 72 });
-  canvas.print({ font: smallWhite, x: 84, y: 214, text: "Intelligent Education | Oylik to'lov cheki" });
+  canvas.print({ font: mediumBlack, x: 182, y: 152, text: "ILM NEST", maxWidth: 220 });
+  canvas.print({ font: mediumBlack, x: 340, y: 152, text: "PAY", maxWidth: 72 });
+  canvas.print({ font: smallWhite, x: 84, y: 214, text: "ILM NEST Education | Oylik to'lov cheki" });
 
   canvas.print({ font: smallWhite, x: 886, y: 98, text: "QABUL QILINGAN SUMMA", maxWidth: 290 });
   canvas.print({ font: mediumWhite, x: 886, y: 142, text: amountText, maxWidth: 290 });
@@ -373,7 +373,7 @@ async function buildAlertPng({ title, subtitle, badge, tone = "warning", qrUrl =
   image.print({ font: largeWhite, x: 138, y: 114, text: title });
   image.print({ font: mediumBlack, x: 150, y: 358, text: subtitle, maxWidth: 900 });
   image.print({ font: mediumBlack, x: 150, y: 432, text: badge, maxWidth: 900 });
-  image.print({ font: smallBlack, x: 152, y: 612, text: "Intelligent bot ogohlantirishi" });
+  image.print({ font: smallBlack, x: 152, y: 612, text: "ILM NEST bot ogohlantirishi" });
 
   if (qrUrl) {
     const qrBuffer = await createQrCodeBuffer(qrUrl, 210);
@@ -729,7 +729,7 @@ export function getStudentById(studentId) {
 
 export function listPaymentsByStudent(studentId) {
   return db.prepare(`
-    SELECT id, amount, method, status, created_at as createdAt
+    SELECT id, amount, method, status, reason, created_at as createdAt
     FROM payments
     WHERE student_id = ?
     ORDER BY datetime(created_at) DESC
@@ -743,6 +743,7 @@ export function listAllPayments() {
       p.amount,
       p.method,
       p.status,
+      p.reason,
       p.created_at as createdAt,
       staff.full_name as receivedBy,
       u.full_name as studentName,
@@ -1087,13 +1088,8 @@ export function deleteStudent(studentId) {
   return true;
 }
 
-export function recordPayment(studentId, amount, method, status = "paid", externalId = null, actorUserId = null) {
+export function recordPayment(studentId, amount, method, status = "paid", externalId = null, actorUserId = null, reason = null) {
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-
-  const paymentId = db.prepare(`
-    INSERT INTO payments (student_id, amount, method, status, external_id, received_by_user_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(studentId, amount, method, status, externalId, actorUserId || null, now).lastInsertRowid;
 
   const student = db.prepare(`
     SELECT s.id, s.balance, c.monthly_fee as monthlyFee
@@ -1102,7 +1098,39 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
     WHERE s.id = ?
   `).get(studentId);
 
-  const newBalance = Number(student.balance) + Number(amount);
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+
+  const normalizedAmount = Number(amount || 0);
+  const normalizedReason = String(reason || "").trim();
+  const monthlyFee = Number(student.monthlyFee || 0);
+
+  if (normalizedAmount <= 0) {
+    throw new Error("To'lov summasini kiriting");
+  }
+
+  if (monthlyFee > 0 && normalizedAmount < monthlyFee && !normalizedReason) {
+    throw new Error(
+      `Minimal to'lov ${monthlyFee.toLocaleString("ru-RU")} UZS. Kamroq summa uchun sabab yozing.`
+    );
+  }
+
+  const paymentId = db.prepare(`
+    INSERT INTO payments (student_id, amount, method, status, external_id, received_by_user_id, reason, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    studentId,
+    normalizedAmount,
+    method,
+    status,
+    externalId,
+    actorUserId || null,
+    normalizedReason || null,
+    now
+  ).lastInsertRowid;
+
+  const newBalance = Number(student.balance) + normalizedAmount;
 
   db.prepare(`
     UPDATE students
@@ -1123,12 +1151,18 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
     WHERE s.id = ?
   `).get(studentId);
 
-  addStudentHistory(studentId, actorUserId, "payment_recorded", "To'lov qabul qilindi", `${Number(amount).toLocaleString("ru-RU")} UZS / ${method}`);
+  addStudentHistory(
+    studentId,
+    actorUserId,
+    "payment_recorded",
+    "To'lov qabul qilindi",
+    `${normalizedAmount.toLocaleString("ru-RU")} UZS / ${method}${normalizedReason ? ` / Sabab: ${normalizedReason}` : ""}`
+  );
   createNotification({
     targetRole: "director",
     type: "payment",
     title: "Yangi to'lov qabul qilindi",
-    message: `${summary.fullName} - ${summary.courseTitle} uchun ${Number(amount).toLocaleString("ru-RU")} UZS`
+    message: `${summary.fullName} - ${summary.courseTitle} uchun ${normalizedAmount.toLocaleString("ru-RU")} UZS`
   });
   const studentUser = db.prepare(`SELECT user_id as userId FROM students WHERE id = ?`).get(studentId);
   if (studentUser?.userId) {
@@ -1136,7 +1170,7 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
       targetUserId: studentUser.userId,
       type: "payment_received",
       title: "To'lov qabul qilindi",
-      message: `${Number(amount).toLocaleString("ru-RU")} UZS to'lovingiz tizimga tushdi`
+      message: `${normalizedAmount.toLocaleString("ru-RU")} UZS to'lovingiz tizimga tushdi`
     });
   }
 
@@ -1146,9 +1180,10 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
     fullName: summary.fullName,
     phone: summary.phone,
     courseTitle: summary.courseTitle,
-    amount: Number(amount),
+    amount: normalizedAmount,
     method,
-    paidAt: now
+    paidAt: now,
+    reason: normalizedReason || null
   };
 
   return {

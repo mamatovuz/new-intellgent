@@ -96,7 +96,7 @@ const LANDING_TESTIMONIALS = [
 		name: 'Shahzoda R.',
 		role: 'IELTS student',
 		quote:
-			'Intelligent ichida nazorat kuchli. Dars, davomat va payment holati aniq bo‘lgani uchun o‘qish jarayoni ancha tartibli bo‘ldi.',
+			"ILM NEST ichida nazorat kuchli. Dars, davomat va payment holati aniq bo'lgani uchun o'qish jarayoni ancha tartibli bo'ldi.",
 	},
 	{
 		name: 'Azamat K.',
@@ -300,7 +300,7 @@ const LANDING_TESTIMONIALS_CLEAN = [
 		outcome: '7.0 IELTS natija',
 		avatar: '/testimonial-shahzoda.svg',
 		quote:
-			"Intelligent ichida nazorat kuchli. Dars, davomat va to'lov holati aniq bo'lgani uchun o'qish jarayoni ancha tartibli bo'ldi.",
+			"ILM NEST ichida nazorat kuchli. Dars, davomat va to'lov holati aniq bo'lgani uchun o'qish jarayoni ancha tartibli bo'ldi.",
 	},
 	{
 		name: 'Azamat K.',
@@ -578,6 +578,27 @@ function getInitials(name = '') {
 		.map(part => part[0])
 		.join('')
 		.toUpperCase()
+}
+
+function getStudyMonthNumber(student) {
+	if (!student?.enrolledAt) return 1
+	const start = new Date(student.enrolledAt)
+	if (Number.isNaN(start.getTime())) return 1
+	const now = new Date()
+	const months =
+		(now.getFullYear() - start.getFullYear()) * 12 +
+		(now.getMonth() - start.getMonth())
+	return Math.max(months + 1, 1)
+}
+
+function getStudyMonthLabel(student) {
+	return `${getStudyMonthNumber(student)}-oyda o'qiyapti`
+}
+
+function getScheduleSortKey(value = '') {
+	const match = String(value).match(/(\d{1,2}):(\d{2})/)
+	if (!match) return 9999
+	return Number(match[1]) * 60 + Number(match[2])
 }
 
 function Badge({ tone = 'default', children }) {
@@ -1435,7 +1456,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 							<Icon name='school' />
 						</div>
 						<div>
-							<strong>Intelligent</strong>
+							<strong>ILM NEST</strong>
 							<p>{panelLabel}</p>
 						</div>
 					</div>
@@ -1836,7 +1857,7 @@ function PublicSiteHeader() {
 						<img src='/logointelligent.jpg' alt='Intelligent logo' className='marketing-brand-logo-image' />
 					</span>
 					<span className='marketing-brand-copy'>
-						<strong>INTELLIGENT</strong>
+						<strong>ILM NEST</strong>
 						
 					</span>
 				</Link>
@@ -1885,8 +1906,8 @@ function PublicSiteFooter() {
 		<footer className='marketing-footer' id='aloqa'>
 			<div className='marketing-footer-grid'>
 				<div>
-					<h3>INTELLIGENT</h3>
-					<p>Eng yaxshi sarmoya ilm uchun sarflanganidir. Intelligent o'quv markazi sifatli ta'lim va real natijaga yo'naltirilgan muhit yaratadi.</p>
+					<h3>ILM NEST</h3>
+					<p>Eng yaxshi sarmoya ilm uchun sarflanganidir. ILM NEST o'quv markazi sifatli ta'lim va real natijaga yo'naltirilgan muhit yaratadi.</p>
 				</div>
 				<div className='footer-social-block'>
 					<h4>Ijtimoiy tarmoqlar</h4>
@@ -1904,8 +1925,8 @@ function PublicSiteFooter() {
 				</div>
 			</div>
 			<div className='marketing-footer-bottom'>
-				<span className='landing-v2-footer-copy'>© 2026 Intelligent Ta'lim Markazi. Barcha huquqlar himoyalangan.</span>
-				<span>© 2026 Intelligent Education CRM</span>
+				<span className='landing-v2-footer-copy'>© 2026 ILM NEST Ta'lim Markazi. Barcha huquqlar himoyalangan.</span>
+				<span>© 2026 ILM NEST Education CRM</span>
 				
 			</div>
 		</footer>
@@ -2006,7 +2027,7 @@ function HomePage() {
 					<div className='landing-v2-hero-shell'>
 						<div className='landing-v2-hero-content'>
 							<span className='landing-v2-badge'>INTELLEKTUAL KELAJAK SARI</span>
-							<h1>Intelligent - bilim va natija birlashgan ta'lim markazi</h1>
+							<h1>ILM NEST - bilim va natija birlashgan ta'lim markazi</h1>
 							<p>Bizning markazda zamonaviy metodologiyalar va tajribali ustozlar yordamida o'z sohangizning yetuk mutaxassisiga aylaning.</p>
 							<div className='landing-v2-hero-actions'>
 								<a href='#aloqa' className='marketing-primary-btn'>Kursni boshlash</a>
@@ -2044,7 +2065,7 @@ function HomePage() {
 						</div>
 						<div className='landing-v2-about-copy'>
 							<h2>Markazimiz haqida</h2>
-							<p>"Intelligent" ta'lim markazi zamonaviy yondashuv, kuchli ustozlar va amaliy ko'nikmalarni birlashtirgan ta'lim muhiti sifatida ishlaydi.</p>
+							<p>"ILM NEST" ta'lim markazi zamonaviy yondashuv, kuchli ustozlar va amaliy ko'nikmalarni birlashtirgan ta'lim muhiti sifatida ishlaydi.</p>
 							<p>Bizning maqsadimiz o'quvchilarga nafaqat nazariy bilim, balki real natija beradigan ko'nikmalarni ulashishdir. Har bir o'quvchi uchun individual yondashuv muhim.</p>
 							<ul className='landing-v2-checks'>
 								<li><Icon name='check_circle' className='filled-icon' /><span>Sifatli ta'lim kafolati</span></li>
@@ -2265,10 +2286,10 @@ function HomePage() {
 			<main className='marketing-main'>
 				<RevealSection className='hero-section' as='section'>
 					<div className='hero-copy'>
-						<span className='hero-badge'>Intelligent Education Center</span>
+						<span className='hero-badge'>ILM NEST Education Center</span>
 						<h1>Qo'rg'ontepadagi zamonaviy o'quv markazi uchun ishonchli va tartibli muhit</h1>
 						<p>
-							Intelligent ichida kuchli ustozlar, tartibli nazorat, qulay student
+							ILM NEST ichida kuchli ustozlar, tartibli nazorat, qulay student
 							kabineti va zamonaviy o'quv jarayoni birlashadi. Bu sahifa markaz
 							haqida birinchi taassurotni aniq, chiroyli va ishonchli ko'rsatish
 							uchun yangidan yig'ilgan.
@@ -2406,7 +2427,7 @@ function HomePage() {
 									<span>Biz haqimizda</span>
 									<strong>Natijaga ishlaydigan zamonaviy o'quv markazi</strong>
 									<p>
-										Intelligent ichida ta'lim faqat dars bilan tugamaydi. Qabul,
+										ILM NEST ichida ta'lim faqat dars bilan tugamaydi. Qabul,
 										nazorat, student holati va aloqa tizimli ravishda yuritiladi.
 									</p>
 								</div>
@@ -2428,7 +2449,7 @@ function HomePage() {
 						<div className='about-copy'>
 							<div className='section-heading'>
 								<span>Markaz ruhi</span>
-								<h2>Intelligent ichida nazorat, muhit va o'sish bir yo'nalishda ishlaydi</h2>
+								<h2>ILM NEST ichida nazorat, muhit va o'sish bir yo'nalishda ishlaydi</h2>
 								<p>
 									O'quvchi kirganda markaz tartibini, ota-ona esa ishonchni his
 									qilishi kerak. Shu sabab bosh sahifa endi markaz ruhini aniq va
@@ -2465,7 +2486,7 @@ function HomePage() {
 				<RevealSection className='marketing-section' id='yonalishlar' delay={60}>
 					<div className='section-heading'>
 						<span>Yo'nalishlar</span>
-						<h2>Intelligent o'quv markazida o'qitiladigan fanlar</h2>
+						<h2>ILM NEST o'quv markazida o'qitiladigan fanlar</h2>
 						<p>
 							Har bir yo'nalish uchun alohida metodika, kuchli ustoz va
 							nazoratli o'qish muhiti qurilgan.
@@ -2517,7 +2538,7 @@ function HomePage() {
 				<RevealSection className='marketing-section' delay={140}>
 					<div className='section-heading'>
 						<span>Afzalliklar</span>
-						<h2>Intelligentni tanlashga sabab bo'ladigan asosiy jihatlar</h2>
+						<h2>ILM NESTni tanlashga sabab bo'ladigan asosiy jihatlar</h2>
 						<p>
 							Markazga kelgan odam faqat fan emas, tartib, qulaylik va ishonchli
 							muhitni ham ko'radi.
@@ -2716,7 +2737,7 @@ function HomePage() {
 					<div className='cta-section'>
 						<div>
 							<span className='hero-badge'>Boshlash vaqti keldi</span>
-							<h2>Intelligent bilan tartibli, nazoratli va yoqimli o'qish muhitiga qo'shiling</h2>
+							<h2>ILM NEST bilan tartibli, nazoratli va yoqimli o'qish muhitiga qo'shiling</h2>
 							<p>
 								Markaz bilan tanishing, yo'nalishingizni tanlang va reception bilan
 								bog'lanib o'qishni boshlash uchun birinchi qadamni qo'ying.
@@ -2820,7 +2841,7 @@ function HomePage() {
 										<Icon name='location_on' />
 									</div>
 									<div>
-										<strong>Intelligent Education Center</strong>
+										<strong>ILM NEST Education Center</strong>
 										<span>Andijon viloyati, Qo'rg'ontepa tumani</span>
 										<a
 											href='https://maps.google.com/?daddr=Qorgontepa%20Andijon'
@@ -3284,7 +3305,7 @@ function StudentLoginPage({ onLogin }) {
 					<div className='admin-brand-icon'>
 						<Icon name='auto_stories' className='filled-icon' />
 					</div>
-					<span className='admin-brand-text'>Intelligent</span>
+					<span className='admin-brand-text'>ILM NEST</span>
 				</div>
 
 				<div className='admin-login-card'>
@@ -3388,13 +3409,13 @@ function AdminLoginPage({ onLogin }) {
 					<div className='admin-brand-icon'>
 						<Icon name='auto_stories' className='filled-icon' />
 					</div>
-					<span className='admin-brand-text'>Intelligent</span>
+					<span className='admin-brand-text'>ILM NEST</span>
 				</div>
 
 				<div className='admin-login-card'>
 					<div className='admin-login-copy'>
 						<h2>Xush kelibsiz!</h2>
-						<p>Intelligent tizimga kiring.</p>
+						<p>ILM NEST tizimiga kiring.</p>
 					</div>
 
 					<form className='admin-login-form' onSubmit={handleStaffLogin}>
@@ -3504,7 +3525,7 @@ function StudentRegisterPage() {
 					<div className='admin-brand-icon'>
 						<Icon name='auto_stories' className='filled-icon' />
 					</div>
-					<span className='admin-brand-text'>Intelligent</span>
+					<span className='admin-brand-text'>ILM NEST</span>
 				</div>
 				<div className='admin-login-card'>
 					<div className='admin-login-copy'>
@@ -4139,67 +4160,435 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 	)
 }
 
-function PaymentModal({ students, initialData, onClose, onSubmit }) {
-	const [form, setForm] = useState(initialData)
+function groupStudentsByLearningTrack(students = []) {
+	const groups = new Map()
+	students.forEach(student => {
+		const courseTitle = student.courseTitle || "Noma'lum yo'nalish"
+		const teacherName = student.teacherName || 'Ustoz biriktirilmagan'
+		const schedule = student.schedule || "Vaqt kiritilmagan"
+		const courseKey = student.courseId || courseTitle
+		const teacherKey = student.teacherId || teacherName
+		const key = `${courseKey}__${teacherKey}__${schedule}`
+		if (!groups.has(key)) {
+			groups.set(key, {
+				key,
+				courseTitle,
+				teacherName,
+				schedule,
+				label: `${courseTitle} · ${teacherName}`,
+				members: [],
+			})
+		}
+		groups.get(key).members.push(student)
+	})
+	return Array.from(groups.values())
+		.map(group => ({
+			...group,
+			members: [...group.members].sort((a, b) =>
+				String(a.fullName || '').localeCompare(String(b.fullName || ''), 'uz'),
+			),
+		}))
+		.sort((a, b) => {
+			const byTime = getScheduleSortKey(a.schedule) - getScheduleSortKey(b.schedule)
+			if (byTime !== 0) return byTime
+			return a.courseTitle.localeCompare(b.courseTitle, 'uz')
+		})
+}
+
+function PaymentCollectionWorkspace({
+	token,
+	students,
+	payments,
+	initialStudentId = null,
+	onPaymentSaved,
+	embedded = true,
+}) {
+	const groupedStudents = useMemo(
+		() => groupStudentsByLearningTrack(students),
+		[students],
+	)
+	const [groupSearch, setGroupSearch] = useState('')
+	const [studentSearch, setStudentSearch] = useState('')
+	const [selectedGroupKey, setSelectedGroupKey] = useState('')
+	const [selectedStudentId, setSelectedStudentId] = useState(
+		initialStudentId ? Number(initialStudentId) : null,
+	)
+	const [paymentForm, setPaymentForm] = useState({
+		amount: '',
+		method: 'manual',
+		allowDiscount: false,
+		reason: '',
+	})
+
+	const visibleGroups = useMemo(() => {
+		const query = groupSearch.trim().toLowerCase()
+		if (!query) return groupedStudents
+		return groupedStudents.filter(group =>
+			[group.courseTitle, group.teacherName, group.schedule]
+				.filter(Boolean)
+				.some(value => String(value).toLowerCase().includes(query)),
+		)
+	}, [groupSearch, groupedStudents])
+
+	useEffect(() => {
+		if (!groupedStudents.length) {
+			setSelectedGroupKey('')
+			return
+		}
+
+		if (initialStudentId) {
+			const matched = groupedStudents.find(group =>
+				group.members.some(student => Number(student.id) === Number(initialStudentId)),
+			)
+			if (matched) {
+				setSelectedGroupKey(matched.key)
+				setSelectedStudentId(Number(initialStudentId))
+				return
+			}
+		}
+
+		if (!selectedGroupKey || !groupedStudents.some(group => group.key === selectedGroupKey)) {
+			setSelectedGroupKey(groupedStudents[0].key)
+		}
+	}, [groupedStudents, initialStudentId, selectedGroupKey])
+
+	const currentGroup =
+		visibleGroups.find(group => group.key === selectedGroupKey) ||
+		groupedStudents.find(group => group.key === selectedGroupKey) ||
+		visibleGroups[0] ||
+		null
+
+	const visibleMembers = useMemo(() => {
+		const query = studentSearch.trim().toLowerCase()
+		const members = currentGroup?.members || []
+		if (!query) return members
+		return members.filter(student =>
+			[
+				student.fullName,
+				student.phone,
+				student.courseTitle,
+				student.teacherName,
+				getStudyMonthLabel(student),
+			]
+				.filter(Boolean)
+				.some(value => String(value).toLowerCase().includes(query)),
+		)
+	}, [currentGroup, studentSearch])
+
+	useEffect(() => {
+		if (!currentGroup?.members?.length) {
+			setSelectedStudentId(null)
+			return
+		}
+
+		const hasCurrent = currentGroup.members.some(
+			student => Number(student.id) === Number(selectedStudentId),
+		)
+		if (!hasCurrent) {
+			setSelectedStudentId(currentGroup.members[0].id)
+		}
+	}, [currentGroup, selectedStudentId])
+
+	const selectedStudent =
+		currentGroup?.members.find(student => Number(student.id) === Number(selectedStudentId)) ||
+		visibleMembers[0] ||
+		null
+
+	useEffect(() => {
+		if (!selectedStudent) return
+		setPaymentForm({
+			amount: String(Number(selectedStudent.monthlyFee || 0)),
+			method: 'manual',
+			allowDiscount: false,
+			reason: '',
+		})
+	}, [selectedStudent?.id])
+
+	const minimumAmount = Number(selectedStudent?.monthlyFee || 0)
+	const enteredAmount = Number(paymentForm.amount || 0)
+	const needsReason = enteredAmount > 0 && enteredAmount < minimumAmount
+
+	async function handleSubmit(event) {
+		event.preventDefault()
+		if (!selectedStudent) return
+		try {
+			const response = await api.createPayment(token, {
+				studentId: selectedStudent.id,
+				amount: enteredAmount,
+				method: paymentForm.method,
+				reason: paymentForm.allowDiscount ? paymentForm.reason : '',
+			})
+			await Swal.fire({
+				title: "To'lov qabul qilindi",
+				imageUrl: response.receipt.receiptImageDataUrl,
+				imageWidth: 520,
+				imageAlt: "To'lov cheki",
+				html: `
+					<div style="text-align:left;line-height:1.7">
+						<div><strong>F.I.Sh:</strong> ${response.receipt.fullName}</div>
+						<div><strong>Telefon:</strong> ${response.receipt.phone || '-'}</div>
+						<div><strong>Summa:</strong> ${formatMoney(response.receipt.amount)}</div>
+						<div><strong>Sana:</strong> ${response.receipt.paidAt}</div>
+						${response.receipt.reason ? `<div><strong>Sabab:</strong> ${response.receipt.reason}</div>` : ''}
+					</div>
+				`,
+				confirmButtonColor: '#133385',
+			})
+			setPaymentForm(current => ({
+				...current,
+				amount: String(minimumAmount),
+				method: 'manual',
+				allowDiscount: false,
+				reason: '',
+			}))
+			onPaymentSaved?.()
+		} catch (err) {
+			await showError(err.message)
+		}
+	}
 
 	return (
-		<Modal
-			title="To'lov qabul qilish"
-			subtitle='Manual payment kiritish'
-			onClose={onClose}
-		>
-			<form className='modal-form' onSubmit={event => onSubmit(event, form)}>
-				<div className='field-grid'>
+		<div className={embedded ? 'payment-flow-shell' : 'payment-flow-shell inside-modal'}>
+			<section className='card payment-flow-card'>
+				<div className='attendance-hub-top'>
 					<div>
-						<label>Student</label>
-						<select
-							value={form.studentId}
-							onChange={e =>
-								setForm({ ...form, studentId: Number(e.target.value) })
-							}
-						>
-							<option value=''>Tanlang</option>
-							{students.map(student => (
-								<option key={student.id} value={student.id}>
-									{student.fullName}
-								</option>
-							))}
-						</select>
+						<span className='card-label'>Yo'nalish va ustoz</span>
+						<h3>To'lov qabul qilish oqimi</h3>
+						<p>Guruh kartasini oching, studentni tanlang va oylik to'lovni qabul qiling.</p>
 					</div>
-					<div>
-						<label>Miqdor</label>
+					<div className='attendance-hub-controls'>
 						<input
-							type='number'
-							value={form.amount}
-							onChange={e =>
-								setForm({ ...form, amount: Number(e.target.value) })
-							}
+							type='text'
+							placeholder="Kurs, ustoz yoki vaqt bo'yicha qidiring..."
+							value={groupSearch}
+							onChange={event => setGroupSearch(event.target.value)}
+						/>
+						<input
+							type='text'
+							placeholder="Studentni qidiring..."
+							value={studentSearch}
+							onChange={event => setStudentSearch(event.target.value)}
 						/>
 					</div>
-					<div>
-						<label>Usul</label>
-						<select
-							value={form.method}
-							onChange={e => setForm({ ...form, method: e.target.value })}
-						>
-							<option value='manual'>Naqd pul</option>
-							<option value='click'>Click</option>
-							<option value='payme'>Payme</option>
-						</select>
+				</div>
+				<div className='attendance-hub-meta'>
+					<div className='metric-chip-card success'>
+						<strong>{groupedStudents.length} ta</strong>
+						<span>To'lov guruhlari</span>
+					</div>
+					<div className='metric-chip-card warning'>
+						<strong>{payments.length} ta</strong>
+						<span>Jami qabul qilingan tranzaksiya</span>
+					</div>
+					<div className='metric-chip-card navy'>
+						<strong>Minimal to'lov nazorati</strong>
+						<span>Kurs narxidan kam summa faqat sabab bilan qabul qilinadi</span>
 					</div>
 				</div>
-				<div className='modal-actions'>
-					<button type='button' className='ghost-outline' onClick={onClose}>
-						Bekor qilish
-					</button>
-					<ActionButton type='submit'>To'lovni saqlash</ActionButton>
+				<div className='attendance-group-grid top-space'>
+					{visibleGroups.map(group => (
+						<button
+							key={group.key}
+							type='button'
+							className={`attendance-group-card ${selectedGroupKey === group.key ? 'selected' : ''}`}
+							onClick={() => {
+								setSelectedGroupKey(group.key)
+								setStudentSearch('')
+							}}
+						>
+							<div className='attendance-group-head'>
+								<div>
+									<strong>{group.courseTitle}</strong>
+									<span>{group.teacherName}</span>
+								</div>
+								<Badge tone='default'>{group.members.length} ta</Badge>
+							</div>
+							<div className='attendance-group-body'>
+								<div className='attendance-group-time'>
+									<Icon name='schedule' />
+									<span>{group.schedule}</span>
+								</div>
+								<div className='attendance-group-meta'>
+									<span>To'lov oynasini oching</span>
+									<Icon name='chevron_right' />
+								</div>
+							</div>
+						</button>
+					))}
 				</div>
-			</form>
-		</Modal>
+			</section>
+
+			{currentGroup && selectedStudent ? (
+				<section className='card payment-workspace-card top-space'>
+					<div className='payment-workspace-head'>
+						<div>
+							<span className='card-label'>Tanlangan guruh</span>
+							<h3>{currentGroup.courseTitle}</h3>
+							<p>
+								{currentGroup.teacherName} · {currentGroup.schedule}
+							</p>
+						</div>
+						<Badge tone='default'>{visibleMembers.length} ta student</Badge>
+					</div>
+					<div className='payment-workspace-grid'>
+						<div className='payment-student-list'>
+							{visibleMembers.map((student, index) => (
+								<button
+									key={student.id}
+									type='button'
+									className={`payment-student-card ${selectedStudent?.id === student.id ? 'active' : ''}`}
+									onClick={() => setSelectedStudentId(student.id)}
+								>
+									<div className='student-identity'>
+										<div className={`avatar-badge tone-${index % 5}`}>
+											{getInitials(student.fullName)}
+										</div>
+										<div className='course-cell'>
+											<strong>{student.fullName}</strong>
+											<span>{getStudyMonthLabel(student)}</span>
+										</div>
+									</div>
+									<div className='payment-student-card-meta'>
+										<span>{formatMoney(student.monthlyFee || 0)}</span>
+										<Badge tone={getStudentStatusMeta(student.status).tone}>
+											{getStudentStatusMeta(student.status).label}
+										</Badge>
+									</div>
+								</button>
+							))}
+						</div>
+						<form className='payment-editor-card' onSubmit={handleSubmit}>
+							<div className='payment-editor-head'>
+								<div>
+									<h4>{selectedStudent.fullName}</h4>
+									<p>
+										{selectedStudent.phone || '-'} · {getStudyMonthLabel(selectedStudent)}
+									</p>
+								</div>
+								<Badge tone={getStudentStatusMeta(selectedStudent.status).tone}>
+									{getStudentStatusMeta(selectedStudent.status).label}
+								</Badge>
+							</div>
+							<div className='payment-editor-stats'>
+								<div>
+									<span>Oylik kurs narxi</span>
+									<strong>{formatMoney(minimumAmount)}</strong>
+								</div>
+								<div>
+									<span>Joriy balans</span>
+									<strong>{formatMoney(selectedStudent.balance || 0)}</strong>
+								</div>
+								<div>
+									<span>Ustoz</span>
+									<strong>{selectedStudent.teacherName || '-'}</strong>
+								</div>
+							</div>
+							<div className='field-grid compact-grid'>
+								<div>
+									<label>To'lov summasi</label>
+									<input
+										type='number'
+										min='0'
+										value={paymentForm.amount}
+										onChange={event =>
+											setPaymentForm(current => ({
+												...current,
+												amount: event.target.value,
+											}))
+										}
+									/>
+									<small className='field-help'>
+										Minimal summa: {formatMoney(minimumAmount)}
+									</small>
+								</div>
+								<div>
+									<label>To'lov usuli</label>
+									<select
+										value={paymentForm.method}
+										onChange={event =>
+											setPaymentForm(current => ({
+												...current,
+												method: event.target.value,
+											}))
+										}
+									>
+										<option value='manual'>Naqd pul</option>
+										<option value='click'>Click</option>
+										<option value='payme'>Payme</option>
+									</select>
+								</div>
+							</div>
+							<label className='toggle-row'>
+								<input
+									type='checkbox'
+									checked={paymentForm.allowDiscount}
+									onChange={event =>
+										setPaymentForm(current => ({
+											...current,
+											allowDiscount: event.target.checked,
+											reason: event.target.checked ? current.reason : '',
+										}))
+									}
+								/>
+								<div>
+									<strong>Sababli to'lov</strong>
+									<span>Kurs narxidan kamroq summa qabul qilish uchun sabab kiriting</span>
+								</div>
+							</label>
+							{paymentForm.allowDiscount ? (
+								<div>
+									<label>Sabab</label>
+									<textarea
+										rows='3'
+										value={paymentForm.reason}
+										onChange={event =>
+											setPaymentForm(current => ({
+												...current,
+												reason: event.target.value,
+											}))
+										}
+										placeholder="Masalan: oilaviy sharoiti sabab vaqtincha qisman to'lov qilindi"
+									/>
+								</div>
+							) : null}
+							{needsReason && !paymentForm.allowDiscount ? (
+								<div className='form-inline-alert warning'>
+									<Icon name='warning' />
+									<span>Kurs narxidan kam summa uchun "Sababli to'lov"ni yoqing.</span>
+								</div>
+							) : null}
+							<div className='modal-actions payment-editor-actions'>
+								<button
+									type='button'
+									className='ghost-outline'
+									onClick={() =>
+										setPaymentForm({
+											amount: String(minimumAmount),
+											method: 'manual',
+											allowDiscount: false,
+											reason: '',
+										})
+									}
+								>
+									Tozalash
+								</button>
+								<ActionButton
+									type='submit'
+									icon='payments'
+								>
+									To'lovni saqlash
+								</ActionButton>
+							</div>
+						</form>
+					</div>
+				</section>
+			) : null}
+		</div>
 	)
 }
 
 function ReceptionStudentsPage({ token, meta }) {
+	const navigate = useNavigate()
 	const [searchParams] = useSearchParams()
 	const [search, setSearch] = useState('')
 	const [status, setStatus] = useState('')
@@ -4210,7 +4599,6 @@ function ReceptionStudentsPage({ token, meta }) {
 		includeArchived: false,
 	})
 	const [studentModal, setStudentModal] = useState(null)
-	const [paymentModal, setPaymentModal] = useState(null)
 	const [historyModal, setHistoryModal] = useState(null)
 
 	useEffect(() => {
@@ -4262,33 +4650,6 @@ function ReceptionStudentsPage({ token, meta }) {
 			}
 			setStudentModal(null)
 			reload({ search, status, includeArchived })
-		} catch (err) {
-			await showError(err.message)
-		}
-	}
-
-	async function submitPayment(event, form) {
-		event.preventDefault()
-		try {
-			const response = await api.createPayment(token, form)
-			setPaymentModal(null)
-			reload({ search, status, includeArchived })
-			await Swal.fire({
-				title: "To'lov qabul qilindi",
-				imageUrl: response.receipt.receiptImageDataUrl,
-				imageWidth: 520,
-				imageAlt: "To'lov cheki",
-				html: `
-					<div style="text-align:left;line-height:1.7">
-						<div><strong>F.I.Sh:</strong> ${response.receipt.fullName}</div>
-						<div><strong>Telefon:</strong> ${response.receipt.phone || '-'}</div>
-						<div><strong>Summa:</strong> ${formatMoney(response.receipt.amount)}</div>
-						<div><strong>Sana:</strong> ${response.receipt.paidAt}</div>
-						<div><strong>Caption:</strong> ${response.receipt.receiptCaption}</div>
-					</div>
-				`,
-				confirmButtonColor: '#133385',
-			})
 		} catch (err) {
 			await showError(err.message)
 		}
@@ -4368,9 +4729,7 @@ function ReceptionStudentsPage({ token, meta }) {
 						<ActionButton
 							secondary
 							icon='account_balance_wallet'
-							onClick={() =>
-								setPaymentModal({ studentId: '', amount: '', method: 'manual' })
-							}
+							onClick={() => navigate('/reception/payments')}
 						>
 							To'lov qabul qilish
 						</ActionButton>
@@ -4427,14 +4786,15 @@ function ReceptionStudentsPage({ token, meta }) {
 							{students.map((student, index) => (
 								<tr key={student.id}>
 									<td data-label="Kurs va O'qituvchi">
-										<div className='student-identity'>
-											<div className={`avatar-badge tone-${index % 5}`}>
-												{getInitials(student.fullName)}
+											<div className='student-identity'>
+												<div className={`avatar-badge tone-${index % 5}`}>
+													{getInitials(student.fullName)}
+												</div>
+												<div>
+													<strong>{student.fullName}</strong>
+													<span>{getStudyMonthLabel(student)}</span>
+												</div>
 											</div>
-											<div>
-												<strong>{student.fullName}</strong>
-											</div>
-										</div>
 									</td>
 									<td data-label='Balans'>
 										<div className='contact-cell'>
@@ -4511,11 +4871,7 @@ function ReceptionStudentsPage({ token, meta }) {
 											<button
 												type='button'
 												onClick={() =>
-													setPaymentModal({
-														studentId: student.id,
-														amount: '',
-														method: 'manual',
-													})
+													navigate(`/reception/payments?studentId=${student.id}`)
 												}
 											>
 												<Icon name='person_add' />
@@ -4562,14 +4918,6 @@ function ReceptionStudentsPage({ token, meta }) {
 				/>
 			) : null}
 
-			{paymentModal ? (
-				<PaymentModal
-					students={students}
-					initialData={paymentModal}
-					onClose={() => setPaymentModal(null)}
-					onSubmit={submitPayment}
-				/>
-			) : null}
 			{historyModal ? (
 				<StudentHistoryModal
 					history={historyModal}
@@ -4663,15 +5011,40 @@ function ReceptionDashboardPage({ token }) {
 }
 
 function ReceptionPaymentsPage({ token }) {
-	const [payments] = usePaymentsData(token)
+	const [searchParams] = useSearchParams()
+	const { students, reload } = useReceptionData(token, {
+		search: '',
+		status: '',
+		includeArchived: false,
+	})
+	const [payments, setPayments] = usePaymentsData(token)
+
+	async function handlePaymentSaved() {
+		const nextPayments = await api.getAllPayments(token)
+		setPayments(nextPayments)
+		reload({ search: '', status: '', includeArchived: false })
+	}
 
 	return (
 		<>
 			<PageHeader
 				title="To'lovlar"
-				subtitle="Barcha qabul qilingan to'lovlar ro'yxati"
+				subtitle="Yo'nalish, ustoz va vaqt bo'yicha guruhni tanlab oylik to'lovni qabul qiling"
+			/>
+			<PaymentCollectionWorkspace
+				token={token}
+				students={students}
+				payments={payments}
+				initialStudentId={searchParams.get('studentId')}
+				onPaymentSaved={handlePaymentSaved}
 			/>
 			<section className='card table-card'>
+				<div className='section-title-row'>
+					<div>
+						<span className='card-label'>Tranzaksiya tarixi</span>
+						<h3>So'nggi qabul qilingan to'lovlar</h3>
+					</div>
+				</div>
 				<div className='table-shell responsive-cards'>
 					<table>
 						<thead>
@@ -4680,6 +5053,7 @@ function ReceptionPaymentsPage({ token }) {
 								<th>Kurs</th>
 								<th>Miqdor</th>
 								<th>Usul</th>
+								<th>Sabab</th>
 								<th>Sana</th>
 							</tr>
 						</thead>
@@ -4690,6 +5064,7 @@ function ReceptionPaymentsPage({ token }) {
 									<td data-label='Kurs'>{payment.courseTitle}</td>
 									<td data-label='Miqdor' className='amount-cell'>{formatMoney(payment.amount)}</td>
 									<td data-label='Usul'>{getPaymentMethodMeta(payment.method).shortLabel}</td>
+									<td data-label='Sabab'>{payment.reason || '-'}</td>
 									<td data-label='Sana'>{payment.createdAt}</td>
 								</tr>
 							))}
@@ -4773,7 +5148,8 @@ function groupStudentsForAttendance(students = []) {
 	students.forEach(student => {
 		const courseTitle = student.courseTitle || "Noma'lum guruh"
 		const teacherName = student.teacherName || "Ustoz biriktirilmagan"
-		const key = `${courseTitle}__${teacherName}`
+		const schedule = student.schedule || "Vaqt kiritilmagan"
+		const key = `${courseTitle}__${teacherName}__${schedule}`
 		if (!map.has(key)) {
 			map.set(key, { key, courseTitle, teacherName, label: `${courseTitle} · ${teacherName}`, members: [] })
 		}
@@ -4809,6 +5185,7 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 	const { students } = useReceptionData(token, { search: '', status: '' })
 	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
 	const [groupSearch, setGroupSearch] = useState('')
+	const [memberSearch, setMemberSearch] = useState('')
 	const [attendanceMap, setAttendanceMap] = useState({})
 	const [history, setHistory] = useState([])
 	const [groupModal, setGroupModal] = useState(null)
@@ -4846,9 +5223,9 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 
 	const currentGroup = groupModal ? groups.find(group => group.key === groupModal.key) || groupModal : null
 	const visibleMembers = (currentGroup?.members || []).filter(student => {
-		const query = groupSearch.trim().toLowerCase()
+		const query = memberSearch.trim().toLowerCase()
 		if (!query) return true
-		return [student.fullName, student.phone, student.courseTitle, student.teacherName]
+		return [student.fullName, student.phone, student.courseTitle, student.teacherName, getStudyMonthLabel(student)]
 			.filter(Boolean)
 			.some(value => String(value).toLowerCase().includes(query))
 	})
@@ -4951,8 +5328,8 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 							<input
 								className='toolbar-search'
 								placeholder="Ism, telefon yoki kurs bo'yicha qidiring..."
-								value={groupSearch}
-								onChange={event => setGroupSearch(event.target.value)}
+								value={memberSearch}
+								onChange={event => setMemberSearch(event.target.value)}
 							/>
 						</div>
 						<div className='table-shell responsive-cards top-space'>
@@ -4976,7 +5353,7 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 														<div className={`avatar-badge tone-${index % 5}`}>{getInitials(student.fullName)}</div>
 														<div className='course-cell'>
 															<strong>{student.fullName}</strong>
-															<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
+															<span>{getStudyMonthLabel(student)}</span>
 														</div>
 													</div>
 												</td>
