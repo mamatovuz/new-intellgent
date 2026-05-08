@@ -5513,58 +5513,45 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 								onChange={event => setMemberSearch(event.target.value)}
 							/>
 						</div>
-						<div className='table-shell responsive-cards top-space'>
-							<table>
-								<thead>
-									<tr>
-										<th>O'quvchi</th>
-										<th>Telefon</th>
-										<th>Holat</th>
-										<th>Davomat</th>
-									</tr>
-								</thead>
-								<tbody>
-									{visibleMembers.map((student, index) => {
-										const statusValue = attendanceMap[student.id] || historyMap[student.id] || 'absent'
-										const isPresent = statusValue === 'present'
-										const meta = getAttendanceStatusMeta(statusValue)
-										return (
-											<tr key={student.id}>
-												<td data-label="O'quvchi">
-													<div className='student-identity'>
-														<div className={`avatar-badge tone-${index % 5}`}>{getInitials(student.fullName)}</div>
-														<div className='course-cell'>
-															<strong>{student.fullName}</strong>
-															<span>{getStudyMonthLabel(student)}</span>
-														</div>
-													</div>
-												</td>
-												<td data-label='Telefon'>
-													<div className='contact-cell'>
-														<strong>{student.phone || '-'}</strong>
-														<span>{student.teacherName || "Ustoz biriktirilmagan"}</span>
-													</div>
-												</td>
-												<td data-label='Holat'>
-													<Badge tone={meta.tone}>{meta.label}</Badge>
-												</td>
-												<td data-label='Davomat'>
-													<AttendancePresenceToggle
-														checked={isPresent}
-														disabled={!editable}
-														onChange={value =>
-															setAttendanceMap(current => ({
-																...current,
-																[student.id]: value,
-															}))
-														}
-													/>
-												</td>
-											</tr>
-										)
-									})}
-								</tbody>
-							</table>
+						<div className='attendance-student-list top-space'>
+							{visibleMembers.map((student, index) => {
+								const statusValue =
+									attendanceMap[student.id] || historyMap[student.id] || 'absent'
+								const isPresent = statusValue === 'present'
+								const meta = getAttendanceStatusMeta(statusValue)
+								return (
+									<article key={student.id} className='attendance-student-card'>
+										<div className='attendance-student-card-head'>
+											<div className='student-identity'>
+												<div className={`avatar-badge tone-${index % 5}`}>
+													{getInitials(student.fullName)}
+												</div>
+												<div className='course-cell'>
+													<strong>{student.fullName}</strong>
+													<span>{getStudyMonthLabel(student)}</span>
+												</div>
+											</div>
+											<Badge tone={meta.tone}>{meta.label}</Badge>
+										</div>
+										<div className='attendance-student-card-meta'>
+											<div className='contact-cell'>
+												<strong>{student.phone || '-'}</strong>
+												<span>{student.teacherName || "Ustoz biriktirilmagan"}</span>
+											</div>
+											<AttendancePresenceToggle
+												checked={isPresent}
+												disabled={!editable}
+												onChange={value =>
+													setAttendanceMap(current => ({
+														...current,
+														[student.id]: value,
+													}))
+												}
+											/>
+										</div>
+									</article>
+								)
+							})}
 						</div>
 						<div className='attendance-footer'>
 							<div className='attendance-actions'>

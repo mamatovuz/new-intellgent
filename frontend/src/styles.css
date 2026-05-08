@@ -4002,6 +4002,36 @@ background: #00236f;
   width: 100%;
 }
 
+.attendance-student-list {
+  display: grid;
+  gap: 10px;
+}
+
+.attendance-student-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #dde5f0;
+  background: #ffffff;
+  display: grid;
+  gap: 12px;
+}
+
+.attendance-student-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attendance-student-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #edf2f8;
+}
+
 .payment-flow-shell {
   display: grid;
   gap: 14px;
@@ -7143,6 +7173,12 @@ th {
 @media (max-width: 720px) {
   .attendance-group-grid {
     grid-template-columns: 1fr;
+  }
+
+  .attendance-student-card-head,
+  .attendance-student-card-meta {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .payment-editor-head,
