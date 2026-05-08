@@ -1851,6 +1851,7 @@ function PublicSiteHeader() {
 				</nav>
 				<div className='marketing-actions'>
 					<Link to='/student/login' className='marketing-header-link'>Kirish</Link>
+					<Link to='/admins' className='marketing-header-link marketing-header-admin'>Admin kirish</Link>
 					<a href='#aloqa' className='marketing-header-cta'>
 							<strong>Bog'lanish</strong>
 					</a>
@@ -1872,6 +1873,7 @@ function PublicSiteHeader() {
 					))}
 					<a href='#aloqa' onClick={() => setMenuOpen(false)}>Bog'lanish</a>
 					<Link to='/student/login' onClick={() => setMenuOpen(false)}>Kirish</Link>
+					<Link to='/admins' onClick={() => setMenuOpen(false)}>Admin kirish</Link>
 				</div>
 			) : null}
 		</>
@@ -4806,18 +4808,12 @@ function AttendanceStatusSwitch({ value, onChange, disabled = false }) {
 function AttendanceManagerPage({ token, role = 'reception' }) {
 	const { students } = useReceptionData(token, { search: '', status: '' })
 	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
-	const [selectedGroup, setSelectedGroup] = useState('')
-	const [memberSearch, setMemberSearch] = useState('')
+	const [groupSearch, setGroupSearch] = useState('')
 	const [attendanceMap, setAttendanceMap] = useState({})
 	const [history, setHistory] = useState([])
+	const [groupModal, setGroupModal] = useState(null)
 	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
-	const editable = role === 'reception' || role === 'director'
-
-	useEffect(() => {
-		if (!selectedGroup && groups[0]) {
-			setSelectedGroup(groups[0].key)
-		}
-	}, [groups, selectedGroup])
+	const editable = role === 'reception'
 
 	useEffect(() => {
 		api.getAttendanceHistory(token, { range: 'day', lessonDate }).then(setHistory).catch(() => setHistory([]))
@@ -4831,9 +4827,26 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 		return next
 	}, [history])
 
-	const currentGroup = groups.find(group => group.key === selectedGroup) || groups[0] || { members: [], label: '' }
-	const visibleMembers = currentGroup.members.filter(student => {
-		const query = memberSearch.trim().toLowerCase()
+	const visibleGroups = groups
+		.filter(group => {
+			const query = groupSearch.trim().toLowerCase()
+			if (!query) return true
+			return [group.courseTitle, group.teacherName, group.label, group.members[0]?.schedule]
+				.filter(Boolean)
+				.some(value => String(value).toLowerCase().includes(query))
+		})
+		.sort((a, b) => {
+			const getTimeKey = value => {
+				const match = String(value || '').match(/(\d{1,2}):(\d{2})/)
+				if (!match) return 9999
+				return Number(match[1]) * 60 + Number(match[2])
+			}
+			return getTimeKey(a.members[0]?.schedule) - getTimeKey(b.members[0]?.schedule)
+		})
+
+	const currentGroup = groupModal ? groups.find(group => group.key === groupModal.key) || groupModal : null
+	const visibleMembers = (currentGroup?.members || []).filter(student => {
+		const query = groupSearch.trim().toLowerCase()
 		if (!query) return true
 		return [student.fullName, student.phone, student.courseTitle, student.teacherName]
 			.filter(Boolean)
@@ -4844,14 +4857,15 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 		try {
 			await api.saveAttendanceBatch(token, {
 				lessonDate,
-				entries: currentGroup.members.map(student => ({
+				entries: (currentGroup?.members || []).map(student => ({
 					studentId: student.id,
 					status: attendanceMap[student.id] || historyMap[student.id] || 'present',
 				})),
 			})
 			const fresh = await api.getAttendanceHistory(token, { range: 'day', lessonDate })
 			setHistory(fresh)
-			await showSuccess('Davomat saqlandi', `${currentGroup.members.length} ta o'quvchi bo'yicha davomat yangilandi`)
+			setGroupModal(null)
+			await showSuccess('Davomat saqlandi', `${currentGroup?.members.length || 0} ta o'quvchi bo'yicha davomat yangilandi`)
 		} catch (err) {
 			await showError(err.message)
 		}
@@ -4860,119 +4874,153 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 	return (
 		<>
 			<PageHeader
-				title={role === 'director' ? 'Davomat markazi' : 'Davomat olish'}
-				subtitle={
-					role === 'director'
-						? "Reception kiritgan davomatni ko'rish va zarur bo'lsa yangilash"
-						: "Bugungi davomatni reception panel orqali belgilang"
-				}
+				title='Davomat olish'
+				subtitle="Bugungi davomatni reception panel orqali belgilang"
 			/>
 			<section className='card attendance-hub-card'>
 				<div className='attendance-hub-top'>
 					<div>
 						<span className='card-label'>Guruh va sana</span>
-						<h3>{currentGroup.label || "Guruh tanlanmagan"}</h3>
+						<h3>Bugungi davomat oqimi</h3>
 						<p>{formatDateLabel(new Date(lessonDate))}</p>
 					</div>
 					<div className='attendance-hub-controls'>
-						<select value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)}>
-							{groups.map(group => (
-								<option key={group.key} value={group.key}>
-									{group.label}
-								</option>
-							))}
-						</select>
 						<input type='date' value={lessonDate} onChange={event => setLessonDate(event.target.value)} />
+						<input
+							type='text'
+							placeholder="Kurs, ustoz yoki vaqt bo'yicha qidiring..."
+							value={groupSearch}
+							onChange={event => setGroupSearch(event.target.value)}
+						/>
 					</div>
 				</div>
 				<div className='attendance-hub-meta'>
 					<div className='metric-chip-card success'>
-						<strong>{currentGroup.members.length} ta</strong>
-						<span>Guruhdagi studentlar</span>
+						<strong>{groups.length} ta</strong>
+						<span>Bugungi guruh kartalari</span>
 					</div>
 					<div className='metric-chip-card warning'>
-						<strong>{visibleMembers.length} ta</strong>
-						<span>Ko'rsatilayotgan ro'yxat</span>
+						<strong>{visibleGroups.length} ta</strong>
+						<span>Ko'rsatilayotgan kartalar</span>
 					</div>
-					<div className='metric-chip-card'>
-						<strong>{editable ? 'Reception yozadi' : 'Read only'}</strong>
-						<span>{editable ? 'Direktor ham tahrirlashi mumkin' : 'Davomatni reception belgilaydi'}</span>
+					<div className='metric-chip-card navy'>
+						<strong>Reception yozadi</strong>
+						<span>Teacher bu ma'lumotni faqat kuzatadi</span>
 					</div>
 				</div>
-				<div className='toolbar-right top-space'>
-					<input
-						className='toolbar-search'
-						placeholder="Ism, telefon yoki kurs bo'yicha qidiring..."
-						value={memberSearch}
-						onChange={event => setMemberSearch(event.target.value)}
-					/>
-				</div>
-				<div className='table-shell responsive-cards top-space'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'quvchi</th>
-								<th>Telefon</th>
-								<th>Holat</th>
-								<th>Davomat</th>
-							</tr>
-						</thead>
-						<tbody>
-							{visibleMembers.map((student, index) => {
-								const statusValue = attendanceMap[student.id] || historyMap[student.id] || 'present'
-								const meta = getAttendanceStatusMeta(statusValue)
-								return (
-									<tr key={student.id}>
-										<td data-label="O'quvchi">
-											<div className='student-identity'>
-												<div className={`avatar-badge tone-${index % 5}`}>{getInitials(student.fullName)}</div>
-												<div className='course-cell'>
-													<strong>{student.fullName}</strong>
-													<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
-												</div>
-											</div>
-										</td>
-										<td data-label='Telefon'>
-											<div className='contact-cell'>
-												<strong>{student.phone || '-'}</strong>
-												<span>{student.teacherName || "Ustoz biriktirilmagan"}</span>
-											</div>
-										</td>
-										<td data-label='Holat'>
-											<Badge tone={meta.tone}>{meta.label}</Badge>
-										</td>
-										<td data-label='Davomat'>
-											<AttendanceStatusSwitch
-												value={statusValue}
-												disabled={!editable}
-												onChange={value =>
-													setAttendanceMap(current => ({
-														...current,
-														[student.id]: value,
-													}))
-												}
-											/>
-										</td>
-									</tr>
-								)
-							})}
-						</tbody>
-					</table>
-				</div>
-				{editable ? (
-					<div className='attendance-footer'>
-						<span>Davomat reception tomonidan kiritiladi. Direktorda ham shu sahifa orqali yangilash imkoniyati bor.</span>
-						<div className='attendance-actions'>
-							<button type='button' className='text-link' onClick={() => setAttendanceMap({})}>
-								Tanlovni tozalash
+				<div className='attendance-group-grid top-space'>
+					{visibleGroups.map(group => {
+						const schedule = group.members[0]?.schedule || "Vaqt kiritilmagan"
+						return (
+							<button
+								key={group.key}
+								type='button'
+								className='attendance-group-card'
+								onClick={() => setGroupModal(group)}
+							>
+								<div className='attendance-group-head'>
+									<div>
+										<strong>{group.courseTitle}</strong>
+										<span>{group.teacherName}</span>
+									</div>
+									<Badge tone='default'>{group.members.length} ta</Badge>
+								</div>
+								<div className='attendance-group-body'>
+									<div className='attendance-group-time'>
+										<Icon name='schedule' />
+										<span>{schedule}</span>
+									</div>
+									<div className='attendance-group-meta'>
+										<span>Davomat olish uchun oching</span>
+										<Icon name='chevron_right' />
+									</div>
+								</div>
 							</button>
-							<ActionButton icon='save' onClick={handleSaveAttendance}>
-								Davomatni saqlash
-							</ActionButton>
+						)
+					})}
+				</div>
+			</section>
+			{groupModal ? (
+				<Modal
+					title={groupModal.courseTitle}
+					subtitle={`${groupModal.teacherName} · ${groupModal.members[0]?.schedule || "Vaqt kiritilmagan"}`}
+					onClose={() => setGroupModal(null)}
+				>
+					<div className='attendance-modal-shell'>
+						<div className='toolbar-right'>
+							<input
+								className='toolbar-search'
+								placeholder="Ism, telefon yoki kurs bo'yicha qidiring..."
+								value={groupSearch}
+								onChange={event => setGroupSearch(event.target.value)}
+							/>
+						</div>
+						<div className='table-shell responsive-cards top-space'>
+							<table>
+								<thead>
+									<tr>
+										<th>O'quvchi</th>
+										<th>Telefon</th>
+										<th>Holat</th>
+										<th>Davomat</th>
+									</tr>
+								</thead>
+								<tbody>
+									{visibleMembers.map((student, index) => {
+										const statusValue = attendanceMap[student.id] || historyMap[student.id] || 'present'
+										const meta = getAttendanceStatusMeta(statusValue)
+										return (
+											<tr key={student.id}>
+												<td data-label="O'quvchi">
+													<div className='student-identity'>
+														<div className={`avatar-badge tone-${index % 5}`}>{getInitials(student.fullName)}</div>
+														<div className='course-cell'>
+															<strong>{student.fullName}</strong>
+															<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
+														</div>
+													</div>
+												</td>
+												<td data-label='Telefon'>
+													<div className='contact-cell'>
+														<strong>{student.phone || '-'}</strong>
+														<span>{student.teacherName || "Ustoz biriktirilmagan"}</span>
+													</div>
+												</td>
+												<td data-label='Holat'>
+													<Badge tone={meta.tone}>{meta.label}</Badge>
+												</td>
+												<td data-label='Davomat'>
+													<AttendanceStatusSwitch
+														value={statusValue}
+														disabled={!editable}
+														onChange={value =>
+															setAttendanceMap(current => ({
+																...current,
+																[student.id]: value,
+															}))
+														}
+													/>
+												</td>
+											</tr>
+										)
+									})}
+								</tbody>
+							</table>
+						</div>
+						<div className='attendance-footer'>
+							<span>Davomat reception tomonidan kiritiladi va student kabinet ham shu ma'lumotdan foydalanadi.</span>
+							<div className='attendance-actions'>
+								<button type='button' className='text-link' onClick={() => setAttendanceMap({})}>
+									Tanlovni tozalash
+								</button>
+								<ActionButton icon='save' onClick={handleSaveAttendance}>
+									Davomatni saqlash
+								</ActionButton>
+							</div>
 						</div>
 					</div>
-				) : null}
-			</section>
+				</Modal>
+			) : null}
 		</>
 	)
 }
