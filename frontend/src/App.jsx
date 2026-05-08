@@ -3957,6 +3957,109 @@ function StudentAttendancePage({ token }) {
 					</table>
 				</div>
 			</section>
+			<div className='two-column-grid reception-dashboard-grid'>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Bugungi guruhlar</h3>
+						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/attendance')}>
+							Davomatga o'tish
+						</button>
+					</div>
+					<div className='dashboard-mini-list'>
+						{todayGroups.length ? (
+							todayGroups.map(group => (
+								<button
+									type='button'
+									key={group.key}
+									className='mini-list-card'
+									onClick={() => navigate('/reception/attendance')}
+								>
+									<div>
+										<strong>{group.courseTitle}</strong>
+										<span>{group.teacherName}</span>
+									</div>
+									<div className='mini-list-side'>
+										<b>{group.members[0]?.schedule || "Vaqt yo'q"}</b>
+										<small>{group.members.length} ta student</small>
+									</div>
+								</button>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Bugun uchun guruh topilmadi.</div>
+						)}
+					</div>
+				</section>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Oxirgi harakatlar</h3>
+					</div>
+					<div className='timeline-list'>
+						{recentActivities.length ? (
+							recentActivities.map(item => (
+								<div key={item.id} className='timeline-item timeline-item-rich'>
+									<strong>{item.title}</strong>
+									<span>{item.description}</span>
+									<span>{item.meta}</span>
+								</div>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Hozircha oxirgi harakatlar yo'q.</div>
+						)}
+					</div>
+				</section>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Yangi murojaatlar</h3>
+						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/requests')}>
+							Barchasini ko'rish
+						</button>
+					</div>
+					<div className='dashboard-mini-list'>
+						{newRequests.length ? (
+							newRequests.map(item => (
+								<div key={item.id} className='mini-list-card static'>
+									<div>
+										<strong>{item.fullName}</strong>
+										<span>{item.phone}</span>
+									</div>
+									<div className='mini-list-side'>
+										<Badge tone='warning'>Yangi</Badge>
+										<small>{String(item.createdAt || '').slice(0, 10)}</small>
+									</div>
+								</div>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Yangi murojaat yo'q.</div>
+						)}
+					</div>
+				</section>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Qarzdorlar</h3>
+						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/students')}>
+							Ro'yxatga o'tish
+						</button>
+					</div>
+					<div className='dashboard-mini-list'>
+						{debtorsList.length ? (
+							debtorsList.map(student => (
+								<div key={student.id} className='mini-list-card static'>
+									<div>
+										<strong>{student.fullName}</strong>
+										<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
+									</div>
+									<div className='mini-list-side'>
+										<b>{formatMoney(Math.abs(Number(student.balance || 0)))}</b>
+										<small>{student.teacherName || "Ustoz yo'q"}</small>
+									</div>
+								</div>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Qarzdor student topilmadi.</div>
+						)}
+					</div>
+				</section>
+			</div>
 		</>
 	)
 }
@@ -4008,6 +4111,109 @@ function StudentPaymentsPage({ token }) {
 					</table>
 				</div>
 			</section>
+			<div className='two-column-grid reception-dashboard-grid'>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Bugungi guruhlar</h3>
+						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/attendance')}>
+							Davomatga o'tish
+						</button>
+					</div>
+					<div className='dashboard-mini-list'>
+						{todayGroups.length ? (
+							todayGroups.map(group => (
+								<button
+									type='button'
+									key={group.key}
+									className='mini-list-card'
+									onClick={() => navigate('/reception/attendance')}
+								>
+									<div>
+										<strong>{group.courseTitle}</strong>
+										<span>{group.teacherName}</span>
+									</div>
+									<div className='mini-list-side'>
+										<b>{group.members[0]?.schedule || "Vaqt yo'q"}</b>
+										<small>{group.members.length} ta student</small>
+									</div>
+								</button>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Bugun uchun guruh topilmadi.</div>
+						)}
+					</div>
+				</section>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Oxirgi harakatlar</h3>
+					</div>
+					<div className='timeline-list'>
+						{recentActivities.length ? (
+							recentActivities.map(item => (
+								<div key={item.id} className='timeline-item timeline-item-rich'>
+									<strong>{item.title}</strong>
+									<span>{item.description}</span>
+									<span>{item.meta}</span>
+								</div>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Hozircha oxirgi harakatlar yo'q.</div>
+						)}
+					</div>
+				</section>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Yangi murojaatlar</h3>
+						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/requests')}>
+							Barchasini ko'rish
+						</button>
+					</div>
+					<div className='dashboard-mini-list'>
+						{newRequests.length ? (
+							newRequests.map(item => (
+								<div key={item.id} className='mini-list-card static'>
+									<div>
+										<strong>{item.fullName}</strong>
+										<span>{item.phone}</span>
+									</div>
+									<div className='mini-list-side'>
+										<Badge tone='warning'>Yangi</Badge>
+										<small>{String(item.createdAt || '').slice(0, 10)}</small>
+									</div>
+								</div>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Yangi murojaat yo'q.</div>
+						)}
+					</div>
+				</section>
+				<section className='card reception-dashboard-section'>
+					<div className='section-title-row compact'>
+						<h3>Qarzdorlar</h3>
+						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/students')}>
+							Ro'yxatga o'tish
+						</button>
+					</div>
+					<div className='dashboard-mini-list'>
+						{debtorsList.length ? (
+							debtorsList.map(student => (
+								<div key={student.id} className='mini-list-card static'>
+									<div>
+										<strong>{student.fullName}</strong>
+										<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
+									</div>
+									<div className='mini-list-side'>
+										<b>{formatMoney(Math.abs(Number(student.balance || 0)))}</b>
+										<small>{student.teacherName || "Ustoz yo'q"}</small>
+									</div>
+								</div>
+							))
+						) : (
+							<div className='dashboard-empty-state'>Qarzdor student topilmadi.</div>
+						)}
+					</div>
+				</section>
+			</div>
 		</>
 	)
 }
@@ -4066,7 +4272,7 @@ function StudentNotificationsPage({ token }) {
 		<>
 			<PageHeader title='Bildirishnomalar' subtitle='Student uchun barcha ogohlantirishlar' />
 			<section className='card'>
-				<div className='timeline-list'>
+				<div className='timeline-list' hidden>
 					{items.map(item => (
 						<button key={item.id} type='button' className={item.status === 'read' ? 'notification-item read' : 'notification-item'} onClick={() => readNotification(item.id)}>
 							<strong>{item.title}</strong>
@@ -5104,25 +5310,67 @@ function ReceptionStudentsPage({ token, meta }) {
 function ReceptionDashboardPage({ token }) {
 	const { students } = useReceptionData(token, { search: '', status: '' })
 	const [payments] = usePaymentsData(token)
+	const [contactRequests, setContactRequests] = useState([])
+	const navigate = useNavigate()
 
 	const active = students.filter(student => student.status === 'active').length
 	const debtors = students.filter(student => student.status === 'debtor').length
 	const trial = students.filter(student => student.status === 'trial').length
-	const paymentTrend = useMemo(() => {
-		const buckets = {}
-		payments.slice(0, 14).reverse().forEach(payment => {
-			const rawDate = String(payment.createdAt || '').slice(0, 10)
-			const key = rawDate || String(payment.createdAt || '').slice(5, 10)
-			buckets[key] = (buckets[key] || 0) + Number(payment.amount || 0)
-		})
-		return Object.entries(buckets).map(([label, value]) => ({ label, value })).slice(-6)
+	const totalPaymentsToday = useMemo(() => {
+		const today = new Date().toISOString().slice(0, 10)
+		return payments
+			.filter(payment => String(payment.createdAt || '').slice(0, 10) === today)
+			.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
 	}, [payments])
+	const todayGroups = useMemo(() => {
+		const dayKeyMap = ['yak', 'du', 'se', 'chor', 'pay', 'juma', 'shan']
+		const todayKey = dayKeyMap[new Date().getDay()]
+		return groupStudentsForAttendance(students)
+			.filter(group => parseScheduleString(group.members[0]?.schedule || '').days.includes(todayKey))
+			.sort((a, b) => getScheduleSortKey(a.members[0]?.schedule) - getScheduleSortKey(b.members[0]?.schedule))
+			.slice(0, 4)
+	}, [students])
+	const recentActivities = useMemo(() => {
+		const paymentItems = payments.slice(0, 4).map(payment => ({
+			id: `payment-${payment.id}`,
+			title: payment.studentName,
+			description: payment.courseTitle || "Kurs ko'rsatilmagan",
+			meta: `${formatMoney(payment.amount)} / ${getPaymentMethodMeta(payment.method).shortLabel}`,
+			date: payment.createdAt,
+		}))
+		const requestItems = contactRequests.slice(0, 3).map(item => ({
+			id: `request-${item.id}`,
+			title: item.fullName,
+			description: item.status === 'new' ? 'Yangi murojaat' : "Ko'rib chiqilgan murojaat",
+			meta: item.phone,
+			date: item.createdAt,
+		}))
+		return [...paymentItems, ...requestItems]
+			.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+			.slice(0, 5)
+	}, [payments, contactRequests])
+	const newRequests = useMemo(
+		() => contactRequests.filter(item => item.status === 'new').slice(0, 5),
+		[contactRequests]
+	)
+	const debtorsList = useMemo(
+		() =>
+			students
+				.filter(student => student.status === 'debtor')
+				.sort((a, b) => Number(a.balance || 0) - Number(b.balance || 0))
+				.slice(0, 5),
+		[students]
+	)
+
+	useEffect(() => {
+		api.getReceptionContactRequests(token).then(setContactRequests).catch(() => setContactRequests([]))
+	}, [token])
 
 	return (
 		<>
 			<PageHeader
 				title='Bosh sahifa'
-				subtitle="Reception umumiy boshqaruv ko'rinishi"
+				subtitle="Bugungi reception ishlari va tezkor holat"
 			/>
 			<div className='three-column-grid'>
 				<StatCard
@@ -5134,40 +5382,58 @@ function ReceptionDashboardPage({ token }) {
 				<StatCard
 					label='Sinovdagilar'
 					value={`${trial} ta`}
-					note="3 ta o'qish kuni kuzatuvda"
+					note='Kuzatuv ostidagi studentlar'
 					icon='hourglass_top'
 				/>
 				<StatCard
 					label='Qarzdorlar'
 					value={`${debtors} ta`}
-					note='Faol nazorat talab etiladi'
+					note="To'lov nazorati kerak"
 					tone='danger'
 					icon='warning'
 				/>
 				<StatCard
 					label="Bugungi to'lovlar"
-					value={`${payments.length} ta`}
-					note='Oxirgi tranzaksiyalar tayyor'
+					value={formatMoney(totalPaymentsToday)}
+					note='Bugungi tushum'
 					icon='payments'
 				/>
 			</div>
-			<section className='card'>
-				<h3>Oxirgi harakatlar</h3>
-				{paymentTrend.length ? (
-					<div className='dashboard-trend-block'>
-						<div className='dashboard-trend-head'>
-							<strong>To'lov trendi</strong>
-							<span>So'nggi to'lov kunlari bo'yicha tushum</span>
+			<section className='card reception-dashboard-section'>
+				<div className='section-title-row compact'>
+					<h3>Tezkor amallar</h3>
+				</div>
+				<div className='reception-quick-actions'>
+					<button type='button' className='quick-action-tile' onClick={() => navigate('/reception/students')}>
+						<Icon name='group' />
+						<div>
+							<strong>O'quvchilar</strong>
+							<span>Baza va statuslar</span>
 						</div>
-						<TrendLineChart
-							items={paymentTrend}
-							valueKey='value'
-							labelKey='label'
-							formatValue={value => formatCompactMoney(value)}
-						/>
-					</div>
-				) : null}
-				<div className='timeline-list'>
+					</button>
+					<button type='button' className='quick-action-tile' onClick={() => navigate('/reception/payments')}>
+						<Icon name='payments' />
+						<div>
+							<strong>To'lov olish</strong>
+							<span>Guruh va student bo'yicha</span>
+						</div>
+					</button>
+					<button type='button' className='quick-action-tile' onClick={() => navigate('/reception/attendance')}>
+						<Icon name='event_available' />
+						<div>
+							<strong>Davomat olish</strong>
+							<span>Bugungi guruhlar bilan</span>
+						</div>
+					</button>
+					<button type='button' className='quick-action-tile' onClick={() => navigate('/reception/requests')}>
+						<Icon name='support_agent' />
+						<div>
+							<strong>Bog'lanishlar</strong>
+							<span>Yangi murojaatlarni ko'rish</span>
+						</div>
+					</button>
+				</div>
+				<div className='timeline-list' hidden>
 					{payments.slice(0, 5).map(payment => (
 						<div key={payment.id} className='timeline-item timeline-item-rich'>
 							<strong>{payment.studentName}</strong>
