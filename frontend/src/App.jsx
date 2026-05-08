@@ -4569,10 +4569,6 @@ function PaymentCollectionWorkspace({
 						<strong>{payments.length} ta</strong>
 						<span>Jami qabul qilingan tranzaksiya</span>
 					</div>
-					<div className='metric-chip-card navy'>
-						<strong>Minimal to'lov nazorati</strong>
-						<span>Kurs narxidan kam summa faqat sabab bilan qabul qilinadi</span>
-					</div>
 				</div>
 				<div className='attendance-group-grid top-space'>
 					{visibleGroups.map(group => (
@@ -5469,10 +5465,6 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 						<strong>{visibleGroups.length} ta</strong>
 						<span>Ko'rsatilayotgan kartalar</span>
 					</div>
-					<div className='metric-chip-card navy'>
-						<strong>Reception nazorat qiladi</strong>
-						<span>Kelgan studentga ptichka qo'yiladi, qolganlari kelmadi hisoblanadi</span>
-					</div>
 				</div>
 				<div className='attendance-group-grid top-space'>
 					{visibleGroups.map(group => {
@@ -5575,7 +5567,6 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 							</table>
 						</div>
 						<div className='attendance-footer'>
-							<span>Davomat reception tomonidan kiritiladi va student kabinet ham shu ma'lumotdan foydalanadi.</span>
 							<div className='attendance-actions'>
 								<button type='button' className='text-link' onClick={() => setAttendanceMap({})}>
 									Tanlovni tozalash
