@@ -217,6 +217,8 @@ export function migrate() {
     `ALTER TABLE students ADD COLUMN enrolled_at TEXT`,
     `ALTER TABLE students ADD COLUMN trial_required INTEGER NOT NULL DEFAULT 3`,
     `ALTER TABLE students ADD COLUMN payment_due_date TEXT`,
+    `ALTER TABLE students ADD COLUMN billing_start_date TEXT`,
+    `ALTER TABLE students ADD COLUMN group_schedule TEXT`,
     `ALTER TABLE students ADD COLUMN is_registered INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE payments ADD COLUMN received_by_user_id INTEGER`,
     `ALTER TABLE payments ADD COLUMN reason TEXT`,

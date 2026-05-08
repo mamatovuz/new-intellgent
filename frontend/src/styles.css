@@ -4142,6 +4142,39 @@ background: #00236f;
   font-weight: 600;
 }
 
+.weekday-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.weekday-chip {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #d6dfec;
+  background: #f8fbff;
+  color: #35507e;
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.weekday-chip:hover {
+  border-color: #9db4df;
+}
+
+.weekday-chip.active {
+  border-color: #123485;
+  background: #123485;
+  color: #ffffff;
+}
+
+.weekday-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .toggle-row {
   padding: 14px 16px;
   border-radius: 12px;

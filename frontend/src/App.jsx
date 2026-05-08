@@ -526,6 +526,41 @@ function formatDateLabel(value = new Date()) {
 	}).format(value)
 }
 
+const WEEKDAY_OPTIONS = [
+	{ key: 'du', label: 'Dushanba' },
+	{ key: 'se', label: 'Seshanba' },
+	{ key: 'chor', label: 'Chorshanba' },
+	{ key: 'pay', label: 'Payshanba' },
+	{ key: 'juma', label: 'Juma' },
+	{ key: 'shan', label: 'Shanba' },
+]
+
+function parseScheduleString(value = '') {
+	const [daysPart = '', timePart = ''] = String(value).split(',')
+	const days = daysPart
+		.split('-')
+		.map(item => item.trim().toLowerCase())
+		.filter(Boolean)
+	const [startTime = '', endTime = ''] = timePart
+		.split('-')
+		.map(item => item.trim())
+	return { days, startTime, endTime }
+}
+
+function buildScheduleString(days = [], startTime = '', endTime = '') {
+	const normalizedDays = [...days].filter(Boolean)
+	if (!normalizedDays.length) return ''
+	const timePart =
+		startTime && endTime ? `${startTime} - ${endTime}` : startTime || endTime || ''
+	return timePart
+		? `${normalizedDays.join('-')}, ${timePart}`
+		: normalizedDays.join('-')
+}
+
+function toggleScheduleDay(days = [], key) {
+	return days.includes(key) ? days.filter(item => item !== key) : [...days, key]
+}
+
 function formatPhoneInput(value = '') {
 	const digits = value.replace(/\D/g, '').slice(0, 12)
 	let normalized = digits
@@ -1682,14 +1717,32 @@ function StudentHistoryModal({ history, onClose }) {
 }
 
 function CourseModal({ initialData, onClose, onSubmit }) {
-	const [form, setForm] = useState(initialData)
+	const initialSchedule = parseScheduleString(initialData.schedule || '')
+	const [form, setForm] = useState({
+		...initialData,
+		scheduleDays: initialSchedule.days,
+		startTime: initialSchedule.startTime,
+		endTime: initialSchedule.endTime,
+	})
 	return (
 		<Modal
 			title={form.id ? 'Kursni tahrirlash' : 'Yangi kurs'}
 			subtitle="Kurs ma'lumotlarini kiriting"
 			onClose={onClose}
 		>
-			<form className='modal-form' onSubmit={event => onSubmit(event, form)}>
+			<form
+				className='modal-form'
+				onSubmit={event =>
+					onSubmit(event, {
+						...form,
+						schedule: buildScheduleString(
+							form.scheduleDays,
+							form.startTime,
+							form.endTime,
+						),
+					})
+				}
+			>
 				<div className='field-grid'>
 					<div>
 						<label>Nomi</label>
@@ -1708,11 +1761,47 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 							}
 						/>
 					</div>
+					<div className='full-span'>
+						<label>Dars kunlari</label>
+						<div className='weekday-grid'>
+							{WEEKDAY_OPTIONS.map(day => (
+								<button
+									key={day.key}
+									type='button'
+									className={
+										form.scheduleDays?.includes(day.key)
+											? 'weekday-chip active'
+											: 'weekday-chip'
+									}
+									onClick={() =>
+										setForm(current => ({
+											...current,
+											scheduleDays: toggleScheduleDay(
+												current.scheduleDays || [],
+												day.key,
+											),
+										}))
+									}
+								>
+									{day.label}
+								</button>
+							))}
+						</div>
+					</div>
 					<div>
-						<label>Jadval</label>
+						<label>Boshlanish vaqti</label>
 						<input
-							value={form.schedule}
-							onChange={e => setForm({ ...form, schedule: e.target.value })}
+							type='time'
+							value={form.startTime}
+							onChange={e => setForm({ ...form, startTime: e.target.value })}
+						/>
+					</div>
+					<div>
+						<label>Tugash vaqti</label>
+						<input
+							type='time'
+							value={form.endTime}
+							onChange={e => setForm({ ...form, endTime: e.target.value })}
 						/>
 					</div>
 				</div>
@@ -4046,7 +4135,15 @@ function StudentProfilePage({ token }) {
 }
 
 function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
-	const [form, setForm] = useState(initialData)
+	const initialSchedule = parseScheduleString(initialData.schedule || '')
+	const [form, setForm] = useState({
+		...initialData,
+		status: initialData.status || 'trial',
+		billingStartDate: initialData.billingStartDate || '',
+		scheduleDays: initialSchedule.days,
+		startTime: initialSchedule.startTime,
+		endTime: initialSchedule.endTime,
+	})
 	const selectedCourse = meta.courses.find(
 		course => Number(course.id) === Number(form.courseId),
 	)
@@ -4064,6 +4161,14 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 		}
 	}, [form.courseId])
 
+	useEffect(() => {
+		const parsed = parseScheduleString(selectedCourse?.schedule || '')
+		setForm(current => ({
+			...current,
+			scheduleDays: current.scheduleDays?.length ? current.scheduleDays : parsed.days,
+		}))
+	}, [selectedCourse?.id])
+
 	return (
 		<Modal
 			title={initialData.id ? "O'quvchini tahrirlash" : "Yangi o'quvchi"}
@@ -4080,7 +4185,15 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 						)
 						return
 					}
-					onSubmit(event, form)
+					onSubmit(event, {
+						...form,
+						trialRequired: form.status === 'active' ? 0 : 3,
+						schedule: buildScheduleString(
+							form.scheduleDays,
+							form.startTime,
+							form.endTime,
+						),
+					})
 				}}
 			>
 				<div className='field-grid'>
@@ -4142,9 +4255,85 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 						/>
 					</div>
 					<div>
-						<label>Sinov qoidasi</label>
+						<label>Status</label>
+						<select
+							value={form.status}
+							onChange={e => setForm({ ...form, status: e.target.value })}
+						>
+							<option value='trial'>Sinov</option>
+							<option value='active'>Faol</option>
+						</select>
+					</div>
+					<div className='full-span'>
+						<label>Dars kunlari</label>
+						<div className='weekday-grid'>
+							{WEEKDAY_OPTIONS.map(day => {
+								const allowedDays = parseScheduleString(selectedCourse?.schedule || '')
+									.days
+								const disabled = allowedDays.length
+									? !allowedDays.includes(day.key)
+									: false
+								return (
+									<button
+										key={day.key}
+										type='button'
+										className={
+											form.scheduleDays?.includes(day.key)
+												? 'weekday-chip active'
+												: 'weekday-chip'
+										}
+										disabled={disabled}
+										onClick={() =>
+											!disabled &&
+											setForm(current => ({
+												...current,
+												scheduleDays: toggleScheduleDay(
+													current.scheduleDays || [],
+													day.key,
+												),
+											}))
+										}
+									>
+										{day.label}
+									</button>
+								)
+							})}
+						</div>
+					</div>
+					<div>
+						<label>Dars boshlanish vaqti</label>
 						<input
-							value="Ro'yxatdan o'tgan kundan 3 ta o'qish kuni sinov"
+							type='time'
+							value={form.startTime}
+							onChange={e => setForm({ ...form, startTime: e.target.value })}
+						/>
+					</div>
+					<div>
+						<label>Dars tugash vaqti</label>
+						<input
+							type='time'
+							value={form.endTime}
+							onChange={e => setForm({ ...form, endTime: e.target.value })}
+						/>
+					</div>
+					<div>
+						<label>Oylik boshlanish sanasi</label>
+						<input
+							type='date'
+							value={form.billingStartDate}
+							onChange={e =>
+								setForm({ ...form, billingStartDate: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label>Qoidasi</label>
+						<input
+							value={
+								form.status === 'active'
+									? "Faol student: oylik to'lov darhol hisoblanadi"
+									: "Sinov student: 3 ta o'qish kuni sinov"
+							}
 							readOnly
 						/>
 					</div>
@@ -4614,6 +4803,9 @@ function ReceptionStudentsPage({ token, meta }) {
 		teacherId: meta.teachers[0]?.id || '',
 		balance: 0,
 		lastPaymentDate: '',
+		status: 'trial',
+		billingStartDate: '',
+		schedule: '',
 	}
 
 	async function submitStudent(event, form) {

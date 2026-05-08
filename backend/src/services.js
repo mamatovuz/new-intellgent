@@ -35,6 +35,7 @@ export function mapStudentRow(student) {
     balance: student.balance,
     status: student.status,
     enrolledAt: student.enrolledAt || null,
+    billingStartDate: student.billingStartDate || null,
     trialRequired: Number(student.trialRequired || 3),
     paymentDueDate: student.paymentDueDate || null,
     trialProgress: Number(student.trialProgress || 0),
@@ -109,6 +110,14 @@ function mapDeveloperRow(row) {
 
 function normalizePhone(value = "") {
   return String(value).replace(/\s+/g, "");
+}
+
+function normalizeBillingStartDate(value) {
+  if (!value) {
+    return null;
+  }
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
 }
 
 function generateAccessToken() {
@@ -496,7 +505,13 @@ function getNthTrialLessonDate(studentId, enrolledAt, trialRequired) {
 
 function recalcStudentState(studentId) {
   const student = db.prepare(`
-    SELECT s.id, s.balance, s.enrolled_at as enrolledAt, s.trial_required as trialRequired, c.monthly_fee as monthlyFee
+    SELECT
+      s.id,
+      s.balance,
+      s.enrolled_at as enrolledAt,
+      s.billing_start_date as billingStartDate,
+      s.trial_required as trialRequired,
+      c.monthly_fee as monthlyFee
     FROM students s
     LEFT JOIN courses c ON c.id = s.course_id
     WHERE s.id = ?
@@ -507,12 +522,21 @@ function recalcStudentState(studentId) {
   }
 
   const enrolledAt = student.enrolledAt || dayjs().format("YYYY-MM-DD");
-  const trialRequired = Number(student.trialRequired || 3);
+  const trialRequired =
+    student.trialRequired === null || student.trialRequired === undefined
+      ? 3
+      : Math.max(Number(student.trialRequired || 0), 0);
   const trialProgress = getTrialProgress(studentId, enrolledAt);
-  const paymentDueDate = trialProgress >= trialRequired ? getNthTrialLessonDate(studentId, enrolledAt, trialRequired) : null;
+  let paymentDueDate =
+    trialProgress >= trialRequired && trialRequired > 0
+      ? getNthTrialLessonDate(studentId, enrolledAt, trialRequired)
+      : null;
 
   let status = "trial";
-  if (trialProgress >= trialRequired) {
+  if (trialRequired === 0) {
+    paymentDueDate = normalizeBillingStartDate(student.billingStartDate) || enrolledAt;
+    status = Number(student.balance || 0) >= Number(student.monthlyFee || 0) ? "active" : "debtor";
+  } else if (trialProgress >= trialRequired) {
     status = Number(student.balance || 0) >= Number(student.monthlyFee || 0) ? "active" : "debtor";
   }
 
@@ -611,6 +635,7 @@ export function getStudentByUserId(userId) {
       s.balance,
       s.status,
       s.enrolled_at as enrolledAt,
+      s.billing_start_date as billingStartDate,
       s.trial_required as trialRequired,
       s.payment_due_date as paymentDueDate,
       s.last_payment_date as lastPaymentDate,
@@ -618,7 +643,7 @@ export function getStudentByUserId(userId) {
       c.id as courseId,
       c.title as courseTitle,
       c.monthly_fee as monthlyFee,
-      c.schedule,
+      COALESCE(s.group_schedule, c.schedule) as schedule,
       t.id as teacherId,
       t.full_name as teacherName,
       u.profile_image as profileImage
@@ -642,6 +667,7 @@ export function getStudentByPhone(phone) {
       s.balance,
       s.status,
       s.enrolled_at as enrolledAt,
+      s.billing_start_date as billingStartDate,
       s.trial_required as trialRequired,
       s.payment_due_date as paymentDueDate,
       s.last_payment_date as lastPaymentDate,
@@ -649,7 +675,7 @@ export function getStudentByPhone(phone) {
       c.id as courseId,
       c.title as courseTitle,
       c.monthly_fee as monthlyFee,
-      c.schedule,
+      COALESCE(s.group_schedule, c.schedule) as schedule,
       t.id as teacherId,
       t.full_name as teacherName,
       s.user_id as userId,
@@ -674,6 +700,7 @@ export function getStudentByTelegramId(telegramId) {
       s.balance,
       s.status,
       s.enrolled_at as enrolledAt,
+      s.billing_start_date as billingStartDate,
       s.trial_required as trialRequired,
       s.payment_due_date as paymentDueDate,
       s.last_payment_date as lastPaymentDate,
@@ -681,7 +708,7 @@ export function getStudentByTelegramId(telegramId) {
       c.id as courseId,
       c.title as courseTitle,
       c.monthly_fee as monthlyFee,
-      c.schedule,
+      COALESCE(s.group_schedule, c.schedule) as schedule,
       t.id as teacherId,
       t.full_name as teacherName,
       s.user_id as userId,
@@ -705,6 +732,7 @@ export function getStudentById(studentId) {
       s.balance,
       s.status,
       s.enrolled_at as enrolledAt,
+      s.billing_start_date as billingStartDate,
       s.trial_required as trialRequired,
       s.payment_due_date as paymentDueDate,
       s.last_payment_date as lastPaymentDate,
@@ -712,7 +740,7 @@ export function getStudentById(studentId) {
       c.id as courseId,
       c.title as courseTitle,
       c.monthly_fee as monthlyFee,
-      c.schedule,
+      COALESCE(s.group_schedule, c.schedule) as schedule,
       t.id as teacherId,
       t.full_name as teacherName,
       s.user_id as userId,
@@ -769,6 +797,7 @@ export function listStudents(filters = {}) {
       s.balance,
       s.status,
       s.enrolled_at as enrolledAt,
+      s.billing_start_date as billingStartDate,
       s.trial_required as trialRequired,
       s.payment_due_date as paymentDueDate,
       s.last_payment_date as lastPaymentDate,
@@ -776,7 +805,7 @@ export function listStudents(filters = {}) {
       c.id as courseId,
       c.title as courseTitle,
       c.monthly_fee as monthlyFee,
-      c.schedule,
+      COALESCE(s.group_schedule, c.schedule) as schedule,
       t.id as teacherId,
       t.full_name as teacherName,
       u.profile_image as profileImage
@@ -937,15 +966,19 @@ export function addStudent(payload, actorUserId = null) {
   const userId = createUser.run(payload.fullName, payload.phone, now).lastInsertRowid;
 
   const initialBalance = Number(payload.balance || 0);
-  const status = "trial";
+  const isActiveFlow = payload.status === "active";
+  const status = isActiveFlow ? "active" : "trial";
+  const trialRequired = isActiveFlow ? 0 : 3;
+  const billingStartDate = normalizeBillingStartDate(payload.billingStartDate);
+  const groupSchedule = payload.schedule || null;
 
   if (!teacherCanTeachCourse(payload.teacherId, payload.courseId)) {
     throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
   }
 
   const studentId = db.prepare(`
-    INSERT INTO students (user_id, course_id, teacher_id, balance, status, enrolled_at, trial_required, payment_due_date, last_payment_date, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO students (user_id, course_id, teacher_id, balance, status, enrolled_at, billing_start_date, trial_required, payment_due_date, last_payment_date, group_schedule, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     payload.courseId,
@@ -953,16 +986,26 @@ export function addStudent(payload, actorUserId = null) {
     initialBalance,
     status,
     enrolledDate,
-    3,
+    billingStartDate,
+    trialRequired,
+    isActiveFlow ? billingStartDate : null,
     null,
-    null,
+    groupSchedule,
     now
   ).lastInsertRowid;
 
   const auth = ensureStudentAuth(studentId, payload.phone, defaultPasswordHash);
   db.prepare(`UPDATE students SET is_registered = 1 WHERE id = ?`).run(studentId);
   recalcStudentState(studentId);
-  addStudentHistory(studentId, actorUserId, "created", "Student yaratildi", `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`);
+  addStudentHistory(
+    studentId,
+    actorUserId,
+    "created",
+    "Student yaratildi",
+    isActiveFlow
+      ? `${payload.fullName} tizimga faol student sifatida qo'shildi`
+      : `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`
+  );
   createNotification({
     targetRole: "director",
     type: "student_created",
@@ -999,6 +1042,9 @@ export function updateStudent(studentId, payload, actorUserId = null) {
   `).get(payload.courseId);
 
   const nextBalance = Number(payload.balance || 0);
+  const nextBillingStartDate = normalizeBillingStartDate(payload.billingStartDate);
+  const nextTrialRequired = payload.status === "active" ? 0 : 3;
+  const nextGroupSchedule = payload.schedule || null;
 
   if (!teacherCanTeachCourse(payload.teacherId, payload.courseId)) {
     throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
@@ -1014,12 +1060,25 @@ export function updateStudent(studentId, payload, actorUserId = null) {
 
   db.prepare(`
     UPDATE students
-    SET course_id = ?, teacher_id = ?, balance = ?, last_payment_date = COALESCE(last_payment_date, ?)
+    SET
+      course_id = ?,
+      teacher_id = ?,
+      balance = ?,
+      trial_required = ?,
+      billing_start_date = ?,
+      group_schedule = ?,
+      payment_due_date = CASE WHEN ? = 0 THEN ? ELSE payment_due_date END,
+      last_payment_date = COALESCE(last_payment_date, ?)
     WHERE id = ?
   `).run(
     payload.courseId,
     payload.teacherId,
     nextBalance,
+    nextTrialRequired,
+    nextBillingStartDate,
+    nextGroupSchedule,
+    nextTrialRequired,
+    nextBillingStartDate,
     dayjs().format("YYYY-MM-DD"),
     studentId
   );
