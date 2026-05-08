@@ -34,7 +34,6 @@ const NAV_ITEMS = {
 		{ to: '/director/dashboard', label: 'Dashboard', icon: 'dashboard' },
 		{ to: '/director/students', label: "O'quvchilar", icon: 'group' },
 		{ to: '/director/payments', label: "To'lovlar", icon: 'payments' },
-		{ to: '/director/attendance', label: 'Davomat', icon: 'event_available' },
 		{ to: '/director/statistics', label: 'Statistika', icon: 'leaderboard' },
 		{ to: '/director/settings', label: 'Sozlamalar', icon: 'settings' },
 	],
@@ -558,6 +557,17 @@ function getStudentStatusMeta(status) {
 	if (status === 'active') return { tone: 'success', label: 'Faol' }
 	if (status === 'trial') return { tone: 'warning', label: 'Sinovda' }
 	return { tone: 'danger', label: 'Qarzdor' }
+}
+
+function getAttendanceStatusMeta(status) {
+	if (status === 'present') return { tone: 'success', label: 'Keldi', icon: 'check_circle' }
+	if (status === 'late') return { tone: 'warning', label: 'Kechikdi', icon: 'schedule' }
+	if (status === 'excused') return { tone: 'default', label: 'Sababli', icon: 'assignment_turned_in' }
+	return { tone: 'danger', label: 'Kelmadi', icon: 'cancel' }
+}
+
+function formatTeacherAttendanceLabel(value) {
+	return `${value || 0}%`
 }
 
 function getInitials(name = '') {
@@ -4756,44 +4766,219 @@ function ReceptionContactRequestsPage({ token }) {
 	)
 }
 
-function ReceptionAttendancePage({ token }) {
+function groupStudentsForAttendance(students = []) {
+	const map = new Map()
+	students.forEach(student => {
+		const courseTitle = student.courseTitle || "Noma'lum guruh"
+		const teacherName = student.teacherName || "Ustoz biriktirilmagan"
+		const key = `${courseTitle}__${teacherName}`
+		if (!map.has(key)) {
+			map.set(key, { key, courseTitle, teacherName, label: `${courseTitle} · ${teacherName}`, members: [] })
+		}
+		map.get(key).members.push(student)
+	})
+	return Array.from(map.values())
+}
+
+function AttendanceStatusSwitch({ value, onChange, disabled = false }) {
+	const statuses = ['present', 'late', 'excused', 'absent']
+	return (
+		<div className={`attendance-status-switch ${disabled ? 'disabled' : ''}`}>
+			{statuses.map(status => {
+				const meta = getAttendanceStatusMeta(status)
+				return (
+					<button
+						key={status}
+						type='button'
+						className={`attendance-status-option ${value === status ? 'active' : ''}`}
+						onClick={() => !disabled && onChange(status)}
+						disabled={disabled}
+					>
+						<Icon name={meta.icon} />
+						<span>{meta.label}</span>
+					</button>
+				)
+			})}
+		</div>
+	)
+}
+
+function AttendanceManagerPage({ token, role = 'reception' }) {
 	const { students } = useReceptionData(token, { search: '', status: '' })
+	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
+	const [selectedGroup, setSelectedGroup] = useState('')
+	const [memberSearch, setMemberSearch] = useState('')
+	const [attendanceMap, setAttendanceMap] = useState({})
+	const [history, setHistory] = useState([])
+	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
+	const editable = role === 'reception' || role === 'director'
+
+	useEffect(() => {
+		if (!selectedGroup && groups[0]) {
+			setSelectedGroup(groups[0].key)
+		}
+	}, [groups, selectedGroup])
+
+	useEffect(() => {
+		api.getAttendanceHistory(token, { range: 'day', lessonDate }).then(setHistory).catch(() => setHistory([]))
+	}, [token, lessonDate])
+
+	const historyMap = useMemo(() => {
+		const next = {}
+		history.forEach(item => {
+			next[item.studentId] = item.status
+		})
+		return next
+	}, [history])
+
+	const currentGroup = groups.find(group => group.key === selectedGroup) || groups[0] || { members: [], label: '' }
+	const visibleMembers = currentGroup.members.filter(student => {
+		const query = memberSearch.trim().toLowerCase()
+		if (!query) return true
+		return [student.fullName, student.phone, student.courseTitle, student.teacherName]
+			.filter(Boolean)
+			.some(value => String(value).toLowerCase().includes(query))
+	})
+
+	async function handleSaveAttendance() {
+		try {
+			await api.saveAttendanceBatch(token, {
+				lessonDate,
+				entries: currentGroup.members.map(student => ({
+					studentId: student.id,
+					status: attendanceMap[student.id] || historyMap[student.id] || 'present',
+				})),
+			})
+			const fresh = await api.getAttendanceHistory(token, { range: 'day', lessonDate })
+			setHistory(fresh)
+			await showSuccess('Davomat saqlandi', `${currentGroup.members.length} ta o'quvchi bo'yicha davomat yangilandi`)
+		} catch (err) {
+			await showError(err.message)
+		}
+	}
+
 	return (
 		<>
 			<PageHeader
-				title='Davomat nazorati'
-				subtitle='Student holatlari va qarzdorlik kesimi'
+				title={role === 'director' ? 'Davomat markazi' : 'Davomat olish'}
+				subtitle={
+					role === 'director'
+						? "Reception kiritgan davomatni ko'rish va zarur bo'lsa yangilash"
+						: "Bugungi davomatni reception panel orqali belgilang"
+				}
 			/>
-			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
+			<section className='card attendance-hub-card'>
+				<div className='attendance-hub-top'>
+					<div>
+						<span className='card-label'>Guruh va sana</span>
+						<h3>{currentGroup.label || "Guruh tanlanmagan"}</h3>
+						<p>{formatDateLabel(new Date(lessonDate))}</p>
+					</div>
+					<div className='attendance-hub-controls'>
+						<select value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)}>
+							{groups.map(group => (
+								<option key={group.key} value={group.key}>
+									{group.label}
+								</option>
+							))}
+						</select>
+						<input type='date' value={lessonDate} onChange={event => setLessonDate(event.target.value)} />
+					</div>
+				</div>
+				<div className='attendance-hub-meta'>
+					<div className='metric-chip-card success'>
+						<strong>{currentGroup.members.length} ta</strong>
+						<span>Guruhdagi studentlar</span>
+					</div>
+					<div className='metric-chip-card warning'>
+						<strong>{visibleMembers.length} ta</strong>
+						<span>Ko'rsatilayotgan ro'yxat</span>
+					</div>
+					<div className='metric-chip-card'>
+						<strong>{editable ? 'Reception yozadi' : 'Read only'}</strong>
+						<span>{editable ? 'Direktor ham tahrirlashi mumkin' : 'Davomatni reception belgilaydi'}</span>
+					</div>
+				</div>
+				<div className='toolbar-right top-space'>
+					<input
+						className='toolbar-search'
+						placeholder="Ism, telefon yoki kurs bo'yicha qidiring..."
+						value={memberSearch}
+						onChange={event => setMemberSearch(event.target.value)}
+					/>
+				</div>
+				<div className='table-shell responsive-cards top-space'>
 					<table>
 						<thead>
 							<tr>
 								<th>O'quvchi</th>
-								<th>Kurs</th>
-								<th>O'qituvchi</th>
-								<th>Status</th>
+								<th>Telefon</th>
+								<th>Holat</th>
+								<th>Davomat</th>
 							</tr>
 						</thead>
 						<tbody>
-							{students.map(student => (
-								<tr key={student.id}>
-									<td data-label="O'quvchi">{student.fullName}</td>
-									<td data-label='Kurs'>{student.courseTitle}</td>
-									<td data-label="O'qituvchi">{student.teacherName}</td>
-									<td data-label='Status'>
-										<Badge tone={getStudentStatusMeta(student.status).tone}>
-											{getStudentStatusMeta(student.status).label}
-										</Badge>
-									</td>
-								</tr>
-							))}
+							{visibleMembers.map((student, index) => {
+								const statusValue = attendanceMap[student.id] || historyMap[student.id] || 'present'
+								const meta = getAttendanceStatusMeta(statusValue)
+								return (
+									<tr key={student.id}>
+										<td data-label="O'quvchi">
+											<div className='student-identity'>
+												<div className={`avatar-badge tone-${index % 5}`}>{getInitials(student.fullName)}</div>
+												<div className='course-cell'>
+													<strong>{student.fullName}</strong>
+													<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
+												</div>
+											</div>
+										</td>
+										<td data-label='Telefon'>
+											<div className='contact-cell'>
+												<strong>{student.phone || '-'}</strong>
+												<span>{student.teacherName || "Ustoz biriktirilmagan"}</span>
+											</div>
+										</td>
+										<td data-label='Holat'>
+											<Badge tone={meta.tone}>{meta.label}</Badge>
+										</td>
+										<td data-label='Davomat'>
+											<AttendanceStatusSwitch
+												value={statusValue}
+												disabled={!editable}
+												onChange={value =>
+													setAttendanceMap(current => ({
+														...current,
+														[student.id]: value,
+													}))
+												}
+											/>
+										</td>
+									</tr>
+								)
+							})}
 						</tbody>
 					</table>
 				</div>
+				{editable ? (
+					<div className='attendance-footer'>
+						<span>Davomat reception tomonidan kiritiladi. Direktorda ham shu sahifa orqali yangilash imkoniyati bor.</span>
+						<div className='attendance-actions'>
+							<button type='button' className='text-link' onClick={() => setAttendanceMap({})}>
+								Tanlovni tozalash
+							</button>
+							<ActionButton icon='save' onClick={handleSaveAttendance}>
+								Davomatni saqlash
+							</ActionButton>
+						</div>
+					</div>
+				) : null}
 			</section>
 		</>
 	)
+}
+
+function ReceptionAttendancePage({ token }) {
+	return <AttendanceManagerPage token={token} role='reception' />
 }
 
 function ReceptionSettingsPage({ meta, token, onProfileUpdated }) {
@@ -4827,67 +5012,53 @@ function useTeacherStudents(token) {
 
 function TeacherAttendancePage({ token }) {
 	const { students, reload } = useTeacherStudents(token)
-	const groups = useMemo(() => {
-		const map = new Map()
-		students.forEach(student => {
-			const key = student.courseTitle || "Noma'lum guruh"
-			if (!map.has(key)) map.set(key, [])
-			map.get(key).push(student)
-		})
-		return Array.from(map.entries()).map(([name, members]) => ({
-			name,
-			members,
-		}))
-	}, [students])
+	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
 	const [selectedGroup, setSelectedGroup] = useState('')
-	const [attendanceMap, setAttendanceMap] = useState({})
+	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
+	const [history, setHistory] = useState([])
 
 	useEffect(() => {
 		if (!selectedGroup && groups[0]) {
-			setSelectedGroup(groups[0].name)
+			setSelectedGroup(groups[0].key)
 		}
 	}, [groups, selectedGroup])
 
-	const currentGroup = groups.find(group => group.name === selectedGroup) ||
-		groups[0] || { members: [] }
+	useEffect(() => {
+		api.getTeacherAttendanceHistory(token, 'day', lessonDate).then(setHistory)
+	}, [token, lessonDate, reload])
+
+	const historyMap = useMemo(() => {
+		const next = {}
+		history.forEach(item => {
+			next[item.studentId] = item.status
+		})
+		return next
+	}, [history])
+
+	const currentGroup = groups.find(group => group.key === selectedGroup) ||
+		groups[0] || { members: [], label: '' }
 	const currentSchedule =
 		currentGroup.members[0]?.schedule || 'Jadval kiritilmagan'
-
-	async function saveAttendance() {
-		for (const student of currentGroup.members) {
-			const present = attendanceMap[student.id] ?? true
-			await api.saveAttendance(token, {
-				studentId: student.id,
-				status: present ? 'present' : 'absent',
-			})
-		}
-		await reload()
-	}
 
 	return (
 		<>
 			<section className='teacher-header'>
 				<div>
-					<h1>Bugungi Davomat</h1>
-					<p>{formatDateLabel()}</p>
+					<h1>Davomat ko'rinishi</h1>
+					<p>{formatDateLabel(new Date(lessonDate))}</p>
 				</div>
 				<div className='group-switcher'>
-					<button type='button'>
-						<Icon name='chevron_left' />
-					</button>
 					<select
 						value={selectedGroup}
 						onChange={e => setSelectedGroup(e.target.value)}
 					>
 						{groups.map(group => (
-							<option key={group.name} value={group.name}>
-								Guruh: {group.name}
+							<option key={group.key} value={group.key}>
+								Guruh: {group.label}
 							</option>
 						))}
 					</select>
-					<button type='button'>
-						<Icon name='chevron_right' />
-					</button>
+					<input type='date' value={lessonDate} onChange={event => setLessonDate(event.target.value)} />
 				</div>
 			</section>
 
@@ -4921,15 +5092,15 @@ function TeacherAttendancePage({ token }) {
 					</div>
 				</section>
 				<section className='next-lesson-card'>
-					<span>Navbatdagi dars</span>
-					<strong>{selectedGroup || 'Guruh tanlanmagan'}</strong>
+					<span>Tanlangan guruh</span>
+					<strong>{currentGroup.label || 'Guruh tanlanmagan'}</strong>
 					<p>{currentSchedule}</p>
 				</section>
 			</div>
 
 			<section className='card attendance-card'>
 				<div className='card-head-row'>
-					<h3>{selectedGroup} Davomati</h3>
+					<h3>{currentGroup.label || "Davomat ko'rinishi"}</h3>
 					<span>{currentGroup.members.length} o'quvchi ro'yxatda</span>
 				</div>
 				<div className='table-shell responsive-cards'>
@@ -4938,12 +5109,13 @@ function TeacherAttendancePage({ token }) {
 							<tr>
 								<th>O'QUVCHI F.I.SH</th>
 								<th>STATUS</th>
-								<th>KELDI / KELMADI</th>
+								<th>IZOH</th>
 							</tr>
 						</thead>
 						<tbody>
 							{currentGroup.members.map((student, index) => {
-								const current = attendanceMap[student.id] ?? true
+								const current = historyMap[student.id] || 'present'
+								const meta = getAttendanceStatusMeta(current)
 								return (
 									<tr key={student.id}>
 										<td data-label="O'quvchi">
@@ -4955,24 +5127,12 @@ function TeacherAttendancePage({ token }) {
 											</div>
 										</td>
 										<td data-label='Status'>
-											<Badge tone={current ? 'success' : 'gray'}>
-												{current ? 'FAOL' : 'SABABLI'}
-											</Badge>
+											<Badge tone={meta.tone}>{meta.label}</Badge>
 										</td>
-										<td data-label='Keldi / Kelmadi'>
-											<label className='attendance-checkbox'>
-												<input
-													type='checkbox'
-													checked={current}
-													onChange={() =>
-														setAttendanceMap({
-															...attendanceMap,
-															[student.id]: !current,
-														})
-													}
-												/>
-												<span className='attendance-checkbox-ui' />
-											</label>
+										<td data-label='Izoh'>
+											<span className='muted-label'>
+												Davomatni reception belgilaydi. O'qituvchi faqat kuzatadi.
+											</span>
 										</td>
 									</tr>
 								)
@@ -4981,15 +5141,7 @@ function TeacherAttendancePage({ token }) {
 					</table>
 				</div>
 				<div className='attendance-footer'>
-					<span>Ma'lumotlarni saqlashdan oldin qayta tekshiring</span>
-					<div className='attendance-actions'>
-						<button type='button' className='text-link'>
-							Bekor qilish
-						</button>
-						<ActionButton icon='save' onClick={saveAttendance}>
-							Saqlash
-						</ActionButton>
-					</div>
+					<span>Reception tomonidan kiritilgan davomat shu yerda aks etadi.</span>
 				</div>
 			</section>
 		</>
@@ -5796,37 +5948,8 @@ function DirectorPaymentsPage({ token }) {
 	)
 }
 
-function DirectorAttendancePage({ token }) {
-	const { students } = useReceptionData(token, { search: '', status: '' })
-	return (
-		<>
-			<PageHeader title='Davomat' subtitle='Kurslar kesimida student holati' />
-			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'quvchi</th>
-								<th>Kurs</th>
-								<th>O'qituvchi</th>
-								<th>Holat</th>
-							</tr>
-						</thead>
-						<tbody>
-							{students.map(student => (
-								<tr key={student.id}>
-									<td data-label="O'quvchi">{student.fullName}</td>
-									<td data-label='Kurs'>{student.courseTitle}</td>
-									<td data-label="O'qituvchi">{student.teacherName}</td>
-									<td data-label='Holat'>{getStudentStatusMeta(student.status).label}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			</section>
-		</>
-	)
+function DirectorAttendancePage() {
+	return <Navigate to='/director/dashboard' replace />
 }
 
 function DirectorStatisticsPage({ token }) {

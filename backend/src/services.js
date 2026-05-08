@@ -1220,6 +1220,45 @@ export function upsertAttendance({ studentId, teacherId, lessonDate, status }) {
   }
 }
 
+const ALLOWED_ATTENDANCE_STATUSES = new Set(["present", "absent", "excused", "late"]);
+
+function normalizeAttendanceStatus(status) {
+  return ALLOWED_ATTENDANCE_STATUSES.has(status) ? status : "present";
+}
+
+export function upsertAttendanceBatch({ lessonDate, entries = [], actorUserId }) {
+  const nextLessonDate = lessonDate || dayjs().format("YYYY-MM-DD");
+  const studentLookup = db.prepare(`
+    SELECT id, teacher_id as teacherId
+    FROM students
+    WHERE id = ?
+  `);
+  const results = [];
+
+  for (const entry of entries) {
+    const studentId = Number(entry.studentId);
+    if (!studentId) {
+      continue;
+    }
+
+    const student = studentLookup.get(studentId);
+    if (!student) {
+      continue;
+    }
+
+    const normalizedStatus = normalizeAttendanceStatus(entry.status);
+    upsertAttendance({
+      studentId,
+      teacherId: Number(student.teacherId || actorUserId || 0),
+      lessonDate: nextLessonDate,
+      status: normalizedStatus
+    });
+    results.push({ studentId, status: normalizedStatus });
+  }
+
+  return results;
+}
+
 export function createStudentRegistrationToken(studentId, expiresInSeconds = 90) {
   const student = db.prepare(`
     SELECT s.id, u.full_name as fullName, u.phone
@@ -1379,11 +1418,16 @@ export function getStudentAttendance(userId) {
   if (!student) return null;
   const items = listAttendanceHistory({ studentId: student.id, range: "month" });
   const presentCount = items.filter((item) => item.status === "present").length;
-  const percentage = items.length ? Math.round((presentCount / items.length) * 100) : 0;
+  const lateCount = items.filter((item) => item.status === "late").length;
+  const excusedCount = items.filter((item) => item.status === "excused").length;
+  const attendedCount = presentCount + lateCount;
+  const percentage = items.length ? Math.round((attendedCount / items.length) * 100) : 0;
   return {
     percentage,
     last30Days: {
       present: presentCount,
+      late: lateCount,
+      excused: excusedCount,
       absent: items.filter((item) => item.status === "absent").length
     },
     items: items.map((item) => ({
@@ -1465,7 +1509,7 @@ export function changeStudentPassword(userId, passwordHash) {
   `).run(passwordHash, dayjs().format("YYYY-MM-DD HH:mm:ss"), student.id);
 }
 
-export function listAttendanceHistory({ teacherId = null, studentId = null, range = "month" } = {}) {
+export function listAttendanceHistory({ teacherId = null, studentId = null, range = "month", lessonDate = "" } = {}) {
   const values = [];
   let query = `
     SELECT
@@ -1493,7 +1537,10 @@ export function listAttendanceHistory({ teacherId = null, studentId = null, rang
     values.push(studentId);
   }
 
-  if (range === "week") {
+  if (lessonDate) {
+    query += ` AND date(a.lesson_date) = date(?)`;
+    values.push(lessonDate);
+  } else if (range === "week") {
     query += ` AND date(a.lesson_date) >= date('now', '-7 day')`;
   } else if (range === "day") {
     query += ` AND date(a.lesson_date) = date('now')`;

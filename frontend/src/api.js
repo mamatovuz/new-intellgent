@@ -192,9 +192,31 @@ export const api = {
     }),
   getAllPayments: (token) => request("/reception/payments", { token }),
   getTeacherStudents: (token) => request("/teacher/students", { token }),
-  getTeacherAttendanceHistory: (token, range = "month") => request(`/teacher/attendance/history?range=${range}`, { token }),
+  getTeacherAttendanceHistory: (token, range = "month", lessonDate = "") => {
+    const query = new URLSearchParams({ range });
+    if (lessonDate) {
+      query.set("lessonDate", lessonDate);
+    }
+    return request(`/teacher/attendance/history?${query.toString()}`, { token });
+  },
   saveAttendance: (token, payload) =>
     request("/teacher/attendance", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload)
+    }),
+  getAttendanceHistory: (token, params = {}) => {
+    const query = new URLSearchParams();
+    if (params.range) {
+      query.set("range", params.range);
+    }
+    if (params.lessonDate) {
+      query.set("lessonDate", params.lessonDate);
+    }
+    return request(`/attendance/history?${query.toString()}`, { token });
+  },
+  saveAttendanceBatch: (token, payload) =>
+    request("/attendance/bulk", {
       method: "POST",
       token,
       body: JSON.stringify(payload)

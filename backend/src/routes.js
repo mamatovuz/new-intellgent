@@ -59,7 +59,8 @@ import {
   updateTeacher,
   updateUserProfile,
   validateStudentRegistrationToken,
-  upsertAttendance
+  upsertAttendance,
+  upsertAttendanceBatch
 } from "./services.js";
 import { getDb } from "./db.js";
 
@@ -412,18 +413,36 @@ router.get("/teacher/students", authenticate, authorize("teacher"), (req, res) =
 });
 
 router.get("/teacher/attendance/history", authenticate, authorize("teacher"), (req, res) => {
-  res.json(listAttendanceHistory({ teacherId: req.user.id, range: req.query.range || "month" }));
+  res.json(listAttendanceHistory({
+    teacherId: req.user.id,
+    range: req.query.range || "month",
+    lessonDate: req.query.lessonDate || ""
+  }));
 });
 
-router.post("/teacher/attendance", authenticate, authorize("teacher"), (req, res) => {
-  const { studentId, status, lessonDate } = req.body;
-  upsertAttendance({
-    studentId: Number(studentId),
-    teacherId: req.user.id,
-    lessonDate: lessonDate || dayjs().format("YYYY-MM-DD"),
-    status
+router.post("/teacher/attendance", authenticate, authorize("teacher"), (_req, res) => {
+  res.status(403).json({ message: "Davomatni faqat reception yoki direktor belgilaydi" });
+});
+
+router.get("/attendance/history", authenticate, authorize("reception"), (req, res) => {
+  res.json(listAttendanceHistory({
+    range: req.query.range || "day",
+    lessonDate: req.query.lessonDate || ""
+  }));
+});
+
+router.post("/attendance/bulk", authenticate, authorize("reception"), (req, res) => {
+  const lessonDate = req.body.lessonDate || dayjs().format("YYYY-MM-DD");
+  const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
+  const result = upsertAttendanceBatch({
+    lessonDate,
+    entries,
+    actorUserId: req.user.id
   });
-  res.json({ message: "Davomat saqlandi" });
+  res.json({
+    message: "Davomat saqlandi",
+    savedCount: result.length
+  });
 });
 
 router.get("/director/overview", authenticate, authorize("director"), (_req, res) => {
