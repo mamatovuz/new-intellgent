@@ -1296,6 +1296,21 @@ function syncTeacherCourses(teacherId, courseIds = []) {
   }
 }
 
+async function syncTeacherCoursesAsync(teacherId, courseIds = []) {
+  const pool = getSupabasePool();
+  await pool.query(`DELETE FROM teacher_course_assignments WHERE teacher_id = $1`, [teacherId]);
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  for (const courseId of courseIds) {
+    await pool.query(
+      `
+        INSERT INTO teacher_course_assignments (teacher_id, course_id, created_at)
+        VALUES ($1, $2, $3)
+      `,
+      [teacherId, Number(courseId), now]
+    );
+  }
+}
+
 function getTeacherPayrollSummary() {
   const totals = db.prepare(`
     SELECT
@@ -4070,6 +4085,18 @@ export function createCourse(payload) {
   return id;
 }
 
+export async function createCourseAsync(payload) {
+  const result = await getSupabasePool().query(
+    `
+      INSERT INTO courses (branch_id, title, monthly_fee, schedule, is_active, created_at)
+      VALUES ($1, $2, $3, $4, TRUE, $5)
+      RETURNING id
+    `,
+    [payload.branchId || null, payload.title, payload.monthlyFee, payload.schedule, dayjs().format("YYYY-MM-DD HH:mm:ss")]
+  );
+  return Number(result.rows[0].id);
+}
+
 export function createTeacher(payload) {
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const passwordHash = payload.passwordHash;
@@ -4090,6 +4117,34 @@ export function createTeacher(payload) {
     now
   ).lastInsertRowid;
   syncTeacherCourses(teacherId, payload.courseIds || []);
+  return teacherId;
+}
+
+export async function createTeacherAsync(payload) {
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const passwordHash = payload.passwordHash;
+  if (!Array.isArray(payload.courseIds) || payload.courseIds.length === 0) {
+    throw new Error("O'qituvchiga kamida bitta kurs biriktirilishi kerak");
+  }
+  const nextProfileImage = persistProfileImage(payload.profileImage);
+  const result = await getSupabasePool().query(
+    `
+      INSERT INTO users (full_name, username, password_hash, phone, monthly_salary, role, telegram_id, profile_image, created_at)
+      VALUES ($1, $2, $3, $4, $5, 'teacher', NULL, $6, $7)
+      RETURNING id
+    `,
+    [
+      payload.fullName,
+      payload.username,
+      passwordHash,
+      payload.phone || null,
+      Number(payload.monthlySalary || 0),
+      nextProfileImage,
+      now
+    ]
+  );
+  const teacherId = Number(result.rows[0].id);
+  await syncTeacherCoursesAsync(teacherId, payload.courseIds || []);
   return teacherId;
 }
 
@@ -4118,6 +4173,34 @@ export function updateTeacher(teacherId, payload) {
   syncTeacherCourses(teacherId, payload.courseIds || []);
 }
 
+export async function updateTeacherAsync(teacherId, payload) {
+  if (!Array.isArray(payload.courseIds) || payload.courseIds.length === 0) {
+    throw new Error("O'qituvchiga kamida bitta kurs biriktirilishi kerak");
+  }
+  const nextProfileImage = persistProfileImage(payload.profileImage);
+  await getSupabasePool().query(
+    `
+      UPDATE users
+      SET full_name = $1, username = $2, phone = $3, monthly_salary = $4, profile_image = $5
+      WHERE id = $6 AND role = 'teacher'
+    `,
+    [
+      payload.fullName,
+      payload.username,
+      payload.phone || null,
+      Number(payload.monthlySalary || 0),
+      nextProfileImage,
+      teacherId
+    ]
+  );
+
+  if (payload.passwordHash) {
+    await getSupabasePool().query(`UPDATE users SET password_hash = $1 WHERE id = $2 AND role = 'teacher'`, [payload.passwordHash, teacherId]);
+  }
+
+  await syncTeacherCoursesAsync(teacherId, payload.courseIds || []);
+}
+
 export function deleteTeacher(teacherId) {
   const assigned = db.prepare(`SELECT COUNT(*) as count FROM students WHERE teacher_id = ? AND is_archived = 0`).get(teacherId);
   if (assigned.count > 0) {
@@ -4125,6 +4208,19 @@ export function deleteTeacher(teacherId) {
   }
   db.prepare(`DELETE FROM teacher_course_assignments WHERE teacher_id = ?`).run(teacherId);
   db.prepare(`DELETE FROM users WHERE id = ? AND role = 'teacher'`).run(teacherId);
+  return { blocked: false };
+}
+
+export async function deleteTeacherAsync(teacherId) {
+  const { rows } = await getSupabasePool().query(
+    `SELECT COUNT(*)::int as count FROM students WHERE teacher_id = $1 AND is_archived = FALSE`,
+    [teacherId]
+  );
+  if (Number(rows[0]?.count || 0) > 0) {
+    return { blocked: true };
+  }
+  await getSupabasePool().query(`DELETE FROM teacher_course_assignments WHERE teacher_id = $1`, [teacherId]);
+  await getSupabasePool().query(`DELETE FROM users WHERE id = $1 AND role = 'teacher'`, [teacherId]);
   return { blocked: false };
 }
 
@@ -4136,6 +4232,17 @@ export function updateCourse(courseId, payload) {
   `).run(payload.branchId || null, payload.title, payload.monthlyFee, payload.schedule, payload.isActive ? 1 : 0, courseId);
 }
 
+export async function updateCourseAsync(courseId, payload) {
+  await getSupabasePool().query(
+    `
+      UPDATE courses
+      SET branch_id = $1, title = $2, monthly_fee = $3, schedule = $4, is_active = $5
+      WHERE id = $6
+    `,
+    [payload.branchId || null, payload.title, payload.monthlyFee, payload.schedule, payload.isActive !== false, courseId]
+  );
+}
+
 export function deleteCourse(courseId) {
   const used = db.prepare(`SELECT COUNT(*) as count FROM students WHERE course_id = ? AND is_archived = 0`).get(courseId);
   const assignedTeachers = db.prepare(`SELECT COUNT(*) as count FROM teacher_course_assignments WHERE course_id = ?`).get(courseId);
@@ -4145,6 +4252,26 @@ export function deleteCourse(courseId) {
   }
   db.prepare(`DELETE FROM teacher_course_assignments WHERE course_id = ?`).run(courseId);
   db.prepare(`DELETE FROM courses WHERE id = ?`).run(courseId);
+  return { softDeleted: false };
+}
+
+export async function deleteCourseAsync(courseId) {
+  const usedResult = await getSupabasePool().query(
+    `SELECT COUNT(*)::int as count FROM students WHERE course_id = $1 AND is_archived = FALSE`,
+    [courseId]
+  );
+  const teacherResult = await getSupabasePool().query(
+    `SELECT COUNT(*)::int as count FROM teacher_course_assignments WHERE course_id = $1`,
+    [courseId]
+  );
+  const used = Number(usedResult.rows[0]?.count || 0);
+  const assignedTeachers = Number(teacherResult.rows[0]?.count || 0);
+  if (used > 0 || assignedTeachers > 0) {
+    await getSupabasePool().query(`UPDATE courses SET is_active = FALSE WHERE id = $1`, [courseId]);
+    return { softDeleted: true };
+  }
+  await getSupabasePool().query(`DELETE FROM teacher_course_assignments WHERE course_id = $1`, [courseId]);
+  await getSupabasePool().query(`DELETE FROM courses WHERE id = $1`, [courseId]);
   return { softDeleted: false };
 }
 

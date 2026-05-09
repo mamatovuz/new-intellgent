@@ -19,12 +19,16 @@ import {
   createContactRequestAsync,
   createContactRequest,
   createCourse,
+  createCourseAsync,
   createStudentRegistrationToken,
   createTeacher,
+  createTeacherAsync,
   createTelegramLinkCode,
   deleteCourse,
+  deleteCourseAsync,
   deleteStudent,
   deleteTeacher,
+  deleteTeacherAsync,
   getDeveloperProfileById,
   getDeveloperProfileBySlug,
   getDeveloperProfileByUsername,
@@ -84,6 +88,7 @@ import {
   registerStudentByTokenAsync,
   saveSettings,
   updateCourse,
+  updateCourseAsync,
   updateUserProfileAsync,
   validateStudentRegistrationTokenAsync,
   createTelegramLinkCodeAsync,
@@ -95,6 +100,7 @@ import {
   updateStudent,
   updateStudentAsync,
   updateTeacher,
+  updateTeacherAsync,
   updateUserProfile,
   validateStudentRegistrationToken,
   upsertAttendance,
@@ -778,12 +784,17 @@ router.get("/director/finance", authenticate, authorize("director"), (_req, res)
 });
 
 router.get("/director/courses", authenticate, authorize("director"), (_req, res) => {
-  res.json(listAllCourses());
+  const handleDirectorCourses = async () => {
+    res.json(config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses());
+  };
+  handleDirectorCourses().catch((error) => {
+    res.status(500).json({ message: error.message || "Kurslar olinmadi" });
+  });
 });
 
 router.post("/director/teachers", authenticate, authorize("director"), (req, res) => {
-  try {
-    const teacherId = createTeacher({
+  const handleTeacherCreate = async () => {
+    const payload = {
       fullName: req.body.fullName,
       username: req.body.username,
       phone: req.body.phone,
@@ -791,16 +802,20 @@ router.post("/director/teachers", authenticate, authorize("director"), (req, res
       profileImage: req.body.profileImage,
       courseIds: Array.isArray(req.body.courseIds) ? req.body.courseIds.map(Number) : [],
       passwordHash: bcrypt.hashSync(req.body.password || "12345678", 10)
-    });
+    };
+    const teacherId = config.dbProvider === "postgres"
+      ? await createTeacherAsync(payload)
+      : createTeacher(payload);
     res.status(201).json({ teacherId });
-  } catch (error) {
+  };
+  handleTeacherCreate().catch((error) => {
     res.status(400).json({ message: error.message || "O'qituvchi qo'shilmadi" });
-  }
+  });
 });
 
 router.put("/director/teachers/:id", authenticate, authorize("director"), (req, res) => {
-  try {
-    updateTeacher(Number(req.params.id), {
+  const handleTeacherUpdate = async () => {
+    const payload = {
       fullName: req.body.fullName,
       username: req.body.username,
       phone: req.body.phone,
@@ -808,39 +823,78 @@ router.put("/director/teachers/:id", authenticate, authorize("director"), (req, 
       profileImage: req.body.profileImage,
       courseIds: Array.isArray(req.body.courseIds) ? req.body.courseIds.map(Number) : [],
       passwordHash: req.body.password ? bcrypt.hashSync(req.body.password, 10) : null
-    });
+    };
+    if (config.dbProvider === "postgres") {
+      await updateTeacherAsync(Number(req.params.id), payload);
+    } else {
+      updateTeacher(Number(req.params.id), payload);
+    }
     res.json({ message: "O'qituvchi yangilandi" });
-  } catch (error) {
+  };
+  handleTeacherUpdate().catch((error) => {
     res.status(400).json({ message: error.message || "O'qituvchi yangilanmadi" });
-  }
+  });
 });
 
 router.delete("/director/teachers/:id", authenticate, authorize("director"), (req, res) => {
-  res.json(deleteTeacher(Number(req.params.id)));
+  const handleTeacherDelete = async () => {
+    const result = config.dbProvider === "postgres"
+      ? await deleteTeacherAsync(Number(req.params.id))
+      : deleteTeacher(Number(req.params.id));
+    res.json(result);
+  };
+  handleTeacherDelete().catch((error) => {
+    res.status(400).json({ message: error.message || "O'qituvchi o'chirilmadi" });
+  });
 });
 
 router.post("/director/courses", authenticate, authorize("director"), (req, res) => {
-  const courseId = createCourse({
-    title: req.body.title,
-    monthlyFee: Number(req.body.monthlyFee || 0),
-    schedule: req.body.schedule
+  const handleCourseCreate = async () => {
+    const payload = {
+      title: req.body.title,
+      monthlyFee: Number(req.body.monthlyFee || 0),
+      schedule: req.body.schedule
+    };
+    const courseId = config.dbProvider === "postgres"
+      ? await createCourseAsync(payload)
+      : createCourse(payload);
+    res.status(201).json({ courseId });
+  };
+  handleCourseCreate().catch((error) => {
+    res.status(400).json({ message: error.message || "Kurs qo'shilmadi" });
   });
-  res.status(201).json({ courseId });
 });
 
 router.put("/director/courses/:id", authenticate, authorize("director"), (req, res) => {
-  updateCourse(Number(req.params.id), {
-    title: req.body.title,
-    monthlyFee: Number(req.body.monthlyFee || 0),
-    schedule: req.body.schedule,
-    isActive: req.body.isActive !== false
+  const handleCourseUpdate = async () => {
+    const payload = {
+      title: req.body.title,
+      monthlyFee: Number(req.body.monthlyFee || 0),
+      schedule: req.body.schedule,
+      isActive: req.body.isActive !== false
+    };
+    if (config.dbProvider === "postgres") {
+      await updateCourseAsync(Number(req.params.id), payload);
+    } else {
+      updateCourse(Number(req.params.id), payload);
+    }
+    res.json({ message: "Kurs yangilandi" });
+  };
+  handleCourseUpdate().catch((error) => {
+    res.status(400).json({ message: error.message || "Kurs yangilanmadi" });
   });
-  res.json({ message: "Kurs yangilandi" });
 });
 
 router.delete("/director/courses/:id", authenticate, authorize("director"), (req, res) => {
-  const result = deleteCourse(Number(req.params.id));
-  res.json(result);
+  const handleCourseDelete = async () => {
+    const result = config.dbProvider === "postgres"
+      ? await deleteCourseAsync(Number(req.params.id))
+      : deleteCourse(Number(req.params.id));
+    res.json(result);
+  };
+  handleCourseDelete().catch((error) => {
+    res.status(400).json({ message: error.message || "Kurs o'chirilmadi" });
+  });
 });
 
 router.get("/director/reports/export", authenticate, authorize("director"), (req, res) => {
