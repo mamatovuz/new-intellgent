@@ -2,7 +2,7 @@ import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { startBot } from "./bot.js";
 import { applySupabaseSchema, getSupabasePool, testSupabaseConnection } from "./supabase-db.js";
-import { hasLocalSqliteData, migrateSqliteDataToSupabase } from "./supabase-migrate-data.js";
+import { migrateSqliteDataToSupabase } from "./supabase-migrate-data.js";
 import { migrate, seed } from "./db.js";
 
 const app = createApp();
@@ -17,11 +17,9 @@ async function bootstrap() {
       const existingUsers = await getSupabasePool().query(`SELECT COUNT(*)::int as count FROM users`);
       const userCount = Number(existingUsers.rows[0]?.count || 0);
       if (userCount === 0) {
-        if (!hasLocalSqliteData()) {
-          console.log("Mahalliy SQLite topilmadi. Default ma'lumot yaratilmoqda...");
-          migrate();
-          seed();
-        }
+        console.log("Mahalliy SQLite tayyorlanmoqda...");
+        migrate();
+        seed();
         console.log("Postgres bo'sh. SQLite ma'lumotlari avtomatik ko'chirilmoqda...");
         await migrateSqliteDataToSupabase();
         console.log("SQLite ma'lumotlari Postgresga ko'chirildi.");
