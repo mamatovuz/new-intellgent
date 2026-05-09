@@ -443,6 +443,93 @@ export async function verifyTelegramCodeMongo(code) {
   };
 }
 
+export async function createStudentRegistrationTokenMongo(studentId, expiresInSeconds = 90) {
+  const student = await Student.findOne({ id: Number(studentId), isArchived: false }).lean();
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+  const user = await User.findOne({ id: student.userId }).lean();
+  if (!user) {
+    throw new Error("Student foydalanuvchisi topilmadi");
+  }
+
+  await QrToken.deleteMany({ studentId: Number(studentId), used: false });
+
+  const ttl = Math.min(120, Math.max(60, Number(expiresInSeconds || 90)));
+  const token = generateAccessTokenMongo();
+  const now = dayjs();
+  const expiresAt = now.add(ttl, "second");
+  const id = await getNextSequence("qr_tokens");
+
+  await QrToken.create({
+    id,
+    token,
+    studentId: Number(studentId),
+    expiresAt: expiresAt.toDate(),
+    used: false,
+    usedAt: null,
+    createdAt: now.toDate()
+  });
+
+  const auth = await ensureStudentAuthMongo(studentId, user.phone || "");
+  const loginUrl = `${config.webUrl}/student/login?access=${auth.accessToken}`;
+
+  return {
+    token,
+    studentId: Number(studentId),
+    fullName: user.fullName,
+    expiresAt: expiresAt.format("YYYY-MM-DD HH:mm:ss"),
+    registerUrl: loginUrl,
+    loginUrl,
+    defaultPassword: "12345678"
+  };
+}
+
+export async function validateStudentRegistrationTokenMongo(token) {
+  const row = await QrToken.findOne({ token }).lean();
+  if (!row) {
+    throw new Error("Token topilmadi");
+  }
+  if (row.used) {
+    throw new Error("Token allaqachon ishlatilgan");
+  }
+  const student = await Student.findOne({ id: row.studentId }).lean();
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+  if (student.isRegistered) {
+    throw new Error("Student allaqachon ro'yxatdan o'tgan");
+  }
+  if (dayjs(row.expiresAt).isBefore(dayjs())) {
+    throw new Error("Token muddati tugagan");
+  }
+  const user = await User.findOne({ id: student.userId }).lean();
+  if (!user) {
+    throw new Error("Foydalanuvchi topilmadi");
+  }
+  const [firstName = "", ...rest] = (user.fullName || "").split(" ");
+  return {
+    token: row.token,
+    studentId: row.studentId,
+    firstName,
+    lastName: rest.join(" "),
+    fullName: user.fullName,
+    phone: user.phone,
+    expiresAt: dayjs(row.expiresAt).format("YYYY-MM-DD HH:mm:ss")
+  };
+}
+
+export async function registerStudentByTokenMongo({ token, phone, passwordHash }) {
+  const qr = await validateStudentRegistrationTokenMongo(token);
+  if (normalizePhone(qr.phone) !== normalizePhone(phone)) {
+    throw new Error("Telefon raqam student ma'lumoti bilan mos emas");
+  }
+  const now = new Date();
+  await Student.updateOne({ id: qr.studentId }, { $set: { isRegistered: true } });
+  await QrToken.updateOne({ token }, { $set: { used: true, usedAt: now } });
+  await ensureStudentAuthMongo(qr.studentId, phone, passwordHash);
+}
+
 export async function listStudentsMongo(filters = {}) {
   const search = String(filters.search || "").trim().toLowerCase();
   const includeArchived = Boolean(filters.includeArchived);
@@ -1113,6 +1200,67 @@ export async function deleteTeacherMongo(teacherId) {
   await TeacherCourseAssignment.deleteMany({ teacherId: Number(teacherId) });
   await User.deleteOne({ id: Number(teacherId), role: "teacher" });
   return { blocked: false };
+}
+
+export async function updateDeveloperProfileMongo(id, payload) {
+  const current = await DeveloperProfile.findOne({ id: Number(id), isActive: true }).lean();
+  if (!current) {
+    throw new Error("Dasturchi topilmadi");
+  }
+  if (payload.username && payload.username !== current.username) {
+    const existing = await DeveloperProfile.findOne({
+      username: payload.username,
+      id: { $ne: Number(id) }
+    }).lean();
+    if (existing) {
+      throw new Error("Bu login band");
+    }
+  }
+
+  await DeveloperProfile.updateOne(
+    { id: Number(id) },
+    {
+      $set: {
+        fullName: payload.fullName,
+        age: payload.age ? Number(payload.age) : null,
+        roleTitle: payload.roleTitle,
+        shortBio: payload.shortBio || "",
+        bio: payload.bio || "",
+        skills: Array.isArray(payload.skills) ? payload.skills : [],
+        image: payload.image || current.image || null,
+        bannerImage: payload.bannerImage || current.bannerImage || null,
+        certificateImage: payload.certificateImage || current.certificateImage || null,
+        telegramUrl: payload.telegramUrl || "",
+        instagramUrl: payload.instagramUrl || "",
+        githubUrl: payload.githubUrl || "",
+        websiteUrl: payload.websiteUrl || "",
+        updatedAt: new Date(),
+        ...(payload.username && payload.username !== current.username ? { username: payload.username } : {}),
+        ...(payload.passwordHash ? { passwordHash: payload.passwordHash } : {})
+      }
+    }
+  );
+
+  const row = await DeveloperProfile.findOne({ id: Number(id), isActive: true }).lean();
+  return {
+    id: row.id,
+    slug: row.slug,
+    username: row.username,
+    fullName: row.fullName,
+    age: row.age ?? null,
+    roleTitle: row.roleTitle,
+    shortBio: row.shortBio || "",
+    bio: row.bio || "",
+    skills: Array.isArray(row.skills) ? row.skills : [],
+    image: row.image || null,
+    bannerImage: row.bannerImage || null,
+    certificateImage: row.certificateImage || null,
+    telegramUrl: row.telegramUrl || "",
+    instagramUrl: row.instagramUrl || "",
+    githubUrl: row.githubUrl || "",
+    websiteUrl: row.websiteUrl || "",
+    isActive: row.isActive !== false
+  };
 }
 
 export async function updateUserProfileMongo(userId, payload) {

@@ -120,6 +120,7 @@ import {
   changeStudentPasswordMongo,
   createContactRequestMongo,
   createCourseMongo,
+  createStudentRegistrationTokenMongo,
   createTeacherMongo,
   createTelegramLinkCodeMongo,
   deleteCourseMongo,
@@ -157,12 +158,15 @@ import {
   markNotificationReadMongo,
   loginStudentByAccessTokenMongo,
   recordPaymentMongo,
+  registerStudentByTokenMongo,
   saveSettingsMongo,
   updateCourseMongo,
+  updateDeveloperProfileMongo,
   updateTeacherMongo,
   updateUserProfileMongo,
   updateStudentMongo,
   upsertAttendanceBatchMongo,
+  validateStudentRegistrationTokenMongo,
   verifyTelegramCodeMongo
 } from "./mongo-services.js";
 import { getSupabasePool } from "./supabase-db.js";
@@ -338,9 +342,11 @@ router.post("/developers/auth/login", (req, res) => {
 router.get("/student-auth/register/validate", (req, res) => {
   const handleValidate = async () => {
     const result =
-      config.dbProvider === "postgres"
-        ? await validateStudentRegistrationTokenAsync(req.query.token)
-        : validateStudentRegistrationToken(req.query.token);
+      config.dbProvider === "mongodb"
+        ? await validateStudentRegistrationTokenMongo(req.query.token)
+        : config.dbProvider === "postgres"
+          ? await validateStudentRegistrationTokenAsync(req.query.token)
+          : validateStudentRegistrationToken(req.query.token);
     res.json(result);
   };
   handleValidate().catch((error) => {
@@ -361,7 +367,9 @@ router.post("/student-auth/register", (req, res) => {
       passwordHash: bcrypt.hashSync(password, 10)
     };
 
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      await registerStudentByTokenMongo(payload);
+    } else if (config.dbProvider === "postgres") {
       await registerStudentByTokenAsync(payload);
     } else {
       registerStudentByToken(payload);
@@ -752,7 +760,12 @@ router.get("/reception/students/:id/history", authenticate, authorize("reception
 
 router.post("/reception/students/:id/register-token", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
-    const data = createStudentRegistrationToken(Number(req.params.id), Number(req.body.expiresInSeconds || 90));
+    const data =
+      config.dbProvider === "mongodb"
+        ? await createStudentRegistrationTokenMongo(Number(req.params.id), Number(req.body.expiresInSeconds || 90))
+        : config.dbProvider === "postgres"
+          ? await createStudentRegistrationTokenAsync(Number(req.params.id), Number(req.body.expiresInSeconds || 90))
+          : createStudentRegistrationToken(Number(req.params.id), Number(req.body.expiresInSeconds || 90));
     const qrAsset = await buildQrCodeAsset(data.loginUrl || data.registerUrl);
     res.json({
       ...data,
