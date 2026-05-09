@@ -4182,6 +4182,10 @@ background: #00236f;
   grid-template-columns: 1fr;
 }
 
+.payment-flow-shell.inside-modal .payment-workspace-card.top-space {
+  margin-top: 0;
+}
+
 .section-title-row.compact {
   margin-bottom: 14px;
   padding-bottom: 12px;
@@ -4238,6 +4242,50 @@ background: #00236f;
 
 .payment-inline-search {
   margin: 0 0 14px;
+}
+
+.payment-picker-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.payment-picker-list {
+  display: grid;
+  gap: 10px;
+}
+
+.payment-picker-row {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.payment-picker-row:hover {
+  transform: translateY(-1px);
+  border-color: #cfd7e4;
+  box-shadow: var(--shadow-soft);
+}
+
+.payment-picker-row .course-cell {
+  gap: 3px;
+}
+
+.payment-picker-row .course-cell strong {
+  font-size: 16px;
+}
+
+.payment-picker-row .course-cell span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .payment-student-card {
@@ -4316,6 +4364,8 @@ background: #00236f;
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .payment-editor-stats div {
@@ -4362,7 +4412,7 @@ background: #00236f;
 .payment-editor-card select,
 .payment-editor-card textarea {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--field-height);
   border: 1px solid #d7e1ee;
   border-radius: 9px;
   background: #ffffff;
@@ -4387,7 +4437,7 @@ background: #00236f;
 }
 
 .toggle-row.compact {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .toggle-row.compact .attendance-check-copy span,
@@ -7389,6 +7439,11 @@ th {
 
   .payment-editor-head,
   .payment-workspace-head {
+    flex-direction: column;
+  }
+
+  .payment-picker-row {
+    align-items: flex-start;
     flex-direction: column;
   }
 

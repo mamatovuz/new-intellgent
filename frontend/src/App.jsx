@@ -4680,6 +4680,7 @@ function PaymentCollectionWorkspace({
 	onPaymentSaved,
 	embedded = true,
 	lockedGroupKey = '',
+	showStudentList = true,
 }) {
 	const groupedStudents = useMemo(
 		() => groupStudentsByLearningTrack(students),
@@ -4900,22 +4901,25 @@ function PaymentCollectionWorkspace({
 							<span className='card-label'>Tanlangan guruh</span>
 							<h3>{currentGroup.courseTitle}</h3>
 							<p>
-								{currentGroup.teacherName} · {currentGroup.schedule}
+								{currentGroup.teacherName} / {currentGroup.schedule}
 							</p>
 						</div>
 						<Badge tone='default'>{visibleMembers.length} ta student</Badge>
 					</div>
-					<div className='payment-inline-search'>
-						<input
-							type='text'
-							className='toolbar-search'
-							placeholder="Studentni qidiring..."
-							value={studentSearch}
-							onChange={event => setStudentSearch(event.target.value)}
-						/>
-					</div>
-					<div className='payment-workspace-grid'>
-						<div className='payment-student-list'>
+					{showStudentList ? (
+						<div className='payment-inline-search'>
+							<input
+								type='text'
+								className='toolbar-search'
+								placeholder="Studentni qidiring..."
+								value={studentSearch}
+								onChange={event => setStudentSearch(event.target.value)}
+							/>
+						</div>
+					) : null}
+					<div className={showStudentList ? 'payment-workspace-grid' : 'payment-workspace-grid single-column'}>
+						{showStudentList ? (
+							<div className='payment-student-list'>
 							{visibleMembers.map((student, index) => (
 								<button
 									key={student.id}
@@ -4940,13 +4944,14 @@ function PaymentCollectionWorkspace({
 									</div>
 								</button>
 							))}
-						</div>
+							</div>
+						) : null}
 						<form className='payment-editor-card' onSubmit={handleSubmit}>
 							<div className='payment-editor-head'>
 								<div>
 									<h4>{selectedStudent.fullName}</h4>
 									<p>
-										{selectedStudent.phone || '-'} · {getStudyMonthLabel(selectedStudent)}
+										{selectedStudent.phone || '-'} / {getStudyMonthLabel(selectedStudent)}
 									</p>
 								</div>
 								<Badge tone={getStudentStatusMeta(selectedStudent.status).tone}>
@@ -5552,6 +5557,8 @@ function ReceptionPaymentsPage({ token }) {
 	})
 	const [payments, setPayments] = usePaymentsData(token)
 	const [paymentGroupModal, setPaymentGroupModal] = useState(null)
+	const [paymentStudentModal, setPaymentStudentModal] = useState(null)
+	const [paymentStudentSearch, setPaymentStudentSearch] = useState('')
 	const groupedStudents = useMemo(() => groupStudentsByLearningTrack(students), [students])
 
 	async function handlePaymentSaved() {
@@ -5559,7 +5566,19 @@ function ReceptionPaymentsPage({ token }) {
 		setPayments(nextPayments)
 		reload({ search: '', status: '', includeArchived: false })
 		setPaymentGroupModal(null)
+		setPaymentStudentModal(null)
 	}
+
+	const visiblePaymentModalStudents = useMemo(() => {
+		if (!paymentGroupModal) return []
+		const query = paymentStudentSearch.trim().toLowerCase()
+		if (!query) return paymentGroupModal.members || []
+		return (paymentGroupModal.members || []).filter(student =>
+			[student.fullName, student.phone, getStudyMonthLabel(student)]
+				.filter(Boolean)
+				.some(value => String(value).toLowerCase().includes(query)),
+		)
+	}, [paymentGroupModal, paymentStudentSearch])
 
 	return (
 		<>
@@ -5581,7 +5600,10 @@ function ReceptionPaymentsPage({ token }) {
 							key={group.key}
 							type='button'
 							className='attendance-group-card'
-							onClick={() => setPaymentGroupModal(group)}
+							onClick={() => {
+								setPaymentStudentSearch('')
+								setPaymentGroupModal(group)
+							}}
 						>
 							<div className='attendance-group-head'>
 								<div>
@@ -5641,17 +5663,71 @@ function ReceptionPaymentsPage({ token }) {
 			{paymentGroupModal ? (
 				<Modal
 					title={paymentGroupModal.courseTitle}
-					subtitle={`${paymentGroupModal.teacherName} · ${paymentGroupModal.schedule}`}
+					subtitle={`${paymentGroupModal.teacherName} / ${paymentGroupModal.schedule}`}
 					onClose={() => setPaymentGroupModal(null)}
+				>
+					<div className='payment-picker-shell'>
+						<input
+							type='text'
+							className='toolbar-search'
+							placeholder="Studentni qidiring..."
+							value={paymentStudentSearch}
+							onChange={event => setPaymentStudentSearch(event.target.value)}
+						/>
+						<div className='payment-picker-list top-space'>
+							{visiblePaymentModalStudents.map((student, index) => (
+								<button
+									key={student.id}
+									type='button'
+									className='payment-picker-row'
+									onClick={() => {
+										setPaymentGroupModal(null)
+										setPaymentStudentModal({
+											groupKey: paymentGroupModal.key,
+											courseTitle: paymentGroupModal.courseTitle,
+											teacherName: paymentGroupModal.teacherName,
+											schedule: paymentGroupModal.schedule,
+											studentId: student.id,
+											studentName: student.fullName,
+											studentStatus: student.status,
+											studyMonth: getStudyMonthLabel(student),
+											phone: student.phone,
+										})
+									}}
+								>
+									<div className='student-identity'>
+										<div className={`avatar-badge tone-${index % 5}`}>
+											{getInitials(student.fullName)}
+										</div>
+										<div className='course-cell'>
+											<strong>{student.fullName}</strong>
+											<span>{getStudyMonthLabel(student)}</span>
+										</div>
+									</div>
+									<Badge tone={getStudentStatusMeta(student.status).tone}>
+										{getStudentStatusMeta(student.status).label}
+									</Badge>
+								</button>
+							))}
+						</div>
+					</div>
+				</Modal>
+			) : null}
+			{paymentStudentModal ? (
+				<Modal
+					title={paymentStudentModal.studentName}
+					subtitle={`${paymentStudentModal.phone || '-'} / ${paymentStudentModal.studyMonth}`}
+					onClose={() => setPaymentStudentModal(null)}
 				>
 					<PaymentCollectionWorkspace
 						token={token}
 						students={students}
 						payments={payments}
-						initialStudentId={searchParams.get('studentId')}
+						initialStudentId={paymentStudentModal.studentId}
 						onPaymentSaved={handlePaymentSaved}
 						embedded={false}
-						lockedGroupKey={paymentGroupModal.key}
+						lockedGroupKey={paymentStudentModal.groupKey}
+						showStudentList={false}
 					/>
 				</Modal>
 			) : null}
@@ -6101,18 +6177,13 @@ function TeacherAttendancePage({ token }) {
 											<Badge tone={meta.tone}>{meta.label}</Badge>
 										</td>
 										<td data-label='Izoh'>
-											<span className='muted-label'>
-												Davomatni reception belgilaydi. O'qituvchi faqat kuzatadi.
-											</span>
+											<span className='muted-label'>-</span>
 										</td>
 									</tr>
 								)
 							})}
 						</tbody>
 					</table>
-				</div>
-				<div className='attendance-footer'>
-					<span>Reception tomonidan kiritilgan davomat shu yerda aks etadi.</span>
 				</div>
 			</section>
 		</>
