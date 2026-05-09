@@ -1,25 +1,31 @@
 :root {
-  --bg: #f7f7ff;
+  --bg: #f5f7fb;
   --surface: #ffffff;
-  --surface-soft: #fbfdff;
-  --border: #dce4f1;
-  --border-soft: #edf1f7;
-  --text: #183b85;
-  --muted: #7587a8;
+  --surface-soft: #f8fafc;
+  --border: #d8e0eb;
+  --border-soft: #e9eef5;
+  --text: #18314f;
+  --muted: #6f7f97;
   --navy: #133385;
   --blue: #2f66f0;
   --teal: #1c91d3;
   --success: #16a34a;
-  --success-soft: #ebfaef;
+  --success-soft: #edf8f0;
   --danger: #dc2626;
-  --danger-soft: #fff1f1;
-  --gray-soft: #eef3fa;
-  --warning: #f97316;
-  --shadow: 0 8px 20px rgba(18, 51, 133, 0.06);
-  --shadow-soft: 0 4px 14px rgba(18, 51, 133, 0.045);
+  --danger-soft: #fff2f2;
+  --gray-soft: #eef2f7;
+  --warning: #d97706;
+  --warning-soft: #fff7ed;
+  --shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+  --shadow-soft: 0 2px 10px rgba(15, 23, 42, 0.035);
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 12px;
+  --card-padding: 18px;
+  --field-height: 44px;
+  --button-height: 42px;
+  --title-size: 16px;
+  --subtitle-size: 13px;
   font-family: "Inter", sans-serif;
   color: var(--text);
 }
@@ -37,7 +43,7 @@ body,
 }
 
 body {
-  background: linear-gradient(180deg, #fbfbff 0%, #f5f4ff 100%);
+  background: linear-gradient(180deg, #f8faff 0%, #f3f6fb 100%);
   overflow-x: hidden;
 }
 
@@ -153,9 +159,9 @@ a {
 }
 
 .input-wrap {
-  min-height: 46px;
-  border: 1px solid #d7e1f1;
-  border-radius: 9px;
+  min-height: var(--field-height);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   background: #ffffff;
   display: flex;
   align-items: center;
@@ -264,8 +270,8 @@ a {
 .login-submit,
 .telegram-btn,
 .action-btn {
-  height: 48px;
-  border-radius: 10px;
+  height: var(--button-height);
+  border-radius: var(--radius-md);
   color: white;
   font-weight: 700;
 }
@@ -273,7 +279,7 @@ a {
 .login-submit,
 .action-btn {
   background: var(--navy);
-  box-shadow: 0 10px 18px rgba(19, 51, 133, 0.2);
+  box-shadow: 0 8px 16px rgba(19, 51, 133, 0.12);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -730,10 +736,10 @@ a {
   flex: 1 1 320px;
   max-width: 780px;
   min-width: 0;
-  height: 40px;
-  border: 1px solid #d7e1f1;
-  border-radius: 9px;
-  background: #ffffff;
+  height: var(--field-height);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -762,6 +768,14 @@ a {
   border: none;
   background: transparent;
   color: #58677f;
+}
+
+.toolbar-search,
+.modal-form input,
+.modal-form select,
+.settings-card input,
+.settings-card select {
+  min-height: var(--field-height);
 }
 
 .toolbar-search::placeholder,
@@ -961,7 +975,7 @@ a {
 .page-intro h1,
 .teacher-header h1 {
   margin: 0 0 8px;
-  font-size: 42px;
+  font-size: 38px;
   color: var(--navy);
   letter-spacing: -0.04em;
 }
@@ -977,6 +991,8 @@ a {
 .teacher-header p,
 .card-head-row p {
   color: var(--muted);
+  font-size: var(--subtitle-size);
+  line-height: 1.65;
 }
 
 .action-btn,
@@ -987,12 +1003,12 @@ a {
 .square-btn,
 .close-btn,
 .link-btn {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .action-btn {
   padding: 0 20px;
-  min-height: 42px;
+  min-height: var(--button-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1009,8 +1025,8 @@ a {
 .mini-pill,
 .square-btn,
 .close-btn {
-  background: white;
-  border: 1px solid #c8d5ea;
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--navy);
 }
 
@@ -1028,9 +1044,9 @@ a {
 .kpi-card,
 .quick-payments,
 .next-lesson-card {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   min-width: 0;
 }
@@ -1040,7 +1056,7 @@ a {
 .kpi-card,
 .quick-payments,
 .next-lesson-card {
-  padding: 24px;
+  padding: var(--card-padding);
 }
 
 .toolbar-card,
@@ -1086,15 +1102,15 @@ a {
 .toolbar-search,
 .sort-btn,
 .settings-card input {
-  height: 40px;
+  height: var(--field-height);
 }
 
 .toolbar-search,
 .settings-card input {
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   padding: 0 14px;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .sort-btn,
@@ -1102,7 +1118,7 @@ a {
 .mini-pill,
 .square-btn,
 .close-btn {
-  height: 40px;
+  height: var(--button-height);
   padding: 0 14px;
 }
 
@@ -1176,6 +1192,64 @@ tbody tr:hover {
   font-size: 13px;
 }
 
+.student-record-list {
+  display: grid;
+  gap: 12px;
+}
+
+.student-record-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.student-record-head,
+.student-record-body,
+.student-record-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.student-record-meta {
+  display: grid;
+  gap: 10px;
+}
+
+.student-record-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-record-block {
+  display: grid;
+  gap: 4px;
+}
+
+.student-record-block strong {
+  color: #21395f;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.student-record-block span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-record-status {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  text-align: right;
+}
+
 .avatar-badge,
 .course-icon,
 .payment-logo,
@@ -1202,30 +1276,35 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  border: 1px solid transparent;
 }
 
 .badge.success {
   background: var(--success-soft);
   color: var(--success);
+  border-color: #cfead7;
 }
 
 .badge.danger {
   background: var(--danger-soft);
   color: var(--danger);
+  border-color: #f6d1d1;
 }
 
 .badge.warning {
-  background: #fff7ed;
+  background: var(--warning-soft);
   color: var(--warning);
+  border-color: #f6dfb8;
 }
 
 .badge.gray {
   background: var(--gray-soft);
   color: #7083a6;
+  border-color: #dde5ee;
 }
 
 .money-chip {
@@ -1263,6 +1342,19 @@ tbody tr:hover {
   border: 1px solid transparent;
   display: grid;
   place-items: center;
+}
+
+.table-actions.compact {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-actions.compact button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-soft);
+  color: #6b7b96;
 }
 
 .dashboard-trend-block {
@@ -1615,11 +1707,11 @@ tbody tr:hover {
 
 .modal-card {
   width: min(720px, 100%);
-  background: white;
-  border: 1px solid #d8e2f0;
-  border-radius: 10px;
-  box-shadow: 0 24px 46px rgba(9, 25, 61, 0.16);
-  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 42px rgba(9, 25, 61, 0.12);
+  padding: 22px;
 }
 
 .modal-head h3 {
@@ -4009,9 +4101,9 @@ background: #00236f;
 
 .attendance-student-card {
   padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid #dde5f0;
-  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
   display: grid;
   gap: 12px;
 }
@@ -4051,9 +4143,9 @@ background: #00236f;
 
 .payment-flow-card,
 .payment-workspace-card {
-  border-radius: 12px;
-  border: 1px solid #dde5f0;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
 }
 
 .payment-workspace-head {
@@ -4093,10 +4185,10 @@ background: #00236f;
 
 .payment-student-card {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid #dde5f0;
-  background: #ffffff;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
   display: grid;
   gap: 10px;
   text-align: left;
@@ -4105,8 +4197,8 @@ background: #00236f;
 
 .payment-student-card:hover {
   transform: translateY(-1px);
-  border-color: #c7d4e8;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+  border-color: #cfd7e4;
+  box-shadow: var(--shadow-soft);
 }
 
 .payment-student-card.active {
@@ -4126,10 +4218,10 @@ background: #00236f;
 }
 
 .payment-editor-card {
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #dde5f0;
-  background: #ffffff;
+  padding: var(--card-padding);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
   display: grid;
   gap: 14px;
 }
@@ -4163,9 +4255,9 @@ background: #00236f;
 .payment-editor-stats div {
   min-height: 72px;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #e4ebf6;
-  background: #fbfcff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-soft);
   display: grid;
   align-content: space-between;
   gap: 8px;
@@ -7185,6 +7277,20 @@ th {
 @media (max-width: 720px) {
   .reception-quick-actions {
     grid-template-columns: 1fr;
+  }
+
+  .student-record-head,
+  .student-record-body,
+  .student-record-footer,
+  .student-record-grid {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .student-record-status,
+  .mini-list-side {
+    justify-items: start;
+    text-align: left;
   }
 
   .attendance-group-grid {

@@ -3801,6 +3801,88 @@ function StudentDashboardPage({ token }) {
 							: "Qarzdorlik yo'q"}
 					</small>
 				</div>
+				<div className='student-record-list'>
+					{students.map((student, index) => (
+						<div key={`student-card-${student.id}`} className='student-record-card'>
+							<div className='student-record-head'>
+								<div className='student-identity'>
+									<div className={`avatar-badge tone-${index % 5}`}>
+										{getInitials(student.fullName)}
+									</div>
+									<div>
+										<strong>{student.fullName}</strong>
+										<span>{getStudyMonthLabel(student)}</span>
+									</div>
+								</div>
+								<div className='student-record-status'>
+									<Badge tone={getStudentStatusMeta(student.status).tone}>
+										{getStudentStatusMeta(student.status).label}
+									</Badge>
+									{student.status === 'trial' ? (
+										<span>{student.trialProgress || 0}/{student.trialRequired || 3} kun</span>
+									) : student.paymentDueDate ? (
+										<span>{student.paymentDueDate}</span>
+									) : null}
+								</div>
+							</div>
+							<div className='student-record-grid'>
+								<div className='student-record-block'>
+									<strong>{student.phone}</strong>
+									<span>
+										{student.telegramId
+											? `Telegram ulangan: ${student.telegramId}`
+											: 'Telegram ulanmagan'}
+									</span>
+								</div>
+								<div className='student-record-block'>
+									<strong>{student.courseTitle}</strong>
+									<span>{student.teacherName}</span>
+								</div>
+								<div className='student-record-block'>
+									<strong>{formatMoney(Math.abs(student.balance))}</strong>
+									<span>
+										{student.status === 'active'
+											? 'Joriy balans'
+											: student.status === 'trial'
+												? 'Sinov holati'
+												: 'Qarz summasi'}
+									</span>
+								</div>
+							</div>
+							<div className='student-record-footer'>
+								<div className='course-cell'>
+									{student.status === 'trial' ? (
+										<span>Muddat: {student.paymentDueDate || "Belgilanmagan"}</span>
+									) : student.paymentDueDate ? (
+										<span>To'lov muddati: {student.paymentDueDate}</span>
+									) : (
+										<span>Holat yangilangan</span>
+									)}
+								</div>
+								<div className='table-actions compact'>
+									<button type='button' onClick={() => setStudentModal({ ...student })}>
+										<Icon name='edit' />
+									</button>
+									<button type='button' onClick={() => handleHistory(student.id)}>
+										<Icon name='history' />
+									</button>
+									<button type='button' onClick={() => handleRegisterLink(student.id)}>
+										<Icon name='qr_code_2' />
+									</button>
+									<button
+										type='button'
+										onClick={() => navigate(`/reception/payments?studentId=${student.id}`)}
+									>
+										<Icon name='payments' />
+									</button>
+									<button type='button' onClick={() => handleDelete(student.id)}>
+										<Icon name='delete' />
+									</button>
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
 			</section>
 
 			<div className='student-summary-grid'>
@@ -3934,7 +4016,7 @@ function StudentAttendancePage({ token }) {
 				<StatCard label='Kelmadi' value={`${data.last30Days.absent} ta`} note='Absent' tone='danger' icon='cancel' />
 			</div>
 			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
+				<div className='table-shell responsive-cards' hidden>
 					<table>
 						<thead>
 							<tr>
