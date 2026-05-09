@@ -621,11 +621,39 @@ function createNotification({ targetRole = null, targetUserId = null, type, titl
   );
 }
 
+async function createNotificationAsync({ targetRole = null, targetUserId = null, type, title, message, metadata = null }) {
+  await getSupabasePool().query(
+    `
+      INSERT INTO notifications (target_role, target_user_id, type, title, message, metadata, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'unread', $7)
+    `,
+    [
+      targetRole,
+      targetUserId,
+      type,
+      title,
+      message,
+      metadata ? JSON.stringify(metadata) : null,
+      dayjs().format("YYYY-MM-DD HH:mm:ss")
+    ]
+  );
+}
+
 function addStudentHistory(studentId, actorUserId, action, title, details) {
   db.prepare(`
     INSERT INTO student_history (student_id, actor_user_id, action, title, details, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(studentId, actorUserId || null, action, title, details || null, dayjs().format("YYYY-MM-DD HH:mm:ss"));
+}
+
+async function addStudentHistoryAsync(studentId, actorUserId, action, title, details) {
+  await getSupabasePool().query(
+    `
+      INSERT INTO student_history (student_id, actor_user_id, action, title, details, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+    [studentId, actorUserId || null, action, title, details || null, dayjs().format("YYYY-MM-DD HH:mm:ss")]
+  );
 }
 
 function getTrialProgress(studentId, enrolledAt) {
@@ -650,6 +678,22 @@ function getNthTrialLessonDate(studentId, enrolledAt, trialRequired) {
     LIMIT 1 OFFSET ?
   `).get(studentId, enrolledAt || dayjs().format("YYYY-MM-DD"), Math.max(0, Number(trialRequired || 3) - 1));
   return row?.lessonDate || null;
+}
+
+async function getNthTrialLessonDateAsync(studentId, enrolledAt, trialRequired) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT lesson_date as "lessonDate"
+      FROM attendance
+      WHERE student_id = $1
+        AND status = 'present'
+        AND lesson_date >= $2::date
+      ORDER BY lesson_date ASC
+      OFFSET $3 LIMIT 1
+    `,
+    [studentId, enrolledAt || dayjs().format("YYYY-MM-DD"), Math.max(0, Number(trialRequired || 3) - 1)]
+  );
+  return rows[0]?.lessonDate || null;
 }
 
 function recalcStudentState(studentId) {
@@ -694,6 +738,60 @@ function recalcStudentState(studentId) {
     SET status = ?, enrolled_at = ?, trial_required = ?, payment_due_date = ?
     WHERE id = ?
   `).run(status, enrolledAt, trialRequired, paymentDueDate, studentId);
+
+  return { status, trialProgress, trialRequired, paymentDueDate, enrolledAt };
+}
+
+async function recalcStudentStateAsync(studentId) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        s.id,
+        s.balance,
+        s.enrolled_at as "enrolledAt",
+        s.billing_start_date as "billingStartDate",
+        s.trial_required as "trialRequired",
+        c.monthly_fee as "monthlyFee"
+      FROM students s
+      LEFT JOIN courses c ON c.id = s.course_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const student = rows[0];
+
+  if (!student) {
+    return null;
+  }
+
+  const enrolledAt = student.enrolledAt || dayjs().format("YYYY-MM-DD");
+  const trialRequired =
+    student.trialRequired === null || student.trialRequired === undefined
+      ? 3
+      : Math.max(Number(student.trialRequired || 0), 0);
+  const trialProgress = await getTrialProgressAsync(studentId, enrolledAt);
+  let paymentDueDate =
+    trialProgress >= trialRequired && trialRequired > 0
+      ? await getNthTrialLessonDateAsync(studentId, enrolledAt, trialRequired)
+      : null;
+
+  let status = "trial";
+  if (trialRequired === 0) {
+    paymentDueDate = normalizeBillingStartDate(student.billingStartDate) || enrolledAt;
+    status = Number(student.balance || 0) >= Number(student.monthlyFee || 0) ? "active" : "debtor";
+  } else if (trialProgress >= trialRequired) {
+    status = Number(student.balance || 0) >= Number(student.monthlyFee || 0) ? "active" : "debtor";
+  }
+
+  await getSupabasePool().query(
+    `
+      UPDATE students
+      SET status = $1, enrolled_at = $2, trial_required = $3, payment_due_date = $4
+      WHERE id = $5
+    `,
+    [status, enrolledAt, trialRequired, paymentDueDate, studentId]
+  );
 
   return { status, trialProgress, trialRequired, paymentDueDate, enrolledAt };
 }
@@ -758,6 +856,27 @@ export function getStudentAccessLinkByUserId(userId) {
   return `${config.webUrl}/student/login?access=${auth.accessToken}`;
 }
 
+export async function getStudentAccessLinkByUserIdAsync(userId) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT s.id as "studentId", u.phone
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.user_id = $1
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+
+  const auth = await ensureStudentAuthAsync(row.studentId, row.phone);
+  return `${config.webUrl}/student/login?access=${auth.accessToken}`;
+}
+
 export function loginStudentByAccessToken(accessToken) {
   const auth = db.prepare(`
     SELECT sa.student_id as studentId, s.user_id as userId
@@ -804,6 +923,42 @@ export function getStudentByUserId(userId) {
   `).get(userId);
 
   return mapStudentRow({ ...row, trialProgress: row ? getTrialProgress(row.id, row.enrolledAt) : 0 });
+}
+
+export async function getStudentByUserIdAsync(userId) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        s.id,
+        u.full_name as "fullName",
+        u.phone,
+        u.telegram_id as "telegramId",
+        s.balance,
+        s.status,
+        s.enrolled_at as "enrolledAt",
+        s.billing_start_date as "billingStartDate",
+        s.trial_required as "trialRequired",
+        s.payment_due_date as "paymentDueDate",
+        s.last_payment_date as "lastPaymentDate",
+        s.is_archived as "isArchived",
+        c.id as "courseId",
+        c.title as "courseTitle",
+        c.monthly_fee as "monthlyFee",
+        COALESCE(s.group_schedule, c.schedule) as schedule,
+        t.id as "teacherId",
+        t.full_name as "teacherName",
+        u.profile_image as "profileImage"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN courses c ON c.id = s.course_id
+      LEFT JOIN users t ON t.id = s.teacher_id
+      WHERE s.user_id = $1
+      LIMIT 1
+    `,
+    [userId]
+  );
+  const row = rows[0];
+  return row ? mapStudentRow({ ...row, trialProgress: await getTrialProgressAsync(row.id, row.enrolledAt) }) : null;
 }
 
 export function getStudentByPhone(phone) {
@@ -931,8 +1086,33 @@ export function listAllPayments() {
     JOIN users u ON u.id = s.user_id
     LEFT JOIN courses c ON c.id = s.course_id
     LEFT JOIN users staff ON staff.id = p.received_by_user_id
-    ORDER BY datetime(p.created_at) DESC
+      ORDER BY datetime(p.created_at) DESC
   `).all();
+}
+
+export async function listAllPaymentsAsync() {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        p.id,
+        p.amount,
+        p.method,
+        p.status,
+        p.reason,
+        p.created_at as "createdAt",
+        staff.full_name as "receivedBy",
+        u.full_name as "studentName",
+        u.phone as "studentPhone",
+        c.title as "courseTitle"
+      FROM payments p
+      JOIN students s ON s.id = p.student_id
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN courses c ON c.id = s.course_id
+      LEFT JOIN users staff ON staff.id = p.received_by_user_id
+      ORDER BY p.created_at DESC
+    `
+  );
+  return rows.map((row) => ({ ...row, id: Number(row.id) }));
 }
 
 export function listStudents(filters = {}) {
@@ -996,6 +1176,67 @@ export function listStudents(filters = {}) {
   return db.prepare(query).all(...values).map((row) => mapStudentRow({ ...row, trialProgress: getTrialProgress(row.id, row.enrolledAt) }));
 }
 
+export async function listStudentsAsync(filters = {}) {
+  const values = [];
+  let query = `
+    SELECT
+      s.id,
+      u.full_name as "fullName",
+      u.phone,
+      u.telegram_id as "telegramId",
+      s.balance,
+      s.status,
+      s.enrolled_at as "enrolledAt",
+      s.billing_start_date as "billingStartDate",
+      s.trial_required as "trialRequired",
+      s.payment_due_date as "paymentDueDate",
+      s.last_payment_date as "lastPaymentDate",
+      s.is_archived as "isArchived",
+      c.id as "courseId",
+      c.title as "courseTitle",
+      c.monthly_fee as "monthlyFee",
+      COALESCE(s.group_schedule, c.schedule) as schedule,
+      t.id as "teacherId",
+      t.full_name as "teacherName",
+      u.profile_image as "profileImage"
+    FROM students s
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN courses c ON c.id = s.course_id
+    LEFT JOIN users t ON t.id = s.teacher_id
+    WHERE 1 = 1
+  `;
+
+  if (!filters.includeArchived) {
+    query += ` AND s.is_archived = FALSE`;
+  }
+
+  if (filters.search) {
+    values.push(`%${filters.search}%`);
+    values.push(`%${filters.search}%`);
+    values.push(`%${filters.search}%`);
+    query += ` AND (u.full_name ILIKE $${values.length - 2} OR u.phone ILIKE $${values.length - 1} OR c.title ILIKE $${values.length})`;
+  }
+
+  if (filters.teacherId) {
+    values.push(filters.teacherId);
+    query += ` AND s.teacher_id = $${values.length}`;
+  }
+
+  if (filters.status === "active" || filters.status === "debtor" || filters.status === "trial") {
+    values.push(filters.status);
+    query += ` AND s.status = $${values.length}`;
+  }
+
+  query += ` ORDER BY u.full_name`;
+
+  const { rows } = await getSupabasePool().query(query, values);
+  const mapped = [];
+  for (const row of rows) {
+    mapped.push(mapStudentRow({ ...row, trialProgress: await getTrialProgressAsync(row.id, row.enrolledAt) }));
+  }
+  return mapped;
+}
+
 export function listTeachers() {
   const teachers = db.prepare(`
     SELECT id, full_name as fullName, username, phone, monthly_salary as monthlySalary, profile_image as profileImage
@@ -1026,6 +1267,19 @@ function teacherCanTeachCourse(teacherId, courseId) {
     LIMIT 1
   `).get(teacherId, courseId);
   return Boolean(row);
+}
+
+async function teacherCanTeachCourseAsync(teacherId, courseId) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT 1
+      FROM teacher_course_assignments
+      WHERE teacher_id = $1 AND course_id = $2
+      LIMIT 1
+    `,
+    [teacherId, courseId]
+  );
+  return Boolean(rows[0]);
 }
 
 function syncTeacherCourses(teacherId, courseIds = []) {
@@ -1525,6 +1779,234 @@ export function deleteStudent(studentId) {
   return true;
 }
 
+export async function addStudentAsync(payload, actorUserId = null) {
+  const pool = getSupabasePool();
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const enrolledDate = normalizeImportedDate(payload.enrolledAt) || dayjs().format("YYYY-MM-DD");
+  const defaultPasswordHash = bcrypt.hashSync("12345678", 10);
+  const initialBalance = Number(payload.balance || 0);
+  const requestedStatus = String(payload.status || "active").toLowerCase();
+  const isActiveFlow = requestedStatus === "active" || requestedStatus === "debtor" || requestedStatus === "archived";
+  const status = isActiveFlow ? "active" : "trial";
+  const trialRequired = payload.trialRequired !== undefined && payload.trialRequired !== null
+    ? Number(payload.trialRequired)
+    : (isActiveFlow ? 0 : 3);
+  const billingStartDate = normalizeBillingStartDate(payload.billingStartDate);
+  const groupSchedule = payload.schedule || null;
+
+  if (!(await teacherCanTeachCourseAsync(payload.teacherId, payload.courseId))) {
+    throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
+  }
+
+  const userResult = await pool.query(
+    `
+      INSERT INTO users (full_name, username, password_hash, phone, monthly_salary, role, telegram_id, profile_image, created_at)
+      VALUES ($1, NULL, NULL, $2, 0, 'student', NULL, NULL, $3)
+      RETURNING id
+    `,
+    [payload.fullName, payload.phone, now]
+  );
+  const userId = Number(userResult.rows[0].id);
+
+  const studentResult = await pool.query(
+    `
+      INSERT INTO students (user_id, course_id, teacher_id, balance, status, enrolled_at, billing_start_date, trial_required, payment_due_date, last_payment_date, group_schedule, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11)
+      RETURNING id
+    `,
+    [
+      userId,
+      payload.courseId,
+      payload.teacherId,
+      initialBalance,
+      status,
+      enrolledDate,
+      billingStartDate,
+      trialRequired,
+      isActiveFlow ? billingStartDate : null,
+      groupSchedule,
+      now
+    ]
+  );
+  const studentId = Number(studentResult.rows[0].id);
+
+  const auth = await ensureStudentAuthAsync(studentId, payload.phone, defaultPasswordHash);
+  await pool.query(`UPDATE students SET is_registered = TRUE WHERE id = $1`, [studentId]);
+  await recalcStudentStateAsync(studentId);
+
+  if (requestedStatus === "debtor") {
+    await pool.query(
+      `UPDATE students SET status = 'debtor', payment_due_date = COALESCE(payment_due_date, $1) WHERE id = $2`,
+      [billingStartDate || enrolledDate, studentId]
+    );
+  }
+  if (requestedStatus === "archived") {
+    await pool.query(`UPDATE students SET is_archived = TRUE, archived_at = $1, status = 'archived' WHERE id = $2`, [now, studentId]);
+  }
+
+  await addStudentHistoryAsync(
+    studentId,
+    actorUserId,
+    payload.imported ? "imported" : "created",
+    payload.imported ? "Eski student import qilindi" : "Student yaratildi",
+    payload.imported
+      ? `${payload.fullName} import orqali tizimga qo'shildi`
+      : isActiveFlow
+        ? `${payload.fullName} tizimga faol student sifatida qo'shildi`
+        : `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`
+  );
+
+  if (!payload.skipDirectorNotification) {
+    await createNotificationAsync({
+      targetRole: "director",
+      type: payload.imported ? "student_imported" : "student_created",
+      title: payload.imported ? "Eski o'quvchi import qilindi" : "Yangi o'quvchi qo'shildi",
+      message: `${payload.fullName} ro'yxatga qo'shildi`
+    });
+  }
+
+  return {
+    studentId,
+    phone: normalizePhone(payload.phone),
+    defaultPassword: "12345678",
+    accessToken: auth.accessToken,
+    loginUrl: `${config.webUrl}/student/login?access=${auth.accessToken}`
+  };
+}
+
+export async function updateStudentAsync(studentId, payload, actorUserId = null) {
+  const pool = getSupabasePool();
+  const beforeResult = await pool.query(
+    `
+      SELECT s.id, u.full_name as "fullName", s.course_id as "courseId", s.teacher_id as "teacherId", s.is_archived as "isArchived"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const before = beforeResult.rows[0];
+
+  const nextBalance = Number(payload.balance || 0);
+  const nextBillingStartDate = normalizeBillingStartDate(payload.billingStartDate);
+  const nextTrialRequired = payload.status === "active" ? 0 : 3;
+  const nextGroupSchedule = payload.schedule || null;
+
+  if (!(await teacherCanTeachCourseAsync(payload.teacherId, payload.courseId))) {
+    throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
+  }
+
+  await pool.query(
+    `
+      UPDATE users
+      SET full_name = $1, phone = $2
+      WHERE id = (SELECT user_id FROM students WHERE id = $3)
+    `,
+    [payload.fullName, payload.phone, studentId]
+  );
+
+  await ensureStudentAuthAsync(studentId, payload.phone);
+
+  await pool.query(
+    `
+      UPDATE students
+      SET
+        course_id = $1,
+        teacher_id = $2,
+        balance = $3,
+        trial_required = $4,
+        billing_start_date = $5,
+        group_schedule = $6,
+        payment_due_date = CASE WHEN $7 = 0 THEN $8 ELSE payment_due_date END,
+        last_payment_date = COALESCE(last_payment_date, $9)
+      WHERE id = $10
+    `,
+    [
+      payload.courseId,
+      payload.teacherId,
+      nextBalance,
+      nextTrialRequired,
+      nextBillingStartDate,
+      nextGroupSchedule,
+      nextTrialRequired,
+      nextBillingStartDate,
+      dayjs().format("YYYY-MM-DD"),
+      studentId
+    ]
+  );
+
+  await recalcStudentStateAsync(studentId);
+
+  if (before) {
+    if (Number(before.courseId) !== Number(payload.courseId)) {
+      await addStudentHistoryAsync(studentId, actorUserId, "course_changed", "Kurs almashtirildi", `${before.fullName} yangi kursga o'tkazildi`);
+    }
+    if (Number(before.teacherId) !== Number(payload.teacherId)) {
+      await addStudentHistoryAsync(studentId, actorUserId, "teacher_changed", "O'qituvchi almashtirildi", `${before.fullName} uchun o'qituvchi yangilandi`);
+    }
+    await addStudentHistoryAsync(studentId, actorUserId, "updated", "Student yangilandi", `${before.fullName} ma'lumotlari tahrirlandi`);
+  }
+}
+
+export async function archiveStudentAsync(studentId, actorUserId = null) {
+  const pool = getSupabasePool();
+  const studentResult = await pool.query(
+    `
+      SELECT s.user_id as "userId", u.full_name as "fullName"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const student = studentResult.rows[0];
+
+  if (!student) {
+    return false;
+  }
+
+  await pool.query(`UPDATE students SET is_archived = TRUE, archived_at = $1 WHERE id = $2`, [dayjs().format("YYYY-MM-DD HH:mm:ss"), studentId]);
+  await addStudentHistoryAsync(studentId, actorUserId, "archived", "Student arxivlandi", `${student.fullName} arxivga o'tkazildi`);
+  return true;
+}
+
+export async function deleteStudentAsync(studentId) {
+  const pool = getSupabasePool();
+  const studentResult = await pool.query(
+    `
+      SELECT s.user_id as "userId", u.full_name as "fullName"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const student = studentResult.rows[0];
+
+  if (!student) {
+    return false;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM notifications WHERE target_user_id = $1`, [student.userId]);
+    await client.query(`DELETE FROM students WHERE id = $1`, [studentId]);
+    await client.query(`DELETE FROM users WHERE id = $1`, [student.userId]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return true;
+}
+
 export function recordPayment(studentId, amount, method, status = "paid", externalId = null, actorUserId = null, reason = null) {
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
 
@@ -1629,6 +2111,112 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
   };
 }
 
+export async function recordPaymentAsync(studentId, amount, method, status = "paid", externalId = null, actorUserId = null, reason = null) {
+  const pool = getSupabasePool();
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
+  const studentResult = await pool.query(
+    `
+      SELECT s.id, s.balance, c.monthly_fee as "monthlyFee"
+      FROM students s
+      LEFT JOIN courses c ON c.id = s.course_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const student = studentResult.rows[0];
+
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+
+  const normalizedAmount = Number(amount || 0);
+  const normalizedReason = String(reason || "").trim();
+  const monthlyFee = Number(student.monthlyFee || 0);
+
+  if (normalizedAmount <= 0) {
+    throw new Error("To'lov summasini kiriting");
+  }
+
+  if (monthlyFee > 0 && normalizedAmount < monthlyFee && !normalizedReason) {
+    throw new Error(`Minimal to'lov ${monthlyFee.toLocaleString("ru-RU")} UZS. Kamroq summa uchun sabab yozing.`);
+  }
+
+  const paymentResult = await pool.query(
+    `
+      INSERT INTO payments (student_id, amount, method, status, external_id, received_by_user_id, reason, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id
+    `,
+    [studentId, normalizedAmount, method, status, externalId, actorUserId || null, normalizedReason || null, now]
+  );
+  const paymentId = Number(paymentResult.rows[0].id);
+
+  const newBalance = Number(student.balance) + normalizedAmount;
+  await pool.query(
+    `
+      UPDATE students
+      SET balance = $1, last_payment_date = $2
+      WHERE id = $3
+    `,
+    [newBalance, dayjs().format("YYYY-MM-DD"), studentId]
+  );
+  await recalcStudentStateAsync(studentId);
+
+  const summaryResult = await pool.query(
+    `
+      SELECT s.user_id as "userId", u.full_name as "fullName", u.phone, c.title as "courseTitle"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN courses c ON c.id = s.course_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const summary = summaryResult.rows[0];
+
+  await addStudentHistoryAsync(
+    studentId,
+    actorUserId,
+    "payment_recorded",
+    "To'lov qabul qilindi",
+    `${normalizedAmount.toLocaleString("ru-RU")} UZS / ${method}${normalizedReason ? ` / Sabab: ${normalizedReason}` : ""}`
+  );
+  await createNotificationAsync({
+    targetRole: "director",
+    type: "payment",
+    title: "Yangi to'lov qabul qilindi",
+    message: `${summary.fullName} - ${summary.courseTitle} uchun ${normalizedAmount.toLocaleString("ru-RU")} UZS`
+  });
+  if (summary?.userId) {
+    await createNotificationAsync({
+      targetUserId: summary.userId,
+      type: "payment_received",
+      title: "To'lov qabul qilindi",
+      message: `${normalizedAmount.toLocaleString("ru-RU")} UZS to'lovingiz tizimga tushdi`
+    });
+  }
+
+  const receipt = {
+    id: paymentId,
+    studentId,
+    fullName: summary.fullName,
+    phone: summary.phone,
+    courseTitle: summary.courseTitle,
+    amount: normalizedAmount,
+    method,
+    paidAt: now,
+    reason: normalizedReason || null
+  };
+
+  return {
+    ...receipt,
+    receiptCaption: buildPaymentCaption(receipt)
+  };
+}
+
 export function upsertAttendance({ studentId, teacherId, lessonDate, status }) {
   db.prepare(`
     INSERT INTO attendance (student_id, teacher_id, lesson_date, status, created_at)
@@ -1692,6 +2280,66 @@ export function upsertAttendance({ studentId, teacherId, lessonDate, status }) {
   }
 }
 
+export async function upsertAttendanceAsync({ studentId, teacherId, lessonDate, status }) {
+  const pool = getSupabasePool();
+  await pool.query(
+    `
+      INSERT INTO attendance (student_id, teacher_id, lesson_date, status, created_at)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (student_id, lesson_date)
+      DO UPDATE SET status = EXCLUDED.status, teacher_id = EXCLUDED.teacher_id
+    `,
+    [studentId, teacherId, lessonDate, status, dayjs().format("YYYY-MM-DD HH:mm:ss")]
+  );
+  const next = await recalcStudentStateAsync(studentId);
+
+  const studentResult = await pool.query(
+    `
+      SELECT u.id as "userId", u.full_name as "fullName"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const student = studentResult.rows[0];
+
+  if (status === "absent") {
+    await createNotificationAsync({
+      targetRole: "reception",
+      type: "attendance_absent",
+      title: "Davomat ogohlantirishi",
+      message: `${student?.fullName || "Student"} darsga kelmadi`
+    });
+    if (student?.userId) {
+      await createNotificationAsync({
+        targetUserId: student.userId,
+        type: "absent_alert",
+        title: "Davomat ogohlantirishi",
+        message: "Bugungi dars uchun kelmadi deb belgilandingiz"
+      });
+    }
+  }
+
+  if (next?.status === "debtor" && next.paymentDueDate === lessonDate) {
+    await createNotificationAsync({
+      targetRole: "reception",
+      type: "trial_finished",
+      title: "Sinov muddati tugadi",
+      message: `${student?.fullName || "Student"} uchun sinov tugadi va to'lov muddati boshlandi`
+    });
+    if (student?.userId) {
+      await createNotificationAsync({
+        targetUserId: student.userId,
+        type: "trial_ending",
+        title: "Sinov muddati tugadi",
+        message: "3 kunlik sinov tugadi. Endi oylik to'lov talab qilinadi"
+      });
+    }
+  }
+}
+
 const ALLOWED_ATTENDANCE_STATUSES = new Set(["present", "absent", "excused", "late"]);
 
 function normalizeAttendanceStatus(status) {
@@ -1720,6 +2368,38 @@ export function upsertAttendanceBatch({ lessonDate, entries = [], actorUserId })
 
     const normalizedStatus = normalizeAttendanceStatus(entry.status);
     upsertAttendance({
+      studentId,
+      teacherId: Number(student.teacherId || actorUserId || 0),
+      lessonDate: nextLessonDate,
+      status: normalizedStatus
+    });
+    results.push({ studentId, status: normalizedStatus });
+  }
+
+  return results;
+}
+
+export async function upsertAttendanceBatchAsync({ lessonDate, entries = [], actorUserId }) {
+  const nextLessonDate = lessonDate || dayjs().format("YYYY-MM-DD");
+  const results = [];
+
+  for (const entry of entries) {
+    const studentId = Number(entry.studentId);
+    if (!studentId) {
+      continue;
+    }
+
+    const studentResult = await getSupabasePool().query(
+      `SELECT id, teacher_id as "teacherId" FROM students WHERE id = $1 LIMIT 1`,
+      [studentId]
+    );
+    const student = studentResult.rows[0];
+    if (!student) {
+      continue;
+    }
+
+    const normalizedStatus = normalizeAttendanceStatus(entry.status);
+    await upsertAttendanceAsync({
       studentId,
       teacherId: Number(student.teacherId || actorUserId || 0),
       lessonDate: nextLessonDate,
@@ -1885,10 +2565,53 @@ export function getStudentDashboard(userId) {
   };
 }
 
+export async function getStudentDashboardAsync(userId) {
+  const profile = await getStudentByUserIdAsync(userId);
+  if (!profile) {
+    return null;
+  }
+  return {
+    fullName: profile.fullName,
+    status: profile.status,
+    balance: profile.balance,
+    courseTitle: profile.courseTitle,
+    teacherName: profile.teacherName,
+    nextLessonDate: getNextLessonDateFromSchedule(profile.schedule),
+    trialProgress: profile.trialProgress,
+    trialRequired: profile.trialRequired,
+    monthlyFee: profile.monthlyFee,
+    paymentDueDate: profile.paymentDueDate
+  };
+}
+
 export function getStudentAttendance(userId) {
   const student = getStudentByUserId(userId);
   if (!student) return null;
   const items = listAttendanceHistory({ studentId: student.id, range: "month" });
+  const presentCount = items.filter((item) => item.status === "present").length;
+  const lateCount = items.filter((item) => item.status === "late").length;
+  const excusedCount = items.filter((item) => item.status === "excused").length;
+  const attendedCount = presentCount + lateCount;
+  const percentage = items.length ? Math.round((attendedCount / items.length) * 100) : 0;
+  return {
+    percentage,
+    last30Days: {
+      present: presentCount,
+      late: lateCount,
+      excused: excusedCount,
+      absent: items.filter((item) => item.status === "absent").length
+    },
+    items: items.map((item) => ({
+      date: item.lessonDate,
+      status: item.status
+    }))
+  };
+}
+
+export async function getStudentAttendanceAsync(userId) {
+  const student = await getStudentByUserIdAsync(userId);
+  if (!student) return null;
+  const items = await listAttendanceHistoryAsync({ studentId: student.id, range: "month" });
   const presentCount = items.filter((item) => item.status === "present").length;
   const lateCount = items.filter((item) => item.status === "late").length;
   const excusedCount = items.filter((item) => item.status === "excused").length;
@@ -1932,8 +2655,62 @@ export function getStudentPayments(userId) {
   };
 }
 
+export async function getStudentPaymentsAsync(userId) {
+  const student = await getStudentByUserIdAsync(userId);
+  if (!student) return null;
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        p.id,
+        p.amount,
+        p.method,
+        p.status,
+        p.created_at as "createdAt",
+        staff.full_name as "receivedBy"
+      FROM payments p
+      LEFT JOIN users staff ON staff.id = p.received_by_user_id
+      WHERE p.student_id = $1
+      ORDER BY p.created_at DESC
+    `,
+    [student.id]
+  );
+  return {
+    balance: student.balance,
+    debt: Math.max(0, Number(student.monthlyFee || 0) - Number(student.balance || 0)),
+    items: rows.map((row) => ({ ...row, id: Number(row.id) }))
+  };
+}
+
 export function getStudentSchedule(userId) {
   const student = getStudentByUserId(userId);
+  if (!student) return null;
+  const schedule = student.schedule || "";
+  const dayMap = {
+    du: "Dushanba",
+    se: "Seshanba",
+    chor: "Chorshanba",
+    pay: "Payshanba",
+    juma: "Juma",
+    shan: "Shanba",
+    yak: "Yakshanba"
+  };
+  const [daysPart = "", timePart = ""] = schedule.split(",");
+  const dayKeys = daysPart.split("-").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const todayIndex = dayjs().day();
+  const numericMap = { du: 1, se: 2, chor: 3, pay: 4, juma: 5, shan: 6, yak: 0 };
+  return {
+    courseTitle: student.courseTitle,
+    teacherName: student.teacherName,
+    items: dayKeys.map((key) => ({
+      day: dayMap[key] || key,
+      time: timePart.trim(),
+      isToday: numericMap[key] === todayIndex
+    }))
+  };
+}
+
+export async function getStudentScheduleAsync(userId) {
+  const student = await getStudentByUserIdAsync(userId);
   if (!student) return null;
   const schedule = student.schedule || "";
   const dayMap = {
@@ -1969,6 +2746,15 @@ export function getStudentProfilePanel(userId) {
   };
 }
 
+export async function getStudentProfilePanelAsync(userId) {
+  const profile = await getStudentByUserIdAsync(userId);
+  if (!profile) return null;
+  return {
+    fullName: profile.fullName,
+    phone: profile.phone
+  };
+}
+
 export function changeStudentPassword(userId, passwordHash) {
   const student = getStudentByUserId(userId);
   if (!student) {
@@ -1979,6 +2765,22 @@ export function changeStudentPassword(userId, passwordHash) {
     SET password_hash = ?, updated_at = ?
     WHERE student_id = ?
   `).run(passwordHash, dayjs().format("YYYY-MM-DD HH:mm:ss"), student.id);
+}
+
+export async function changeStudentPasswordAsync(userId, passwordHash) {
+  const student = await getStudentByUserIdAsync(userId);
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+
+  await getSupabasePool().query(
+    `
+      UPDATE student_auth
+      SET password_hash = $1, updated_at = $2
+      WHERE student_id = $3
+    `,
+    [passwordHash, dayjs().format("YYYY-MM-DD HH:mm:ss"), student.id]
+  );
 }
 
 export function listAttendanceHistory({ teacherId = null, studentId = null, range = "month", lessonDate = "" } = {}) {
@@ -2024,6 +2826,50 @@ export function listAttendanceHistory({ teacherId = null, studentId = null, rang
   return db.prepare(query).all(...values);
 }
 
+export async function listAttendanceHistoryAsync({ teacherId = null, studentId = null, range = "month", lessonDate = "" } = {}) {
+  const values = [];
+  let query = `
+    SELECT
+      a.id,
+      a.lesson_date as "lessonDate",
+      a.status,
+      s.id as "studentId",
+      u.full_name as "studentName",
+      c.title as "courseTitle",
+      t.full_name as "teacherName"
+    FROM attendance a
+    JOIN students s ON s.id = a.student_id
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN courses c ON c.id = s.course_id
+    LEFT JOIN users t ON t.id = a.teacher_id
+    WHERE 1 = 1
+  `;
+
+  if (teacherId) {
+    values.push(teacherId);
+    query += ` AND a.teacher_id = $${values.length}`;
+  }
+  if (studentId) {
+    values.push(studentId);
+    query += ` AND a.student_id = $${values.length}`;
+  }
+
+  if (lessonDate) {
+    values.push(lessonDate);
+    query += ` AND a.lesson_date = $${values.length}::date`;
+  } else if (range === "week") {
+    query += ` AND a.lesson_date >= CURRENT_DATE - INTERVAL '7 day'`;
+  } else if (range === "day") {
+    query += ` AND a.lesson_date = CURRENT_DATE`;
+  } else {
+    query += ` AND a.lesson_date >= CURRENT_DATE - INTERVAL '30 day'`;
+  }
+
+  query += ` ORDER BY a.lesson_date DESC, u.full_name ASC`;
+  const { rows } = await getSupabasePool().query(query, values);
+  return rows.map((row) => ({ ...row, id: Number(row.id), studentId: Number(row.studentId) }));
+}
+
 export function getTeacherStudents(teacherId) {
   const students = listStudents({ teacherId });
   return students.map((student) => {
@@ -2042,6 +2888,32 @@ export function getTeacherStudents(teacherId) {
         : 0
     };
   });
+}
+
+export async function getTeacherStudentsAsync(teacherId) {
+  const students = await listStudentsAsync({ teacherId });
+  const result = [];
+  for (const student of students) {
+    const { rows } = await getSupabasePool().query(
+      `
+        SELECT
+          SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END)::int as "presentCount",
+          COUNT(*)::int as "totalCount"
+        FROM attendance
+        WHERE student_id = $1
+      `,
+      [student.id]
+    );
+
+    const stats = rows[0] || {};
+    result.push({
+      ...student,
+      attendancePercent: stats.totalCount
+        ? Math.round((Number(stats.presentCount || 0) / Number(stats.totalCount || 0)) * 100)
+        : 0
+    });
+  }
+  return result;
 }
 
 export function getDirectorStats() {
@@ -2465,8 +3337,28 @@ export function listStudentHistory(studentId) {
     FROM student_history sh
     LEFT JOIN users u ON u.id = sh.actor_user_id
     WHERE sh.student_id = ?
-    ORDER BY datetime(sh.created_at) DESC
+      ORDER BY datetime(sh.created_at) DESC
   `).all(studentId);
+}
+
+export async function listStudentHistoryAsync(studentId) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        sh.id,
+        sh.action,
+        sh.title,
+        sh.details,
+        sh.created_at as "createdAt",
+        u.full_name as "actorName"
+      FROM student_history sh
+      LEFT JOIN users u ON u.id = sh.actor_user_id
+      WHERE sh.student_id = $1
+      ORDER BY sh.created_at DESC
+    `,
+    [studentId]
+  );
+  return rows.map((row) => ({ ...row, id: Number(row.id) }));
 }
 
 export function listNotifications({ userId = null, role = null, unreadOnly = false } = {}) {
@@ -2500,6 +3392,37 @@ export function markNotificationRead(notificationId, userId = null) {
     return false;
   }
   db.prepare(`UPDATE notifications SET status = 'read', read_at = ? WHERE id = ?`).run(dayjs().format("YYYY-MM-DD HH:mm:ss"), notificationId);
+  return true;
+}
+
+export async function markNotificationReadAsync(notificationId, userId = null) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT id, target_user_id as "targetUserId"
+      FROM notifications
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [notificationId]
+  );
+
+  const row = rows[0];
+  if (!row) {
+    return false;
+  }
+
+  if (row.targetUserId && userId && Number(row.targetUserId) !== Number(userId)) {
+    return false;
+  }
+
+  await getSupabasePool().query(
+    `
+      UPDATE notifications
+      SET status = 'read', read_at = $1
+      WHERE id = $2
+    `,
+    [dayjs().format("YYYY-MM-DD HH:mm:ss"), notificationId]
+  );
   return true;
 }
 
@@ -3523,4 +4446,17 @@ export function markContactRequestRead(id) {
     WHERE id = ?
   `).run(dayjs().format("YYYY-MM-DD HH:mm:ss"), id);
   return result.changes > 0;
+}
+
+export async function markContactRequestReadAsync(id) {
+  const result = await getSupabasePool().query(
+    `
+      UPDATE contact_requests
+      SET status = 'read', read_at = $1
+      WHERE id = $2
+      RETURNING id
+    `,
+    [dayjs().format("YYYY-MM-DD HH:mm:ss"), id]
+  );
+  return result.rowCount > 0;
 }

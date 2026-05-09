@@ -7,12 +7,15 @@ import { buildDirectorPdfReport, buildDirectorWorkbook } from "./reports.js";
 import { sendStudentPaymentNotification } from "./bot.js";
 import {
   addStudent,
+  addStudentAsync,
   archiveStudent,
+  archiveStudentAsync,
   buildPaymentReceiptAsset,
   buildQrCodeAsset,
   buildFinanceCsv,
   buildStudentsCsv,
   changeStudentPassword,
+  changeStudentPasswordAsync,
   createContactRequest,
   createCourse,
   createStudentRegistrationToken,
@@ -28,22 +31,31 @@ import {
   getFinanceSummary,
   getSettingsBundle,
   getStudentAttendance,
+  getStudentAttendanceAsync,
   getStudentAccessLinkByUserId,
+  getStudentAccessLinkByUserIdAsync,
   getStudentDashboard,
+  getStudentDashboardAsync,
   getStudentPayments,
+  getStudentPaymentsAsync,
   getStudentProfilePanel,
+  getStudentProfilePanelAsync,
   getStudentByPhone,
   getStudentByPhoneAsync,
   getStudentSchedule,
+  getStudentScheduleAsync,
   getStudentAuthByPhone,
   getStudentAuthByPhoneAsync,
   loginStudentByAccessToken,
   loginStudentByAccessTokenAsync,
   getTeacherStudents,
+  getTeacherStudentsAsync,
   listAllCourses,
   listAllCoursesAsync,
   listAllPayments,
+  listAllPaymentsAsync,
   listAttendanceHistory,
+  listAttendanceHistoryAsync,
   listBranches,
   listBranchesAsync,
   listContactRequests,
@@ -55,13 +67,18 @@ import {
   listNotifications,
   listNotificationsAsync,
   listStudentHistory,
+  listStudentHistoryAsync,
   listStudents,
+  listStudentsAsync,
   listTeachers,
   listTeachersAsync,
   markContactRequestRead,
+  markContactRequestReadAsync,
+  markNotificationReadAsync,
   markNotificationRead,
   previewStudentImport,
   recordPayment,
+  recordPaymentAsync,
   registerStudentByToken,
   registerStudentByTokenAsync,
   saveSettings,
@@ -75,12 +92,15 @@ import {
   getDeveloperProfileByUsernameAsync,
   updateDeveloperProfile,
   updateStudent,
+  updateStudentAsync,
   updateTeacher,
   updateUserProfile,
   validateStudentRegistrationToken,
   upsertAttendance,
   upsertAttendanceBatch,
-  importStudentsBatch
+  upsertAttendanceBatchAsync,
+  importStudentsBatch,
+  deleteStudentAsync
 } from "./services.js";
 import { getDb } from "./db.js";
 import { getSupabasePool } from "./supabase-db.js";
@@ -449,26 +469,44 @@ router.put("/profile", authenticate, (req, res) => {
 });
 
 router.get("/reception/students", authenticate, authorize("reception", "director"), (req, res) => {
-  const search = req.query.search || "";
-  const status = req.query.status || "";
-  const includeArchived = req.query.includeArchived === "1";
-  res.json(listStudents({ search, status, includeArchived }));
+  const handleReceptionStudents = async () => {
+    const search = req.query.search || "";
+    const status = req.query.status || "";
+    const includeArchived = req.query.includeArchived === "1";
+    res.json(
+      config.dbProvider === "postgres"
+        ? await listStudentsAsync({ search, status, includeArchived })
+        : listStudents({ search, status, includeArchived })
+    );
+  };
+  handleReceptionStudents().catch((error) => {
+    res.status(500).json({ message: error.message || "Studentlar olinmadi" });
+  });
 });
 
 router.post("/reception/students", authenticate, authorize("reception", "director"), (req, res) => {
-  try {
+  const handleReceptionStudentCreate = async () => {
     const body = req.body;
-    const course = listAllCourses().find((item) => item.id === Number(body.courseId));
-    const createdStudent = addStudent({
-      ...body,
-      courseId: Number(body.courseId),
-      teacherId: Number(body.teacherId),
-      monthlyFee: course?.monthlyFee || 0
-    }, req.user.id);
+    const courses = config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses();
+    const course = courses.find((item) => Number(item.id) === Number(body.courseId));
+    const createdStudent = config.dbProvider === "postgres"
+      ? await addStudentAsync({
+        ...body,
+        courseId: Number(body.courseId),
+        teacherId: Number(body.teacherId),
+        monthlyFee: course?.monthlyFee || 0
+      }, req.user.id)
+      : addStudent({
+        ...body,
+        courseId: Number(body.courseId),
+        teacherId: Number(body.teacherId),
+        monthlyFee: course?.monthlyFee || 0
+      }, req.user.id);
     res.status(201).json(createdStudent);
-  } catch (error) {
+  };
+  handleReceptionStudentCreate().catch((error) => {
     res.status(400).json({ message: error.message || "Student qo'shilmadi" });
-  }
+  });
 });
 
 router.post("/reception/students/import/preview", authenticate, authorize("reception", "director"), async (req, res) => {
@@ -496,29 +534,51 @@ router.post("/reception/students/import/commit", authenticate, authorize("recept
 });
 
 router.put("/reception/students/:id", authenticate, authorize("reception", "director"), (req, res) => {
-  try {
-    updateStudent(Number(req.params.id), {
+  const handleReceptionStudentUpdate = async () => {
+    const payload = {
       ...req.body,
       courseId: Number(req.body.courseId),
       teacherId: Number(req.body.teacherId),
       balance: Number(req.body.balance || 0)
-    }, req.user.id);
+    };
+    if (config.dbProvider === "postgres") {
+      await updateStudentAsync(Number(req.params.id), payload, req.user.id);
+    } else {
+      updateStudent(Number(req.params.id), payload, req.user.id);
+    }
     res.json({ message: "Student yangilandi" });
-  } catch (error) {
+  };
+  handleReceptionStudentUpdate().catch((error) => {
     res.status(400).json({ message: error.message || "Student yangilanmadi" });
-  }
+  });
 });
 
 router.post("/reception/students/:id/archive", authenticate, authorize("reception", "director"), (req, res) => {
-  const archived = archiveStudent(Number(req.params.id), req.user.id);
-  if (!archived) {
-    return res.status(404).json({ message: "Student topilmadi" });
-  }
-  res.json({ message: "Student arxivlandi" });
+  const handleReceptionStudentArchive = async () => {
+    const archived = config.dbProvider === "postgres"
+      ? await archiveStudentAsync(Number(req.params.id), req.user.id)
+      : archiveStudent(Number(req.params.id), req.user.id);
+    if (!archived) {
+      return res.status(404).json({ message: "Student topilmadi" });
+    }
+    res.json({ message: "Student arxivlandi" });
+  };
+  handleReceptionStudentArchive().catch((error) => {
+    res.status(400).json({ message: error.message || "Student arxivlanmadi" });
+  });
 });
 
 router.get("/reception/students/:id/history", authenticate, authorize("reception", "director"), (req, res) => {
-  res.json(listStudentHistory(Number(req.params.id)));
+  const handleStudentHistory = async () => {
+    res.json(
+      config.dbProvider === "postgres"
+        ? await listStudentHistoryAsync(Number(req.params.id))
+        : listStudentHistory(Number(req.params.id))
+    );
+  };
+  handleStudentHistory().catch((error) => {
+    res.status(500).json({ message: error.message || "Tarix olinmadi" });
+  });
 });
 
 router.post("/reception/students/:id/register-token", authenticate, authorize("reception", "director"), async (req, res) => {
@@ -535,21 +595,26 @@ router.post("/reception/students/:id/register-token", authenticate, authorize("r
 });
 
 router.delete("/reception/students/:id", authenticate, authorize("reception", "director"), (req, res) => {
-  try {
-    const deleted = deleteStudent(Number(req.params.id));
+  const handleStudentDelete = async () => {
+    const deleted = config.dbProvider === "postgres"
+      ? await deleteStudentAsync(Number(req.params.id))
+      : deleteStudent(Number(req.params.id));
     if (!deleted) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
     res.json({ message: "Student o'chirildi" });
-  } catch (error) {
+  };
+  handleStudentDelete().catch((error) => {
     res.status(400).json({ message: error.message || "Student o'chirilmadi" });
-  }
+  });
 });
 
 router.post("/reception/payments", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
     const { studentId, amount, method, reason } = req.body;
-    const receipt = recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason);
+    const receipt = config.dbProvider === "postgres"
+      ? await recordPaymentAsync(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason)
+      : recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
     const receiptResponse = {
       ...receipt,
@@ -574,31 +639,50 @@ router.post("/reception/payments", authenticate, authorize("reception", "directo
 });
 
 router.get("/reception/payments", authenticate, authorize("reception", "director"), (_req, res) => {
-  res.json(listAllPayments());
+  const handleReceptionPayments = async () => {
+    res.json(config.dbProvider === "postgres" ? await listAllPaymentsAsync() : listAllPayments());
+  };
+  handleReceptionPayments().catch((error) => {
+    res.status(500).json({ message: error.message || "To'lovlar olinmadi" });
+  });
 });
 
 router.get("/reception/contact-requests", authenticate, authorize("reception", "director"), (_req, res) => {
-  res.json(listContactRequests());
+  const handleReceptionContacts = async () => {
+    res.json(config.dbProvider === "postgres" ? await listContactRequestsAsync() : listContactRequests());
+  };
+  handleReceptionContacts().catch((error) => {
+    res.status(500).json({ message: error.message || "Murojaatlar olinmadi" });
+  });
 });
 
 router.post("/reception/contact-requests/:id/read", authenticate, authorize("reception", "director"), (req, res) => {
-  const ok = markContactRequestRead(Number(req.params.id));
-  if (!ok) {
-    return res.status(404).json({ message: "Murojaat topilmadi" });
-  }
-  res.json({ ok: true });
+  const handleReadContact = async () => {
+    const ok = config.dbProvider === "postgres"
+      ? await markContactRequestReadAsync(Number(req.params.id))
+      : markContactRequestRead(Number(req.params.id));
+    if (!ok) {
+      return res.status(404).json({ message: "Murojaat topilmadi" });
+    }
+    res.json({ ok: true });
+  };
+  handleReadContact().catch((error) => {
+    res.status(500).json({ message: error.message || "Murojaat yangilanmadi" });
+  });
 });
 
 router.post("/payments/webhook", async (req, res) => {
   try {
     const { phone, amount, provider, transactionId } = req.body;
-    const student = getStudentByPhone(phone);
+    const student = config.dbProvider === "postgres" ? await getStudentByPhoneAsync(phone) : getStudentByPhone(phone);
 
     if (!student) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
 
-    const receipt = recordPayment(student.id, Number(amount), provider, "paid", transactionId);
+    const receipt = config.dbProvider === "postgres"
+      ? await recordPaymentAsync(student.id, Number(amount), provider, "paid", transactionId)
+      : recordPayment(student.id, Number(amount), provider, "paid", transactionId);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
     sendStudentPaymentNotification({
       ...receipt,
@@ -613,15 +697,26 @@ router.post("/payments/webhook", async (req, res) => {
 });
 
 router.get("/teacher/students", authenticate, authorize("teacher"), (req, res) => {
-  res.json(getTeacherStudents(req.user.id));
+  const handleTeacherStudents = async () => {
+    res.json(config.dbProvider === "postgres" ? await getTeacherStudentsAsync(req.user.id) : getTeacherStudents(req.user.id));
+  };
+  handleTeacherStudents().catch((error) => {
+    res.status(500).json({ message: error.message || "Studentlar olinmadi" });
+  });
 });
 
 router.get("/teacher/attendance/history", authenticate, authorize("teacher"), (req, res) => {
-  res.json(listAttendanceHistory({
-    teacherId: req.user.id,
-    range: req.query.range || "month",
-    lessonDate: req.query.lessonDate || ""
-  }));
+  const handleTeacherAttendance = async () => {
+    const payload = {
+      teacherId: req.user.id,
+      range: req.query.range || "month",
+      lessonDate: req.query.lessonDate || ""
+    };
+    res.json(config.dbProvider === "postgres" ? await listAttendanceHistoryAsync(payload) : listAttendanceHistory(payload));
+  };
+  handleTeacherAttendance().catch((error) => {
+    res.status(500).json({ message: error.message || "Davomat olinmadi" });
+  });
 });
 
 router.post("/teacher/attendance", authenticate, authorize("teacher"), (_req, res) => {
@@ -629,23 +724,40 @@ router.post("/teacher/attendance", authenticate, authorize("teacher"), (_req, re
 });
 
 router.get("/attendance/history", authenticate, authorize("reception"), (req, res) => {
-  res.json(listAttendanceHistory({
-    range: req.query.range || "day",
-    lessonDate: req.query.lessonDate || ""
-  }));
+  const handleAttendanceHistory = async () => {
+    const payload = {
+      range: req.query.range || "day",
+      lessonDate: req.query.lessonDate || ""
+    };
+    res.json(config.dbProvider === "postgres" ? await listAttendanceHistoryAsync(payload) : listAttendanceHistory(payload));
+  };
+  handleAttendanceHistory().catch((error) => {
+    res.status(500).json({ message: error.message || "Davomat tarixi olinmadi" });
+  });
 });
 
 router.post("/attendance/bulk", authenticate, authorize("reception"), (req, res) => {
-  const lessonDate = req.body.lessonDate || dayjs().format("YYYY-MM-DD");
-  const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
-  const result = upsertAttendanceBatch({
-    lessonDate,
-    entries,
-    actorUserId: req.user.id
-  });
-  res.json({
-    message: "Davomat saqlandi",
-    savedCount: result.length
+  const handleAttendanceBulk = async () => {
+    const lessonDate = req.body.lessonDate || dayjs().format("YYYY-MM-DD");
+    const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
+    const result = config.dbProvider === "postgres"
+      ? await upsertAttendanceBatchAsync({
+        lessonDate,
+        entries,
+        actorUserId: req.user.id
+      })
+      : upsertAttendanceBatch({
+        lessonDate,
+        entries,
+        actorUserId: req.user.id
+      });
+    res.json({
+      message: "Davomat saqlandi",
+      savedCount: result.length
+    });
+  };
+  handleAttendanceBulk().catch((error) => {
+    res.status(400).json({ message: error.message || "Davomat saqlanmadi" });
   });
 });
 
@@ -787,15 +899,31 @@ router.get("/director/reports/print", authenticate, authorize("director"), (_req
 });
 
 router.get("/notifications", authenticate, (req, res) => {
-  res.json(listNotifications({ userId: req.user.id, role: req.user.role }));
+  const handleNotifications = async () => {
+    res.json(
+      config.dbProvider === "postgres"
+        ? await listNotificationsAsync({ userId: req.user.id, role: req.user.role })
+        : listNotifications({ userId: req.user.id, role: req.user.role })
+    );
+  };
+  handleNotifications().catch((error) => {
+    res.status(500).json({ message: error.message || "Bildirishnomalar olinmadi" });
+  });
 });
 
 router.post("/notifications/:id/read", authenticate, (req, res) => {
-  const ok = markNotificationRead(Number(req.params.id), req.user.id);
-  if (!ok) {
-    return res.status(404).json({ message: "Notification topilmadi" });
-  }
-  res.json({ message: "Notification o'qildi" });
+  const handleNotificationRead = async () => {
+    const ok = config.dbProvider === "postgres"
+      ? await markNotificationReadAsync(Number(req.params.id), req.user.id)
+      : markNotificationRead(Number(req.params.id), req.user.id);
+    if (!ok) {
+      return res.status(404).json({ message: "Notification topilmadi" });
+    }
+    res.json({ message: "Notification o'qildi" });
+  };
+  handleNotificationRead().catch((error) => {
+    res.status(500).json({ message: error.message || "Bildirishnoma yangilanmadi" });
+  });
 });
 
 router.get("/settings", authenticate, authorize("director", "reception"), (_req, res) => {
@@ -808,77 +936,126 @@ router.put("/settings", authenticate, authorize("director"), (req, res) => {
 });
 
 router.get("/student/me", authenticate, authorize("student"), (req, res) => {
-  const dashboard = getStudentDashboard(req.user.id);
-  const payments = getStudentPayments(req.user.id);
-  if (!dashboard || !payments) {
-    return res.status(404).json({ message: "Student topilmadi" });
-  }
-  res.json({
-    profile: {
-      ...dashboard,
-      schedule: getStudentSchedule(req.user.id)?.items?.map((item) => `${item.day} ${item.time}`).join(", ") || ""
-    },
-    payments: payments.items.slice(0, 5)
+  const handleStudentMe = async () => {
+    const dashboard = config.dbProvider === "postgres" ? await getStudentDashboardAsync(req.user.id) : getStudentDashboard(req.user.id);
+    const payments = config.dbProvider === "postgres" ? await getStudentPaymentsAsync(req.user.id) : getStudentPayments(req.user.id);
+    if (!dashboard || !payments) {
+      return res.status(404).json({ message: "Student topilmadi" });
+    }
+    const schedule = config.dbProvider === "postgres" ? await getStudentScheduleAsync(req.user.id) : getStudentSchedule(req.user.id);
+    res.json({
+      profile: {
+        ...dashboard,
+        schedule: schedule?.items?.map((item) => `${item.day} ${item.time}`).join(", ") || ""
+      },
+      payments: payments.items.slice(0, 5)
+    });
+  };
+  handleStudentMe().catch((error) => {
+    res.status(500).json({ message: error.message || "Student ma'lumoti olinmadi" });
   });
 });
 
 router.get("/student/me/dashboard", authenticate, authorize("student"), (req, res) => {
-  const data = getStudentDashboard(req.user.id);
-  if (!data) {
-    return res.status(404).json({ message: "Student topilmadi" });
-  }
-  res.json(data);
+  const handleStudentDashboard = async () => {
+    const data = config.dbProvider === "postgres" ? await getStudentDashboardAsync(req.user.id) : getStudentDashboard(req.user.id);
+    if (!data) {
+      return res.status(404).json({ message: "Student topilmadi" });
+    }
+    res.json(data);
+  };
+  handleStudentDashboard().catch((error) => {
+    res.status(500).json({ message: error.message || "Dashboard olinmadi" });
+  });
 });
 
 router.get("/student/me/attendance", authenticate, authorize("student"), (req, res) => {
-  const data = getStudentAttendance(req.user.id);
-  if (!data) {
-    return res.status(404).json({ message: "Davomat topilmadi" });
-  }
-  res.json(data);
+  const handleStudentAttendance = async () => {
+    const data = config.dbProvider === "postgres" ? await getStudentAttendanceAsync(req.user.id) : getStudentAttendance(req.user.id);
+    if (!data) {
+      return res.status(404).json({ message: "Davomat topilmadi" });
+    }
+    res.json(data);
+  };
+  handleStudentAttendance().catch((error) => {
+    res.status(500).json({ message: error.message || "Davomat olinmadi" });
+  });
 });
 
 router.get("/student/me/payments", authenticate, authorize("student"), (req, res) => {
-  const data = getStudentPayments(req.user.id);
-  if (!data) {
-    return res.status(404).json({ message: "To'lovlar topilmadi" });
-  }
-  res.json(data);
+  const handleStudentPayments = async () => {
+    const data = config.dbProvider === "postgres" ? await getStudentPaymentsAsync(req.user.id) : getStudentPayments(req.user.id);
+    if (!data) {
+      return res.status(404).json({ message: "To'lovlar topilmadi" });
+    }
+    res.json(data);
+  };
+  handleStudentPayments().catch((error) => {
+    res.status(500).json({ message: error.message || "To'lovlar olinmadi" });
+  });
 });
 
 router.get("/student/me/schedule", authenticate, authorize("student"), (req, res) => {
-  const data = getStudentSchedule(req.user.id);
-  if (!data) {
-    return res.status(404).json({ message: "Jadval topilmadi" });
-  }
-  res.json(data);
+  const handleStudentSchedule = async () => {
+    const data = config.dbProvider === "postgres" ? await getStudentScheduleAsync(req.user.id) : getStudentSchedule(req.user.id);
+    if (!data) {
+      return res.status(404).json({ message: "Jadval topilmadi" });
+    }
+    res.json(data);
+  };
+  handleStudentSchedule().catch((error) => {
+    res.status(500).json({ message: error.message || "Jadval olinmadi" });
+  });
 });
 
 router.get("/student/me/notifications", authenticate, authorize("student"), (req, res) => {
-  res.json(listNotifications({ userId: req.user.id, role: "student" }));
+  const handleStudentNotifications = async () => {
+    res.json(
+      config.dbProvider === "postgres"
+        ? await listNotificationsAsync({ userId: req.user.id, role: "student" })
+        : listNotifications({ userId: req.user.id, role: "student" })
+    );
+  };
+  handleStudentNotifications().catch((error) => {
+    res.status(500).json({ message: error.message || "Bildirishnomalar olinmadi" });
+  });
 });
 
 router.get("/student/me/profile", authenticate, authorize("student"), (req, res) => {
-  const data = getStudentProfilePanel(req.user.id);
-  if (!data) {
-    return res.status(404).json({ message: "Profil topilmadi" });
-  }
-  res.json({
-    ...data,
-    webAppUrl: getStudentAccessLinkByUserId(req.user.id)
+  const handleStudentProfile = async () => {
+    const data = config.dbProvider === "postgres" ? await getStudentProfilePanelAsync(req.user.id) : getStudentProfilePanel(req.user.id);
+    if (!data) {
+      return res.status(404).json({ message: "Profil topilmadi" });
+    }
+    const webAppUrl = config.dbProvider === "postgres"
+      ? await getStudentAccessLinkByUserIdAsync(req.user.id)
+      : getStudentAccessLinkByUserId(req.user.id);
+    res.json({
+      ...data,
+      webAppUrl
+    });
+  };
+  handleStudentProfile().catch((error) => {
+    res.status(500).json({ message: error.message || "Profil olinmadi" });
   });
 });
 
 router.put("/student/me/profile/password", authenticate, authorize("student"), (req, res) => {
-  if (!req.body.password) {
-    return res.status(400).json({ message: "Yangi parol majburiy" });
-  }
-  try {
-    changeStudentPassword(req.user.id, bcrypt.hashSync(req.body.password, 10));
+  const handleStudentPassword = async () => {
+    if (!req.body.password) {
+      return res.status(400).json({ message: "Yangi parol majburiy" });
+    }
+    const nextHash = bcrypt.hashSync(req.body.password, 10);
+    if (config.dbProvider === "postgres") {
+      await changeStudentPasswordAsync(req.user.id, nextHash);
+    } else {
+      changeStudentPassword(req.user.id, nextHash);
+    }
     res.json({ message: "Parol yangilandi" });
-  } catch (error) {
+  };
+  handleStudentPassword().catch((error) => {
     res.status(400).json({ message: error.message || "Parol yangilanmadi" });
-  }
+  });
 });
 
 router.get("/developers/me", authenticate, authorize("developer_portfolio"), (req, res) => {
