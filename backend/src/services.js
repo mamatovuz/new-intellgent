@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import ExcelJS from "exceljs";
@@ -19,7 +20,8 @@ import { config } from "./config.js";
 import { getSupabasePool } from "./supabase-db.js";
 
 const db = getDb();
-const uploadsDir = path.resolve("backend", "uploads");
+const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const uploadsDir = path.join(runtimeRoot, "uploads");
 const isPostgres = config.dbProvider === "postgres";
 
 if (!fs.existsSync(uploadsDir)) {

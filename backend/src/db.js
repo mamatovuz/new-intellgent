@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 
-const dataDir = path.resolve("backend", "data");
+const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const dataDir = path.join(runtimeRoot, "data");
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });

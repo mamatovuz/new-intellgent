@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { config } from "./config.js";
 import { getSupabasePool } from "./supabase-db.js";
 
-const sqlitePath = path.resolve("backend", "data", "intelligent.db");
+const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const sqlitePath = path.join(runtimeRoot, "data", "intelligent.db");
 
 const TABLE_ORDER = [
   "branches",

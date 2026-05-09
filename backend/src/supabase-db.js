@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
 import { config } from "./config.js";
 
 let poolInstance = null;
+const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function getPool() {
   if (!config.databaseUrl) {
@@ -32,7 +34,7 @@ export async function testSupabaseConnection() {
 
 export async function applySupabaseSchema() {
   const pool = getPool();
-  const schemaPath = path.resolve("backend", "supabase", "schema.sql");
+  const schemaPath = path.join(runtimeRoot, "supabase", "schema.sql");
   const rawSchema = fs.readFileSync(schemaPath, "utf8");
   const statements = rawSchema
     .split(/;\s*\n/g)
