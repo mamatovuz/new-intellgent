@@ -1,7 +1,8 @@
+import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { Pool } from "pg";
 import { config } from "./config.js";
+import { getSupabasePool } from "./supabase-db.js";
 
 const sqlitePath = path.resolve("backend", "data", "intelligent.db");
 
@@ -44,11 +45,7 @@ const JSON_COLUMNS = {
 };
 
 function normalizeValue(tableName, columnName, value) {
-  if (value === undefined) {
-    return null;
-  }
-
-  if (value === null) {
+  if (value === undefined || value === null) {
     return null;
   }
 
@@ -60,7 +57,6 @@ function normalizeValue(tableName, columnName, value) {
     if (!value) {
       return null;
     }
-
     try {
       return JSON.parse(value);
     } catch {
@@ -94,51 +90,58 @@ async function resetSequences(pool) {
 async function migrateTable(pool, sqliteDb, tableName) {
   const rows = sqliteDb.prepare(`SELECT * FROM ${tableName}`).all();
   if (!rows.length) {
-    console.log(`${tableName}: 0 ta qator`);
-    return;
+    return 0;
   }
 
   const columns = Object.keys(rows[0]);
   const insertQuery = buildInsertQuery(tableName, columns);
 
   for (const row of rows) {
-    const values = columns.map((columnName) =>
-      normalizeValue(tableName, columnName, row[columnName])
-    );
+    const values = columns.map((columnName) => normalizeValue(tableName, columnName, row[columnName]));
     await pool.query(insertQuery, values);
   }
 
-  console.log(`${tableName}: ${rows.length} ta qator ko'chirildi`);
+  return rows.length;
 }
 
-async function main() {
+export function hasLocalSqliteData() {
+  return fs.existsSync(sqlitePath);
+}
+
+export async function migrateSqliteDataToSupabase({ truncate = false } = {}) {
   if (!config.databaseUrl) {
     throw new Error("DATABASE_URL topilmadi. Supabase ulanishini env ga yozing.");
   }
 
   const sqliteDb = new Database(sqlitePath, { readonly: true });
-  const pool = new Pool({
-    connectionString: config.databaseUrl,
-    ssl: { rejectUnauthorized: false }
-  });
+  const pool = getSupabasePool();
 
   try {
-    const tableList = TABLE_ORDER.join(", ");
-    await pool.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
+    if (truncate) {
+      const tableList = TABLE_ORDER.join(", ");
+      await pool.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
+    }
 
+    const counts = {};
     for (const tableName of TABLE_ORDER) {
-      await migrateTable(pool, sqliteDb, tableName);
+      counts[tableName] = await migrateTable(pool, sqliteDb, tableName);
     }
 
     await resetSequences(pool);
-    console.log("SQLite ma'lumotlari Supabase Postgres bazasiga ko'chirildi.");
+    return counts;
   } finally {
     sqliteDb.close();
-    await pool.end();
   }
 }
 
-main().catch((error) => {
-  console.error("Supabase data migration xatosi:", error.message);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith("supabase-migrate-data.js")) {
+  migrateSqliteDataToSupabase({ truncate: true })
+    .then(() => {
+      console.log("SQLite ma'lumotlari Supabase Postgres bazasiga ko'chirildi.");
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Supabase data migration xatosi:", error.message);
+      process.exit(1);
+    });
+}

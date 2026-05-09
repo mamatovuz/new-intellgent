@@ -4364,6 +4364,29 @@ export function createContactRequest(payload) {
   return id;
 }
 
+export async function createContactRequestAsync(payload) {
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const result = await getSupabasePool().query(
+    `
+      INSERT INTO contact_requests (full_name, phone, message, status, created_at)
+      VALUES ($1, $2, $3, 'new', $4)
+      RETURNING id
+    `,
+    [payload.fullName, payload.phone, payload.message, now]
+  );
+  const id = Number(result.rows[0].id);
+
+  await createNotificationAsync({
+    targetRole: "reception",
+    type: "contact_request",
+    title: "Yangi murojaat",
+    message: `${payload.fullName} tomonidan yangi bog'lanish so'rovi yuborildi`,
+    metadata: { contactRequestId: id, phone: payload.phone }
+  });
+
+  return id;
+}
+
 export async function importStudentsBatch(rows, actorUserId = null) {
   const payloadRows = Array.isArray(rows) ? rows : [];
   if (!payloadRows.length) {

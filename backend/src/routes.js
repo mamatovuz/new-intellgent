@@ -16,6 +16,7 @@ import {
   buildStudentsCsv,
   changeStudentPassword,
   changeStudentPasswordAsync,
+  createContactRequestAsync,
   createContactRequest,
   createCourse,
   createStudentRegistrationToken,
@@ -139,12 +140,19 @@ router.get("/public/courses", (_req, res) => {
 });
 
 router.post("/public/contact-requests", (req, res) => {
-  const { fullName, phone, message } = req.body;
-  if (!fullName || !phone || !message) {
-    return res.status(400).json({ message: "Ism, telefon va xabar majburiy" });
-  }
-  const id = createContactRequest({ fullName, phone, message });
-  res.status(201).json({ id, message: "Murojaat qabul qilindi" });
+  const handleContactRequest = async () => {
+    const { fullName, phone, message } = req.body;
+    if (!fullName || !phone || !message) {
+      return res.status(400).json({ message: "Ism, telefon va xabar majburiy" });
+    }
+    const id = config.dbProvider === "postgres"
+      ? await createContactRequestAsync({ fullName, phone, message })
+      : createContactRequest({ fullName, phone, message });
+    res.status(201).json({ id, message: "Murojaat qabul qilindi" });
+  };
+  handleContactRequest().catch((error) => {
+    res.status(500).json({ message: error.message || "So'rovda xatolik yuz berdi" });
+  });
 });
 
 router.get("/public/developers", (_req, res) => {
