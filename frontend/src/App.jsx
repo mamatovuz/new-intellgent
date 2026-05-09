@@ -2127,7 +2127,7 @@ function HomePage() {
 							<div className='landing-v2-preview-window'>
 								<div className='landing-v2-preview-top'>
 									<div>
-										<span className='card-label'>Boshqaruv oynasi</span>
+										<span className='card-label'>ILM NEST afzalliklari</span>
 										<strong>ILM NEST Admin</strong>
 									</div>
 									<span className='landing-v2-preview-chip'>Live</span>
