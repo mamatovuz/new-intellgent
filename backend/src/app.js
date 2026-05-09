@@ -9,7 +9,7 @@ import router from "./routes.js";
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function createApp() {
-  if (config.dbProvider !== "postgres") {
+  if (config.dbProvider === "sqlite") {
     migrate();
     seed();
   }

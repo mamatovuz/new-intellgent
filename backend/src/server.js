@@ -1,6 +1,7 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { startBot } from "./bot.js";
+import { testMongoConnection } from "./mongo-db.js";
 import { applySupabaseSchema, getSupabasePool, testSupabaseConnection } from "./supabase-db.js";
 import { migrateSqliteDataToSupabase } from "./supabase-migrate-data.js";
 import { migrate, seed } from "./db.js";
@@ -26,6 +27,14 @@ async function bootstrap() {
       }
     } catch (error) {
       console.error("Postgres ulanish xatosi:", error.message || error);
+      process.exit(1);
+    }
+  } else if (config.dbProvider === "mongodb") {
+    try {
+      const result = await testMongoConnection();
+      console.log(`MongoDB ulanish tayyor: ${result.host}/${result.name}`);
+    } catch (error) {
+      console.error("MongoDB ulanish xatosi:", error.message || error);
       process.exit(1);
     }
   }

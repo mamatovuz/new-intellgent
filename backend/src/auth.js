@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { config } from "./config.js";
 import { getDb } from "./db.js";
+import { User } from "./mongo-models.js";
 import { getSupabasePool } from "./supabase-db.js";
 
 export function signToken(payload) {
@@ -45,6 +46,22 @@ export function getUserProfile(userId) {
 }
 
 export async function getUserProfileAsync(userId) {
+  if (config.dbProvider === "mongodb") {
+    const user = await User.findOne({ id: Number(userId) }).lean();
+    if (!user) {
+      return null;
+    }
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      username: user.username,
+      phone: user.phone,
+      role: user.role,
+      telegramId: user.telegramId,
+      profileImage: user.profileImage
+    };
+  }
+
   if (config.dbProvider !== "postgres") {
     return getUserProfile(userId);
   }

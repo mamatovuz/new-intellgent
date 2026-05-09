@@ -114,6 +114,57 @@ import {
   deleteStudentAsync
 } from "./services.js";
 import { getDb } from "./db.js";
+import {
+  addStudentMongo,
+  archiveStudentMongo,
+  changeStudentPasswordMongo,
+  createContactRequestMongo,
+  createCourseMongo,
+  createTeacherMongo,
+  createTelegramLinkCodeMongo,
+  deleteCourseMongo,
+  deleteStudentMongo,
+  deleteTeacherMongo,
+  getDirectorStatsMongo,
+  getFinanceSummaryMongo,
+  getStudentAccessLinkByUserIdMongo,
+  getSettingsBundleMongo,
+  getStudentAttendanceMongo,
+  getStudentByPhoneMongo,
+  getStudentDashboardMongo,
+  getStudentPaymentsMongo,
+  getStudentProfilePanelMongo,
+  getStudentScheduleMongo,
+  getAuthUserByUsernameMongo,
+  getDeveloperProfileByIdMongo,
+  getDeveloperProfileBySlugMongo,
+  getDeveloperProfileByUsernameMongo,
+  getStudentAuthByPhoneMongo,
+  getStudentByUserIdMongo,
+  getTeacherStudentsMongo,
+  listAllCoursesMongo,
+  listAllPaymentsMongo,
+  listAttendanceHistoryMongo,
+  listBranchesMongo,
+  listContactRequestsMongo,
+  listCoursesMongo,
+  listDeveloperProfilesMongo,
+  listNotificationsMongo,
+  listStudentHistoryMongo,
+  listStudentsMongo,
+  listTeachersMongo,
+  markContactRequestReadMongo,
+  markNotificationReadMongo,
+  loginStudentByAccessTokenMongo,
+  recordPaymentMongo,
+  saveSettingsMongo,
+  updateCourseMongo,
+  updateTeacherMongo,
+  updateUserProfileMongo,
+  updateStudentMongo,
+  upsertAttendanceBatchMongo,
+  verifyTelegramCodeMongo
+} from "./mongo-services.js";
 import { getSupabasePool } from "./supabase-db.js";
 
 const router = express.Router();
@@ -132,7 +183,12 @@ router.get("/public/app-config", (_req, res) => {
 
 router.get("/public/courses", (_req, res) => {
   const sendCourses = async () => {
-    const courses = config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses();
+    const courses =
+      config.dbProvider === "mongodb"
+        ? await listAllCoursesMongo()
+        : config.dbProvider === "postgres"
+          ? await listAllCoursesAsync()
+          : listAllCourses();
     res.json(
       courses
         .filter((course) => course.isActive !== false)
@@ -155,9 +211,12 @@ router.post("/public/contact-requests", (req, res) => {
     if (!fullName || !phone || !message) {
       return res.status(400).json({ message: "Ism, telefon va xabar majburiy" });
     }
-    const id = config.dbProvider === "postgres"
-      ? await createContactRequestAsync({ fullName, phone, message })
-      : createContactRequest({ fullName, phone, message });
+    const id =
+      config.dbProvider === "mongodb"
+        ? await createContactRequestMongo({ fullName, phone, message })
+        : config.dbProvider === "postgres"
+          ? await createContactRequestAsync({ fullName, phone, message })
+          : createContactRequest({ fullName, phone, message });
     res.status(201).json({ id, message: "Murojaat qabul qilindi" });
   };
   handleContactRequest().catch((error) => {
@@ -167,7 +226,13 @@ router.post("/public/contact-requests", (req, res) => {
 
 router.get("/public/developers", (_req, res) => {
   const sendDevelopers = async () => {
-    res.json(config.dbProvider === "postgres" ? await listDeveloperProfilesAsync() : listDeveloperProfiles());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listDeveloperProfilesMongo()
+        : config.dbProvider === "postgres"
+          ? await listDeveloperProfilesAsync()
+          : listDeveloperProfiles()
+    );
   };
   sendDevelopers().catch((error) => {
     res.status(500).json({ message: error.message || "Dasturchilarni olib bo'lmadi" });
@@ -177,9 +242,11 @@ router.get("/public/developers", (_req, res) => {
 router.get("/public/developers/:slug", (req, res) => {
   const sendDeveloper = async () => {
     const developer =
-      config.dbProvider === "postgres"
-        ? await getDeveloperProfileBySlugAsync(req.params.slug)
-        : getDeveloperProfileBySlug(req.params.slug);
+      config.dbProvider === "mongodb"
+        ? await getDeveloperProfileBySlugMongo(req.params.slug)
+        : config.dbProvider === "postgres"
+          ? await getDeveloperProfileBySlugAsync(req.params.slug)
+          : getDeveloperProfileBySlug(req.params.slug);
     if (!developer) {
       return res.status(404).json({ message: "Dasturchi topilmadi" });
     }
@@ -195,7 +262,9 @@ router.post("/auth/login", (req, res) => {
     const { username, password } = req.body;
     let user;
 
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      user = await getAuthUserByUsernameMongo(username);
+    } else if (config.dbProvider === "postgres") {
       const { rows } = await getSupabasePool().query(
         `
           SELECT id, full_name as "fullName", username, password_hash as "passwordHash", role
@@ -219,7 +288,10 @@ router.post("/auth/login", (req, res) => {
     }
 
     const token = signToken({ id: user.id, role: user.role, fullName: user.fullName });
-    const profile = config.dbProvider === "postgres" ? await getUserProfileAsync(user.id) : getUserProfile(user.id);
+    const profile =
+      config.dbProvider === "mongodb" || config.dbProvider === "postgres"
+        ? await getUserProfileAsync(user.id)
+        : getUserProfile(user.id);
     res.json({ token, user: profile });
   };
   handleLogin().catch((error) => {
@@ -231,9 +303,11 @@ router.post("/developers/auth/login", (req, res) => {
   const handleDeveloperLogin = async () => {
     const { username, password } = req.body;
     const developer =
-      config.dbProvider === "postgres"
-        ? await getDeveloperProfileByUsernameAsync(username)
-        : getDeveloperProfileByUsername(username);
+      config.dbProvider === "mongodb"
+        ? await getDeveloperProfileByUsernameMongo(username)
+        : config.dbProvider === "postgres"
+          ? await getDeveloperProfileByUsernameAsync(username)
+          : getDeveloperProfileByUsername(username);
 
     if (!developer || !comparePassword(password, developer.passwordHash)) {
       return res.status(401).json({ message: "Login yoki parol noto'g'ri" });
@@ -249,9 +323,11 @@ router.post("/developers/auth/login", (req, res) => {
     res.json({
       token,
       developer:
-        config.dbProvider === "postgres"
-          ? await getDeveloperProfileByIdAsync(developer.id)
-          : getDeveloperProfileById(developer.id)
+        config.dbProvider === "mongodb"
+          ? await getDeveloperProfileByIdMongo(developer.id)
+          : config.dbProvider === "postgres"
+            ? await getDeveloperProfileByIdAsync(developer.id)
+            : getDeveloperProfileById(developer.id)
     });
   };
   handleDeveloperLogin().catch((error) => {
@@ -302,11 +378,18 @@ router.post("/student-auth/login", (req, res) => {
   const handleStudentLogin = async () => {
     const { phone, password } = req.body;
     const auth =
-      config.dbProvider === "postgres" ? await getStudentAuthByPhoneAsync(phone) : getStudentAuthByPhone(phone);
+      config.dbProvider === "mongodb"
+        ? await getStudentAuthByPhoneMongo(phone)
+        : config.dbProvider === "postgres"
+          ? await getStudentAuthByPhoneAsync(phone)
+          : getStudentAuthByPhone(phone);
     if (!auth || !comparePassword(password, auth.passwordHash)) {
       return res.status(401).json({ message: "Telefon yoki parol noto'g'ri" });
     }
-    const user = config.dbProvider === "postgres" ? await getUserProfileAsync(auth.userId) : getUserProfile(auth.userId);
+    const user =
+      config.dbProvider === "mongodb" || config.dbProvider === "postgres"
+        ? await getUserProfileAsync(auth.userId)
+        : getUserProfile(auth.userId);
     const token = signToken({ id: user.id, role: "student", fullName: user.fullName });
     res.json({ token, user });
   };
@@ -318,9 +401,11 @@ router.post("/student-auth/login", (req, res) => {
 router.post("/student-auth/access", (req, res) => {
   const handleAccessLogin = async () => {
     const user =
-      config.dbProvider === "postgres"
-        ? await loginStudentByAccessTokenAsync(req.body.accessToken)
-        : loginStudentByAccessToken(req.body.accessToken);
+      config.dbProvider === "mongodb"
+        ? await loginStudentByAccessTokenMongo(req.body.accessToken)
+        : config.dbProvider === "postgres"
+          ? await loginStudentByAccessTokenAsync(req.body.accessToken)
+          : loginStudentByAccessToken(req.body.accessToken);
     const token = signToken({ id: user.id, role: "student", fullName: user.fullName });
     res.json({ token, user });
   };
@@ -333,7 +418,11 @@ router.post("/auth/telegram/request", (req, res) => {
   const handleTelegramRequest = async () => {
     const { phone } = req.body;
     const data =
-      config.dbProvider === "postgres" ? await createTelegramLinkCodeAsync(phone) : createTelegramLinkCode(phone);
+      config.dbProvider === "mongodb"
+        ? await createTelegramLinkCodeMongo(phone)
+        : config.dbProvider === "postgres"
+          ? await createTelegramLinkCodeAsync(phone)
+          : createTelegramLinkCode(phone);
 
     if (!data) {
       return res.status(404).json({ message: "Student topilmadi" });
@@ -352,6 +441,16 @@ router.post("/auth/telegram/request", (req, res) => {
 router.post("/auth/telegram/verify", (req, res) => {
   const handleTelegramVerify = async () => {
     const { code } = req.body;
+
+    if (config.dbProvider === "mongodb") {
+      const link = await verifyTelegramCodeMongo(code);
+      if (!link) {
+        return res.status(404).json({ message: "Kod noto'g'ri yoki eskirgan" });
+      }
+      const token = signToken({ id: link.userId, role: "student", fullName: link.fullName });
+      const profile = await getUserProfileAsync(link.userId);
+      return res.json({ token, user: profile });
+    }
 
     if (config.dbProvider === "postgres") {
       const { rows } = await getSupabasePool().query(
@@ -402,24 +501,49 @@ router.post("/auth/telegram/verify", (req, res) => {
 router.get("/meta", authenticate, (req, res) => {
   const handleMeta = async () => {
     const unreadNotifications =
-      config.dbProvider === "postgres"
-        ? await listNotificationsAsync({ userId: req.user.id, role: req.user.role, unreadOnly: true })
-        : listNotifications({ userId: req.user.id, role: req.user.role, unreadOnly: true });
+      config.dbProvider === "mongodb"
+        ? await listNotificationsMongo({ userId: req.user.id, role: req.user.role, unreadOnly: true })
+        : config.dbProvider === "postgres"
+          ? await listNotificationsAsync({ userId: req.user.id, role: req.user.role, unreadOnly: true })
+          : listNotifications({ userId: req.user.id, role: req.user.role, unreadOnly: true });
     const contactRequests =
       req.user.role === "reception" || req.user.role === "director"
-        ? (config.dbProvider === "postgres"
-            ? await listContactRequestsAsync({ unreadOnly: true })
-            : listContactRequests({ unreadOnly: true }))
+        ? (config.dbProvider === "mongodb"
+            ? await listContactRequestsMongo({ unreadOnly: true })
+            : config.dbProvider === "postgres"
+              ? await listContactRequestsAsync({ unreadOnly: true })
+              : listContactRequests({ unreadOnly: true }))
         : [];
 
     res.json({
-      user: config.dbProvider === "postgres" ? await getUserProfileAsync(req.user.id) : getUserProfile(req.user.id),
-      teachers: config.dbProvider === "postgres" ? await listTeachersAsync() : listTeachers(),
+      user:
+        config.dbProvider === "mongodb" || config.dbProvider === "postgres"
+          ? await getUserProfileAsync(req.user.id)
+          : getUserProfile(req.user.id),
+      teachers:
+        config.dbProvider === "mongodb"
+          ? await listTeachersMongo()
+          : config.dbProvider === "postgres"
+            ? await listTeachersAsync()
+            : listTeachers(),
       courses:
         req.user.role === "director"
-          ? (config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses())
-          : (config.dbProvider === "postgres" ? await listCoursesAsync() : listCourses()),
-      branches: config.dbProvider === "postgres" ? await listBranchesAsync() : listBranches(),
+          ? (config.dbProvider === "mongodb"
+              ? await listAllCoursesMongo()
+              : config.dbProvider === "postgres"
+                ? await listAllCoursesAsync()
+                : listAllCourses())
+          : (config.dbProvider === "mongodb"
+              ? await listCoursesMongo()
+              : config.dbProvider === "postgres"
+                ? await listCoursesAsync()
+                : listCourses()),
+      branches:
+        config.dbProvider === "mongodb"
+          ? await listBranchesMongo()
+          : config.dbProvider === "postgres"
+            ? await listBranchesAsync()
+            : listBranches(),
       unreadNotifications: unreadNotifications.length,
       unreadContactRequests: contactRequests.length
     });
@@ -431,7 +555,11 @@ router.get("/meta", authenticate, (req, res) => {
 
 router.get("/profile", authenticate, (req, res) => {
   const handleProfile = async () => {
-    res.json(config.dbProvider === "postgres" ? await getUserProfileAsync(req.user.id) : getUserProfile(req.user.id));
+    res.json(
+      config.dbProvider === "mongodb" || config.dbProvider === "postgres"
+        ? await getUserProfileAsync(req.user.id)
+        : getUserProfile(req.user.id)
+    );
   };
   handleProfile().catch((error) => {
     res.status(500).json({ message: error.message || "Profilni olib bo'lmadi" });
@@ -443,7 +571,15 @@ router.put("/profile", authenticate, (req, res) => {
     let current;
     let exists;
 
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      current = await getUserProfileAsync(req.user.id);
+      if (req.body.username && req.body.username !== current?.username) {
+        exists = await getAuthUserByUsernameMongo(req.body.username);
+        if (exists && Number(exists.id) === Number(req.user.id)) {
+          exists = null;
+        }
+      }
+    } else if (config.dbProvider === "postgres") {
       const currentResult = await getSupabasePool().query(
         `SELECT username FROM users WHERE id = $1 LIMIT 1`,
         [req.user.id]
@@ -476,7 +612,9 @@ router.put("/profile", authenticate, (req, res) => {
     };
 
     const profile =
-      config.dbProvider === "postgres"
+      config.dbProvider === "mongodb"
+        ? await updateUserProfileMongo(req.user.id, payload)
+        : config.dbProvider === "postgres"
         ? await updateUserProfileAsync(req.user.id, payload)
         : updateUserProfile(req.user.id, payload);
     res.json(profile);
@@ -492,9 +630,11 @@ router.get("/reception/students", authenticate, authorize("reception", "director
     const status = req.query.status || "";
     const includeArchived = req.query.includeArchived === "1";
     res.json(
-      config.dbProvider === "postgres"
-        ? await listStudentsAsync({ search, status, includeArchived })
-        : listStudents({ search, status, includeArchived })
+      config.dbProvider === "mongodb"
+        ? await listStudentsMongo({ search, status, includeArchived })
+        : config.dbProvider === "postgres"
+          ? await listStudentsAsync({ search, status, includeArchived })
+          : listStudents({ search, status, includeArchived })
     );
   };
   handleReceptionStudents().catch((error) => {
@@ -505,21 +645,25 @@ router.get("/reception/students", authenticate, authorize("reception", "director
 router.post("/reception/students", authenticate, authorize("reception", "director"), (req, res) => {
   const handleReceptionStudentCreate = async () => {
     const body = req.body;
-    const courses = config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses();
+    const courses =
+      config.dbProvider === "mongodb"
+        ? await listAllCoursesMongo()
+        : config.dbProvider === "postgres"
+          ? await listAllCoursesAsync()
+          : listAllCourses();
     const course = courses.find((item) => Number(item.id) === Number(body.courseId));
-    const createdStudent = config.dbProvider === "postgres"
-      ? await addStudentAsync({
-        ...body,
-        courseId: Number(body.courseId),
-        teacherId: Number(body.teacherId),
-        monthlyFee: course?.monthlyFee || 0
-      }, req.user.id)
-      : addStudent({
-        ...body,
-        courseId: Number(body.courseId),
-        teacherId: Number(body.teacherId),
-        monthlyFee: course?.monthlyFee || 0
-      }, req.user.id);
+    const payload = {
+      ...body,
+      courseId: Number(body.courseId),
+      teacherId: Number(body.teacherId),
+      monthlyFee: course?.monthlyFee || 0
+    };
+    const createdStudent =
+      config.dbProvider === "mongodb"
+        ? await addStudentMongo(payload, req.user.id)
+        : config.dbProvider === "postgres"
+          ? await addStudentAsync(payload, req.user.id)
+          : addStudent(payload, req.user.id);
     res.status(201).json(createdStudent);
   };
   handleReceptionStudentCreate().catch((error) => {
@@ -559,7 +703,9 @@ router.put("/reception/students/:id", authenticate, authorize("reception", "dire
       teacherId: Number(req.body.teacherId),
       balance: Number(req.body.balance || 0)
     };
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      await updateStudentMongo(Number(req.params.id), payload, req.user.id);
+    } else if (config.dbProvider === "postgres") {
       await updateStudentAsync(Number(req.params.id), payload, req.user.id);
     } else {
       updateStudent(Number(req.params.id), payload, req.user.id);
@@ -573,9 +719,12 @@ router.put("/reception/students/:id", authenticate, authorize("reception", "dire
 
 router.post("/reception/students/:id/archive", authenticate, authorize("reception", "director"), (req, res) => {
   const handleReceptionStudentArchive = async () => {
-    const archived = config.dbProvider === "postgres"
-      ? await archiveStudentAsync(Number(req.params.id), req.user.id)
-      : archiveStudent(Number(req.params.id), req.user.id);
+    const archived =
+      config.dbProvider === "mongodb"
+        ? await archiveStudentMongo(Number(req.params.id), req.user.id)
+        : config.dbProvider === "postgres"
+          ? await archiveStudentAsync(Number(req.params.id), req.user.id)
+          : archiveStudent(Number(req.params.id), req.user.id);
     if (!archived) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
@@ -589,9 +738,11 @@ router.post("/reception/students/:id/archive", authenticate, authorize("receptio
 router.get("/reception/students/:id/history", authenticate, authorize("reception", "director"), (req, res) => {
   const handleStudentHistory = async () => {
     res.json(
-      config.dbProvider === "postgres"
-        ? await listStudentHistoryAsync(Number(req.params.id))
-        : listStudentHistory(Number(req.params.id))
+      config.dbProvider === "mongodb"
+        ? await listStudentHistoryMongo(Number(req.params.id))
+        : config.dbProvider === "postgres"
+          ? await listStudentHistoryAsync(Number(req.params.id))
+          : listStudentHistory(Number(req.params.id))
     );
   };
   handleStudentHistory().catch((error) => {
@@ -614,9 +765,12 @@ router.post("/reception/students/:id/register-token", authenticate, authorize("r
 
 router.delete("/reception/students/:id", authenticate, authorize("reception", "director"), (req, res) => {
   const handleStudentDelete = async () => {
-    const deleted = config.dbProvider === "postgres"
-      ? await deleteStudentAsync(Number(req.params.id))
-      : deleteStudent(Number(req.params.id));
+    const deleted =
+      config.dbProvider === "mongodb"
+        ? await deleteStudentMongo(Number(req.params.id))
+        : config.dbProvider === "postgres"
+          ? await deleteStudentAsync(Number(req.params.id))
+          : deleteStudent(Number(req.params.id));
     if (!deleted) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
@@ -630,9 +784,12 @@ router.delete("/reception/students/:id", authenticate, authorize("reception", "d
 router.post("/reception/payments", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
     const { studentId, amount, method, reason } = req.body;
-    const receipt = config.dbProvider === "postgres"
-      ? await recordPaymentAsync(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason)
-      : recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason);
+      const receipt =
+        config.dbProvider === "mongodb"
+          ? await recordPaymentMongo(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason)
+          : config.dbProvider === "postgres"
+            ? await recordPaymentAsync(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason)
+            : recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
     const receiptResponse = {
       ...receipt,
@@ -658,7 +815,13 @@ router.post("/reception/payments", authenticate, authorize("reception", "directo
 
 router.get("/reception/payments", authenticate, authorize("reception", "director"), (_req, res) => {
   const handleReceptionPayments = async () => {
-    res.json(config.dbProvider === "postgres" ? await listAllPaymentsAsync() : listAllPayments());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listAllPaymentsMongo()
+        : config.dbProvider === "postgres"
+          ? await listAllPaymentsAsync()
+          : listAllPayments()
+    );
   };
   handleReceptionPayments().catch((error) => {
     res.status(500).json({ message: error.message || "To'lovlar olinmadi" });
@@ -667,7 +830,13 @@ router.get("/reception/payments", authenticate, authorize("reception", "director
 
 router.get("/reception/contact-requests", authenticate, authorize("reception", "director"), (_req, res) => {
   const handleReceptionContacts = async () => {
-    res.json(config.dbProvider === "postgres" ? await listContactRequestsAsync() : listContactRequests());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listContactRequestsMongo()
+        : config.dbProvider === "postgres"
+          ? await listContactRequestsAsync()
+          : listContactRequests()
+    );
   };
   handleReceptionContacts().catch((error) => {
     res.status(500).json({ message: error.message || "Murojaatlar olinmadi" });
@@ -676,9 +845,12 @@ router.get("/reception/contact-requests", authenticate, authorize("reception", "
 
 router.post("/reception/contact-requests/:id/read", authenticate, authorize("reception", "director"), (req, res) => {
   const handleReadContact = async () => {
-    const ok = config.dbProvider === "postgres"
-      ? await markContactRequestReadAsync(Number(req.params.id))
-      : markContactRequestRead(Number(req.params.id));
+    const ok =
+      config.dbProvider === "mongodb"
+        ? await markContactRequestReadMongo(Number(req.params.id))
+        : config.dbProvider === "postgres"
+          ? await markContactRequestReadAsync(Number(req.params.id))
+          : markContactRequestRead(Number(req.params.id));
     if (!ok) {
       return res.status(404).json({ message: "Murojaat topilmadi" });
     }
@@ -692,15 +864,23 @@ router.post("/reception/contact-requests/:id/read", authenticate, authorize("rec
 router.post("/payments/webhook", async (req, res) => {
   try {
     const { phone, amount, provider, transactionId } = req.body;
-    const student = config.dbProvider === "postgres" ? await getStudentByPhoneAsync(phone) : getStudentByPhone(phone);
+    const student =
+      config.dbProvider === "mongodb"
+        ? await getStudentByPhoneMongo(phone)
+        : config.dbProvider === "postgres"
+          ? await getStudentByPhoneAsync(phone)
+          : getStudentByPhone(phone);
 
     if (!student) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
 
-    const receipt = config.dbProvider === "postgres"
-      ? await recordPaymentAsync(student.id, Number(amount), provider, "paid", transactionId)
-      : recordPayment(student.id, Number(amount), provider, "paid", transactionId);
+    const receipt =
+      config.dbProvider === "mongodb"
+        ? await recordPaymentMongo(student.id, Number(amount), provider, "paid", transactionId)
+        : config.dbProvider === "postgres"
+          ? await recordPaymentAsync(student.id, Number(amount), provider, "paid", transactionId)
+          : recordPayment(student.id, Number(amount), provider, "paid", transactionId);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
     sendStudentPaymentNotification({
       ...receipt,
@@ -716,7 +896,13 @@ router.post("/payments/webhook", async (req, res) => {
 
 router.get("/teacher/students", authenticate, authorize("teacher"), (req, res) => {
   const handleTeacherStudents = async () => {
-    res.json(config.dbProvider === "postgres" ? await getTeacherStudentsAsync(req.user.id) : getTeacherStudents(req.user.id));
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await getTeacherStudentsMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getTeacherStudentsAsync(req.user.id)
+          : getTeacherStudents(req.user.id)
+    );
   };
   handleTeacherStudents().catch((error) => {
     res.status(500).json({ message: error.message || "Studentlar olinmadi" });
@@ -730,7 +916,13 @@ router.get("/teacher/attendance/history", authenticate, authorize("teacher"), (r
       range: req.query.range || "month",
       lessonDate: req.query.lessonDate || ""
     };
-    res.json(config.dbProvider === "postgres" ? await listAttendanceHistoryAsync(payload) : listAttendanceHistory(payload));
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listAttendanceHistoryMongo(payload)
+        : config.dbProvider === "postgres"
+          ? await listAttendanceHistoryAsync(payload)
+          : listAttendanceHistory(payload)
+    );
   };
   handleTeacherAttendance().catch((error) => {
     res.status(500).json({ message: error.message || "Davomat olinmadi" });
@@ -747,7 +939,13 @@ router.get("/attendance/history", authenticate, authorize("reception"), (req, re
       range: req.query.range || "day",
       lessonDate: req.query.lessonDate || ""
     };
-    res.json(config.dbProvider === "postgres" ? await listAttendanceHistoryAsync(payload) : listAttendanceHistory(payload));
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listAttendanceHistoryMongo(payload)
+        : config.dbProvider === "postgres"
+          ? await listAttendanceHistoryAsync(payload)
+          : listAttendanceHistory(payload)
+    );
   };
   handleAttendanceHistory().catch((error) => {
     res.status(500).json({ message: error.message || "Davomat tarixi olinmadi" });
@@ -758,17 +956,24 @@ router.post("/attendance/bulk", authenticate, authorize("reception"), (req, res)
   const handleAttendanceBulk = async () => {
     const lessonDate = req.body.lessonDate || dayjs().format("YYYY-MM-DD");
     const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
-    const result = config.dbProvider === "postgres"
-      ? await upsertAttendanceBatchAsync({
-        lessonDate,
-        entries,
-        actorUserId: req.user.id
-      })
-      : upsertAttendanceBatch({
-        lessonDate,
-        entries,
-        actorUserId: req.user.id
-      });
+    const result =
+      config.dbProvider === "mongodb"
+        ? await upsertAttendanceBatchMongo({
+            lessonDate,
+            entries,
+            actorUserId: req.user.id
+          })
+        : config.dbProvider === "postgres"
+          ? await upsertAttendanceBatchAsync({
+              lessonDate,
+              entries,
+              actorUserId: req.user.id
+            })
+          : upsertAttendanceBatch({
+              lessonDate,
+              entries,
+              actorUserId: req.user.id
+            });
     res.json({
       message: "Davomat saqlandi",
       savedCount: result.length
@@ -781,7 +986,13 @@ router.post("/attendance/bulk", authenticate, authorize("reception"), (req, res)
 
 router.get("/director/overview", authenticate, authorize("director"), (_req, res) => {
   const handleDirectorOverview = async () => {
-    res.json(config.dbProvider === "postgres" ? await getDirectorStatsAsync() : getDirectorStats());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await getDirectorStatsMongo()
+        : config.dbProvider === "postgres"
+          ? await getDirectorStatsAsync()
+          : getDirectorStats()
+    );
   };
   handleDirectorOverview().catch((error) => {
     res.status(500).json({ message: error.message || "Analitika olinmadi" });
@@ -790,7 +1001,13 @@ router.get("/director/overview", authenticate, authorize("director"), (_req, res
 
 router.get("/director/finance", authenticate, authorize("director"), (_req, res) => {
   const handleDirectorFinance = async () => {
-    res.json(config.dbProvider === "postgres" ? await getFinanceSummaryAsync() : getFinanceSummary());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await getFinanceSummaryMongo()
+        : config.dbProvider === "postgres"
+          ? await getFinanceSummaryAsync()
+          : getFinanceSummary()
+    );
   };
   handleDirectorFinance().catch((error) => {
     res.status(500).json({ message: error.message || "Moliya ma'lumotlari olinmadi" });
@@ -799,7 +1016,13 @@ router.get("/director/finance", authenticate, authorize("director"), (_req, res)
 
 router.get("/director/courses", authenticate, authorize("director"), (_req, res) => {
   const handleDirectorCourses = async () => {
-    res.json(config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listAllCoursesMongo()
+        : config.dbProvider === "postgres"
+          ? await listAllCoursesAsync()
+          : listAllCourses()
+    );
   };
   handleDirectorCourses().catch((error) => {
     res.status(500).json({ message: error.message || "Kurslar olinmadi" });
@@ -817,9 +1040,12 @@ router.post("/director/teachers", authenticate, authorize("director"), (req, res
       courseIds: Array.isArray(req.body.courseIds) ? req.body.courseIds.map(Number) : [],
       passwordHash: bcrypt.hashSync(req.body.password || "12345678", 10)
     };
-    const teacherId = config.dbProvider === "postgres"
-      ? await createTeacherAsync(payload)
-      : createTeacher(payload);
+    const teacherId =
+      config.dbProvider === "mongodb"
+        ? await createTeacherMongo(payload)
+        : config.dbProvider === "postgres"
+          ? await createTeacherAsync(payload)
+          : createTeacher(payload);
     res.status(201).json({ teacherId });
   };
   handleTeacherCreate().catch((error) => {
@@ -838,7 +1064,9 @@ router.put("/director/teachers/:id", authenticate, authorize("director"), (req, 
       courseIds: Array.isArray(req.body.courseIds) ? req.body.courseIds.map(Number) : [],
       passwordHash: req.body.password ? bcrypt.hashSync(req.body.password, 10) : null
     };
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      await updateTeacherMongo(Number(req.params.id), payload);
+    } else if (config.dbProvider === "postgres") {
       await updateTeacherAsync(Number(req.params.id), payload);
     } else {
       updateTeacher(Number(req.params.id), payload);
@@ -852,9 +1080,12 @@ router.put("/director/teachers/:id", authenticate, authorize("director"), (req, 
 
 router.delete("/director/teachers/:id", authenticate, authorize("director"), (req, res) => {
   const handleTeacherDelete = async () => {
-    const result = config.dbProvider === "postgres"
-      ? await deleteTeacherAsync(Number(req.params.id))
-      : deleteTeacher(Number(req.params.id));
+    const result =
+      config.dbProvider === "mongodb"
+        ? await deleteTeacherMongo(Number(req.params.id))
+        : config.dbProvider === "postgres"
+          ? await deleteTeacherAsync(Number(req.params.id))
+          : deleteTeacher(Number(req.params.id));
     res.json(result);
   };
   handleTeacherDelete().catch((error) => {
@@ -869,9 +1100,12 @@ router.post("/director/courses", authenticate, authorize("director"), (req, res)
       monthlyFee: Number(req.body.monthlyFee || 0),
       schedule: req.body.schedule
     };
-    const courseId = config.dbProvider === "postgres"
-      ? await createCourseAsync(payload)
-      : createCourse(payload);
+    const courseId =
+      config.dbProvider === "mongodb"
+        ? await createCourseMongo(payload)
+        : config.dbProvider === "postgres"
+          ? await createCourseAsync(payload)
+          : createCourse(payload);
     res.status(201).json({ courseId });
   };
   handleCourseCreate().catch((error) => {
@@ -887,7 +1121,9 @@ router.put("/director/courses/:id", authenticate, authorize("director"), (req, r
       schedule: req.body.schedule,
       isActive: req.body.isActive !== false
     };
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      await updateCourseMongo(Number(req.params.id), payload);
+    } else if (config.dbProvider === "postgres") {
       await updateCourseAsync(Number(req.params.id), payload);
     } else {
       updateCourse(Number(req.params.id), payload);
@@ -901,9 +1137,12 @@ router.put("/director/courses/:id", authenticate, authorize("director"), (req, r
 
 router.delete("/director/courses/:id", authenticate, authorize("director"), (req, res) => {
   const handleCourseDelete = async () => {
-    const result = config.dbProvider === "postgres"
-      ? await deleteCourseAsync(Number(req.params.id))
-      : deleteCourse(Number(req.params.id));
+    const result =
+      config.dbProvider === "mongodb"
+        ? await deleteCourseMongo(Number(req.params.id))
+        : config.dbProvider === "postgres"
+          ? await deleteCourseAsync(Number(req.params.id))
+          : deleteCourse(Number(req.params.id));
     res.json(result);
   };
   handleCourseDelete().catch((error) => {
@@ -948,38 +1187,55 @@ router.get("/director/reports/export", authenticate, authorize("director"), (req
   });
 });
 
-router.get("/director/reports/print", authenticate, authorize("director"), (_req, res) => {
-  const finance = getFinanceSummary();
-  const students = listStudents({ includeArchived: true });
-  const html = `
-    <html><head><meta charset="utf-8"><title>ILM NEST Report</title></head>
-    <body style="font-family: Inter, Arial; padding: 24px;">
-      <h1>ILM NEST Hisobot</h1>
-      <h2>Moliyaviy ko'rsatkichlar</h2>
-      <p>Jami tushum: ${finance.totals.totalRevenue}</p>
-      <p>Bugungi tushum: ${finance.totals.todayRevenue}</p>
-      <p>Oylik tushum: ${finance.totals.monthlyRevenue}</p>
-      <p>O'qituvchilar oyligi: ${finance.totals.teachersPayroll}</p>
-      <p>Boshqa xarajatlar: ${finance.totals.operatingExpenses}</p>
-      <p>Jami xarajatlar: ${finance.totals.totalExpenses}</p>
-      <p>Sof foyda: ${finance.totals.netProfit}</p>
-      <h2>O'quvchilar</h2>
-      <table border="1" cellspacing="0" cellpadding="8">
-        <tr><th>Ism</th><th>Telefon</th><th>Kurs</th><th>Balans</th><th>Status</th></tr>
-        ${students.map((student) => `<tr><td>${student.fullName}</td><td>${student.phone}</td><td>${student.courseTitle || ""}</td><td>${student.balance}</td><td>${student.status}</td></tr>`).join("")}
-      </table>
-    </body></html>
-  `;
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(html);
+router.get("/director/reports/print", authenticate, authorize("director"), (req, res) => {
+  const handleDirectorPrint = async () => {
+    const finance =
+      config.dbProvider === "mongodb"
+        ? await getFinanceSummaryMongo()
+        : config.dbProvider === "postgres"
+          ? await getFinanceSummaryAsync()
+          : getFinanceSummary();
+    const students =
+      config.dbProvider === "mongodb"
+        ? await listStudentsMongo({ includeArchived: true })
+        : config.dbProvider === "postgres"
+          ? await listStudentsAsync({ includeArchived: true })
+          : listStudents({ includeArchived: true });
+    const html = `
+      <html><head><meta charset="utf-8"><title>ILM NEST Report</title></head>
+      <body style="font-family: Inter, Arial; padding: 24px;">
+        <h1>ILM NEST Hisobot</h1>
+        <h2>Moliyaviy ko'rsatkichlar</h2>
+        <p>Jami tushum: ${finance.totals.totalRevenue}</p>
+        <p>Bugungi tushum: ${finance.totals.todayRevenue}</p>
+        <p>Oylik tushum: ${finance.totals.monthlyRevenue}</p>
+        <p>O'qituvchilar oyligi: ${finance.totals.teachersPayroll}</p>
+        <p>Boshqa xarajatlar: ${finance.totals.operatingExpenses}</p>
+        <p>Jami xarajatlar: ${finance.totals.totalExpenses}</p>
+        <p>Sof foyda: ${finance.totals.netProfit}</p>
+        <h2>O'quvchilar</h2>
+        <table border="1" cellspacing="0" cellpadding="8">
+          <tr><th>Ism</th><th>Telefon</th><th>Kurs</th><th>Balans</th><th>Status</th></tr>
+          ${students.map((student) => `<tr><td>${student.fullName}</td><td>${student.phone}</td><td>${student.courseTitle || ""}</td><td>${student.balance}</td><td>${student.status}</td></tr>`).join("")}
+        </table>
+      </body></html>
+    `;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  };
+  handleDirectorPrint().catch((error) => {
+    res.status(500).json({ message: error.message || "Print report yaratilmadi" });
+  });
 });
 
 router.get("/notifications", authenticate, (req, res) => {
   const handleNotifications = async () => {
     res.json(
-      config.dbProvider === "postgres"
-        ? await listNotificationsAsync({ userId: req.user.id, role: req.user.role })
-        : listNotifications({ userId: req.user.id, role: req.user.role })
+      config.dbProvider === "mongodb"
+        ? await listNotificationsMongo({ userId: req.user.id, role: req.user.role })
+        : config.dbProvider === "postgres"
+          ? await listNotificationsAsync({ userId: req.user.id, role: req.user.role })
+          : listNotifications({ userId: req.user.id, role: req.user.role })
     );
   };
   handleNotifications().catch((error) => {
@@ -989,9 +1245,12 @@ router.get("/notifications", authenticate, (req, res) => {
 
 router.post("/notifications/:id/read", authenticate, (req, res) => {
   const handleNotificationRead = async () => {
-    const ok = config.dbProvider === "postgres"
-      ? await markNotificationReadAsync(Number(req.params.id), req.user.id)
-      : markNotificationRead(Number(req.params.id), req.user.id);
+    const ok =
+      config.dbProvider === "mongodb"
+        ? await markNotificationReadMongo(Number(req.params.id), req.user.id)
+        : config.dbProvider === "postgres"
+          ? await markNotificationReadAsync(Number(req.params.id), req.user.id)
+          : markNotificationRead(Number(req.params.id), req.user.id);
     if (!ok) {
       return res.status(404).json({ message: "Notification topilmadi" });
     }
@@ -1004,7 +1263,13 @@ router.post("/notifications/:id/read", authenticate, (req, res) => {
 
 router.get("/settings", authenticate, authorize("director", "reception"), (_req, res) => {
   const handleSettings = async () => {
-    res.json(config.dbProvider === "postgres" ? await getSettingsBundleAsync() : getSettingsBundle());
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await getSettingsBundleMongo()
+        : config.dbProvider === "postgres"
+          ? await getSettingsBundleAsync()
+          : getSettingsBundle()
+    );
   };
   handleSettings().catch((error) => {
     res.status(500).json({ message: error.message || "Sozlamalar olinmadi" });
@@ -1013,7 +1278,9 @@ router.get("/settings", authenticate, authorize("director", "reception"), (_req,
 
 router.put("/settings", authenticate, authorize("director"), (req, res) => {
   const handleSettingsSave = async () => {
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      await saveSettingsMongo(req.body);
+    } else if (config.dbProvider === "postgres") {
       await saveSettingsAsync(req.body);
     } else {
       saveSettings(req.body);
@@ -1027,12 +1294,27 @@ router.put("/settings", authenticate, authorize("director"), (req, res) => {
 
 router.get("/student/me", authenticate, authorize("student"), (req, res) => {
   const handleStudentMe = async () => {
-    const dashboard = config.dbProvider === "postgres" ? await getStudentDashboardAsync(req.user.id) : getStudentDashboard(req.user.id);
-    const payments = config.dbProvider === "postgres" ? await getStudentPaymentsAsync(req.user.id) : getStudentPayments(req.user.id);
+    const dashboard =
+      config.dbProvider === "mongodb"
+        ? await getStudentDashboardMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentDashboardAsync(req.user.id)
+          : getStudentDashboard(req.user.id);
+    const payments =
+      config.dbProvider === "mongodb"
+        ? await getStudentPaymentsMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentPaymentsAsync(req.user.id)
+          : getStudentPayments(req.user.id);
     if (!dashboard || !payments) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
-    const schedule = config.dbProvider === "postgres" ? await getStudentScheduleAsync(req.user.id) : getStudentSchedule(req.user.id);
+    const schedule =
+      config.dbProvider === "mongodb"
+        ? await getStudentScheduleMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentScheduleAsync(req.user.id)
+          : getStudentSchedule(req.user.id);
     res.json({
       profile: {
         ...dashboard,
@@ -1048,7 +1330,12 @@ router.get("/student/me", authenticate, authorize("student"), (req, res) => {
 
 router.get("/student/me/dashboard", authenticate, authorize("student"), (req, res) => {
   const handleStudentDashboard = async () => {
-    const data = config.dbProvider === "postgres" ? await getStudentDashboardAsync(req.user.id) : getStudentDashboard(req.user.id);
+    const data =
+      config.dbProvider === "mongodb"
+        ? await getStudentDashboardMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentDashboardAsync(req.user.id)
+          : getStudentDashboard(req.user.id);
     if (!data) {
       return res.status(404).json({ message: "Student topilmadi" });
     }
@@ -1061,7 +1348,12 @@ router.get("/student/me/dashboard", authenticate, authorize("student"), (req, re
 
 router.get("/student/me/attendance", authenticate, authorize("student"), (req, res) => {
   const handleStudentAttendance = async () => {
-    const data = config.dbProvider === "postgres" ? await getStudentAttendanceAsync(req.user.id) : getStudentAttendance(req.user.id);
+    const data =
+      config.dbProvider === "mongodb"
+        ? await getStudentAttendanceMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentAttendanceAsync(req.user.id)
+          : getStudentAttendance(req.user.id);
     if (!data) {
       return res.status(404).json({ message: "Davomat topilmadi" });
     }
@@ -1074,7 +1366,12 @@ router.get("/student/me/attendance", authenticate, authorize("student"), (req, r
 
 router.get("/student/me/payments", authenticate, authorize("student"), (req, res) => {
   const handleStudentPayments = async () => {
-    const data = config.dbProvider === "postgres" ? await getStudentPaymentsAsync(req.user.id) : getStudentPayments(req.user.id);
+    const data =
+      config.dbProvider === "mongodb"
+        ? await getStudentPaymentsMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentPaymentsAsync(req.user.id)
+          : getStudentPayments(req.user.id);
     if (!data) {
       return res.status(404).json({ message: "To'lovlar topilmadi" });
     }
@@ -1087,7 +1384,12 @@ router.get("/student/me/payments", authenticate, authorize("student"), (req, res
 
 router.get("/student/me/schedule", authenticate, authorize("student"), (req, res) => {
   const handleStudentSchedule = async () => {
-    const data = config.dbProvider === "postgres" ? await getStudentScheduleAsync(req.user.id) : getStudentSchedule(req.user.id);
+    const data =
+      config.dbProvider === "mongodb"
+        ? await getStudentScheduleMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentScheduleAsync(req.user.id)
+          : getStudentSchedule(req.user.id);
     if (!data) {
       return res.status(404).json({ message: "Jadval topilmadi" });
     }
@@ -1101,9 +1403,11 @@ router.get("/student/me/schedule", authenticate, authorize("student"), (req, res
 router.get("/student/me/notifications", authenticate, authorize("student"), (req, res) => {
   const handleStudentNotifications = async () => {
     res.json(
-      config.dbProvider === "postgres"
-        ? await listNotificationsAsync({ userId: req.user.id, role: "student" })
-        : listNotifications({ userId: req.user.id, role: "student" })
+      config.dbProvider === "mongodb"
+        ? await listNotificationsMongo({ userId: req.user.id, role: "student" })
+        : config.dbProvider === "postgres"
+          ? await listNotificationsAsync({ userId: req.user.id, role: "student" })
+          : listNotifications({ userId: req.user.id, role: "student" })
     );
   };
   handleStudentNotifications().catch((error) => {
@@ -1113,13 +1417,21 @@ router.get("/student/me/notifications", authenticate, authorize("student"), (req
 
 router.get("/student/me/profile", authenticate, authorize("student"), (req, res) => {
   const handleStudentProfile = async () => {
-    const data = config.dbProvider === "postgres" ? await getStudentProfilePanelAsync(req.user.id) : getStudentProfilePanel(req.user.id);
+    const data =
+      config.dbProvider === "mongodb"
+        ? await getStudentProfilePanelMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentProfilePanelAsync(req.user.id)
+          : getStudentProfilePanel(req.user.id);
     if (!data) {
       return res.status(404).json({ message: "Profil topilmadi" });
     }
-    const webAppUrl = config.dbProvider === "postgres"
-      ? await getStudentAccessLinkByUserIdAsync(req.user.id)
-      : getStudentAccessLinkByUserId(req.user.id);
+    const webAppUrl =
+      config.dbProvider === "mongodb"
+        ? await getStudentAccessLinkByUserIdMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getStudentAccessLinkByUserIdAsync(req.user.id)
+          : getStudentAccessLinkByUserId(req.user.id);
     res.json({
       ...data,
       webAppUrl
@@ -1136,7 +1448,9 @@ router.put("/student/me/profile/password", authenticate, authorize("student"), (
       return res.status(400).json({ message: "Yangi parol majburiy" });
     }
     const nextHash = bcrypt.hashSync(req.body.password, 10);
-    if (config.dbProvider === "postgres") {
+    if (config.dbProvider === "mongodb") {
+      await changeStudentPasswordMongo(req.user.id, nextHash);
+    } else if (config.dbProvider === "postgres") {
       await changeStudentPasswordAsync(req.user.id, nextHash);
     } else {
       changeStudentPassword(req.user.id, nextHash);
