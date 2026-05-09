@@ -1,7 +1,7 @@
 import express from "express";
 import dayjs from "dayjs";
 import bcrypt from "bcryptjs";
-import { authenticate, authorize, comparePassword, getUserProfile, signToken } from "./auth.js";
+import { authenticate, authorize, comparePassword, getUserProfile, getUserProfileAsync, signToken } from "./auth.js";
 import { config } from "./config.js";
 import { buildDirectorPdfReport, buildDirectorWorkbook } from "./reports.js";
 import { sendStudentPaymentNotification } from "./bot.js";
@@ -33,28 +33,46 @@ import {
   getStudentPayments,
   getStudentProfilePanel,
   getStudentByPhone,
+  getStudentByPhoneAsync,
   getStudentSchedule,
   getStudentAuthByPhone,
+  getStudentAuthByPhoneAsync,
   loginStudentByAccessToken,
+  loginStudentByAccessTokenAsync,
   getTeacherStudents,
   listAllCourses,
+  listAllCoursesAsync,
   listAllPayments,
   listAttendanceHistory,
   listBranches,
+  listBranchesAsync,
   listContactRequests,
+  listContactRequestsAsync,
   listCourses,
+  listCoursesAsync,
   listDeveloperProfiles,
+  listDeveloperProfilesAsync,
   listNotifications,
+  listNotificationsAsync,
   listStudentHistory,
   listStudents,
   listTeachers,
+  listTeachersAsync,
   markContactRequestRead,
   markNotificationRead,
   previewStudentImport,
   recordPayment,
   registerStudentByToken,
+  registerStudentByTokenAsync,
   saveSettings,
   updateCourse,
+  updateUserProfileAsync,
+  validateStudentRegistrationTokenAsync,
+  createTelegramLinkCodeAsync,
+  consumeTelegramCodeAsync,
+  getDeveloperProfileByIdAsync,
+  getDeveloperProfileBySlugAsync,
+  getDeveloperProfileByUsernameAsync,
   updateDeveloperProfile,
   updateStudent,
   updateTeacher,
@@ -65,6 +83,7 @@ import {
   importStudentsBatch
 } from "./services.js";
 import { getDb } from "./db.js";
+import { getSupabasePool } from "./supabase-db.js";
 
 const router = express.Router();
 const db = getDb();
@@ -81,16 +100,22 @@ router.get("/public/app-config", (_req, res) => {
 });
 
 router.get("/public/courses", (_req, res) => {
-  res.json(
-    listAllCourses()
-      .filter((course) => course.isActive !== false)
-      .map((course) => ({
-        id: course.id,
-        title: course.title,
-        monthlyFee: Number(course.monthlyFee || 0),
-        schedule: course.schedule || ""
-      }))
-  );
+  const sendCourses = async () => {
+    const courses = config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses();
+    res.json(
+      courses
+        .filter((course) => course.isActive !== false)
+        .map((course) => ({
+          id: course.id,
+          title: course.title,
+          monthlyFee: Number(course.monthlyFee || 0),
+          schedule: course.schedule || ""
+        }))
+    );
+  };
+  sendCourses().catch((error) => {
+    res.status(500).json({ message: error.message || "Kurslarni olib bo'lmadi" });
+  });
 });
 
 router.post("/public/contact-requests", (req, res) => {
@@ -103,171 +128,324 @@ router.post("/public/contact-requests", (req, res) => {
 });
 
 router.get("/public/developers", (_req, res) => {
-  res.json(listDeveloperProfiles());
+  const sendDevelopers = async () => {
+    res.json(config.dbProvider === "postgres" ? await listDeveloperProfilesAsync() : listDeveloperProfiles());
+  };
+  sendDevelopers().catch((error) => {
+    res.status(500).json({ message: error.message || "Dasturchilarni olib bo'lmadi" });
+  });
 });
 
 router.get("/public/developers/:slug", (req, res) => {
-  const developer = getDeveloperProfileBySlug(req.params.slug);
-  if (!developer) {
-    return res.status(404).json({ message: "Dasturchi topilmadi" });
-  }
-  res.json(developer);
+  const sendDeveloper = async () => {
+    const developer =
+      config.dbProvider === "postgres"
+        ? await getDeveloperProfileBySlugAsync(req.params.slug)
+        : getDeveloperProfileBySlug(req.params.slug);
+    if (!developer) {
+      return res.status(404).json({ message: "Dasturchi topilmadi" });
+    }
+    res.json(developer);
+  };
+  sendDeveloper().catch((error) => {
+    res.status(500).json({ message: error.message || "Dasturchini olib bo'lmadi" });
+  });
 });
 
 router.post("/auth/login", (req, res) => {
-  const { username, password } = req.body;
-  const user = db.prepare(`
-    SELECT id, full_name as fullName, username, password_hash as passwordHash, role
-    FROM users
-    WHERE username = ?
-  `).get(username);
+  const handleLogin = async () => {
+    const { username, password } = req.body;
+    let user;
 
-  if (!user || !comparePassword(password, user.passwordHash)) {
-    return res.status(401).json({ message: "Login yoki parol noto'g'ri" });
-  }
+    if (config.dbProvider === "postgres") {
+      const { rows } = await getSupabasePool().query(
+        `
+          SELECT id, full_name as "fullName", username, password_hash as "passwordHash", role
+          FROM users
+          WHERE username = $1
+          LIMIT 1
+        `,
+        [username]
+      );
+      user = rows[0];
+    } else {
+      user = db.prepare(`
+        SELECT id, full_name as fullName, username, password_hash as passwordHash, role
+        FROM users
+        WHERE username = ?
+      `).get(username);
+    }
 
-  const token = signToken({ id: user.id, role: user.role, fullName: user.fullName });
-  res.json({ token, user: getUserProfile(user.id) });
+    if (!user || !comparePassword(password, user.passwordHash)) {
+      return res.status(401).json({ message: "Login yoki parol noto'g'ri" });
+    }
+
+    const token = signToken({ id: user.id, role: user.role, fullName: user.fullName });
+    const profile = config.dbProvider === "postgres" ? await getUserProfileAsync(user.id) : getUserProfile(user.id);
+    res.json({ token, user: profile });
+  };
+  handleLogin().catch((error) => {
+    res.status(500).json({ message: error.message || "Login xatosi" });
+  });
 });
 
 router.post("/developers/auth/login", (req, res) => {
-  const { username, password } = req.body;
-  const developer = getDeveloperProfileByUsername(username);
+  const handleDeveloperLogin = async () => {
+    const { username, password } = req.body;
+    const developer =
+      config.dbProvider === "postgres"
+        ? await getDeveloperProfileByUsernameAsync(username)
+        : getDeveloperProfileByUsername(username);
 
-  if (!developer || !comparePassword(password, developer.passwordHash)) {
-    return res.status(401).json({ message: "Login yoki parol noto'g'ri" });
-  }
+    if (!developer || !comparePassword(password, developer.passwordHash)) {
+      return res.status(401).json({ message: "Login yoki parol noto'g'ri" });
+    }
 
-  const token = signToken({
-    id: developer.id,
-    role: "developer_portfolio",
-    fullName: developer.fullName,
-    slug: developer.slug
-  });
+    const token = signToken({
+      id: developer.id,
+      role: "developer_portfolio",
+      fullName: developer.fullName,
+      slug: developer.slug
+    });
 
-  res.json({
-    token,
-    developer: getDeveloperProfileById(developer.id)
+    res.json({
+      token,
+      developer:
+        config.dbProvider === "postgres"
+          ? await getDeveloperProfileByIdAsync(developer.id)
+          : getDeveloperProfileById(developer.id)
+    });
+  };
+  handleDeveloperLogin().catch((error) => {
+    res.status(500).json({ message: error.message || "Developer login xatosi" });
   });
 });
 
 router.get("/student-auth/register/validate", (req, res) => {
-  try {
-    res.json(validateStudentRegistrationToken(req.query.token));
-  } catch (error) {
+  const handleValidate = async () => {
+    const result =
+      config.dbProvider === "postgres"
+        ? await validateStudentRegistrationTokenAsync(req.query.token)
+        : validateStudentRegistrationToken(req.query.token);
+    res.json(result);
+  };
+  handleValidate().catch((error) => {
     res.status(400).json({ message: error.message || "Token yaroqsiz" });
-  }
+  });
 });
 
 router.post("/student-auth/register", (req, res) => {
-  try {
+  const handleRegister = async () => {
     const { token, phone, password } = req.body;
     if (!token || !phone || !password) {
       return res.status(400).json({ message: "Token, telefon va parol majburiy" });
     }
-    registerStudentByToken({
+
+    const payload = {
       token,
       phone,
       passwordHash: bcrypt.hashSync(password, 10)
-    });
+    };
+
+    if (config.dbProvider === "postgres") {
+      await registerStudentByTokenAsync(payload);
+    } else {
+      registerStudentByToken(payload);
+    }
+
     res.json({ message: "Ro'yxatdan o'tish muvaffaqiyatli yakunlandi" });
-  } catch (error) {
+  };
+  handleRegister().catch((error) => {
     res.status(400).json({ message: error.message || "Ro'yxatdan o'tib bo'lmadi" });
-  }
+  });
 });
 
 router.post("/student-auth/login", (req, res) => {
-  const { phone, password } = req.body;
-  const auth = getStudentAuthByPhone(phone);
-  if (!auth || !comparePassword(password, auth.passwordHash)) {
-    return res.status(401).json({ message: "Telefon yoki parol noto'g'ri" });
-  }
-  const user = getUserProfile(auth.userId);
-  const token = signToken({ id: user.id, role: "student", fullName: user.fullName });
-  res.json({ token, user });
+  const handleStudentLogin = async () => {
+    const { phone, password } = req.body;
+    const auth =
+      config.dbProvider === "postgres" ? await getStudentAuthByPhoneAsync(phone) : getStudentAuthByPhone(phone);
+    if (!auth || !comparePassword(password, auth.passwordHash)) {
+      return res.status(401).json({ message: "Telefon yoki parol noto'g'ri" });
+    }
+    const user = config.dbProvider === "postgres" ? await getUserProfileAsync(auth.userId) : getUserProfile(auth.userId);
+    const token = signToken({ id: user.id, role: "student", fullName: user.fullName });
+    res.json({ token, user });
+  };
+  handleStudentLogin().catch((error) => {
+    res.status(500).json({ message: error.message || "Student login xatosi" });
+  });
 });
 
 router.post("/student-auth/access", (req, res) => {
-  try {
-    const user = loginStudentByAccessToken(req.body.accessToken);
+  const handleAccessLogin = async () => {
+    const user =
+      config.dbProvider === "postgres"
+        ? await loginStudentByAccessTokenAsync(req.body.accessToken)
+        : loginStudentByAccessToken(req.body.accessToken);
     const token = signToken({ id: user.id, role: "student", fullName: user.fullName });
     res.json({ token, user });
-  } catch (error) {
+  };
+  handleAccessLogin().catch((error) => {
     res.status(401).json({ message: error.message || "Token yaroqsiz" });
-  }
+  });
 });
 
 router.post("/auth/telegram/request", (req, res) => {
-  const { phone } = req.body;
-  const data = createTelegramLinkCode(phone);
+  const handleTelegramRequest = async () => {
+    const { phone } = req.body;
+    const data =
+      config.dbProvider === "postgres" ? await createTelegramLinkCodeAsync(phone) : createTelegramLinkCode(phone);
 
-  if (!data) {
-    return res.status(404).json({ message: "Student topilmadi" });
-  }
+    if (!data) {
+      return res.status(404).json({ message: "Student topilmadi" });
+    }
 
-  res.json({
-    message: "Tasdiqlash kodi yaratildi. Kod bot orqali studentga yuboriladi.",
-    demoCode: data.code
+    res.json({
+      message: "Tasdiqlash kodi yaratildi. Kod bot orqali studentga yuboriladi.",
+      demoCode: data.code
+    });
+  };
+  handleTelegramRequest().catch((error) => {
+    res.status(500).json({ message: error.message || "Kod yaratilmadi" });
   });
 });
 
 router.post("/auth/telegram/verify", (req, res) => {
-  const { code } = req.body;
-  const link = db.prepare(`
-    SELECT s.user_id as userId, u.full_name as fullName
-    FROM telegram_links tl
-    JOIN students s ON s.id = tl.student_id
-    JOIN users u ON u.id = s.user_id
-    WHERE tl.code = ? AND tl.used = 0
-    ORDER BY tl.id DESC
-    LIMIT 1
-  `).get(code);
+  const handleTelegramVerify = async () => {
+    const { code } = req.body;
 
-  if (!link) {
-    return res.status(404).json({ message: "Kod noto'g'ri yoki eskirgan" });
-  }
+    if (config.dbProvider === "postgres") {
+      const { rows } = await getSupabasePool().query(
+        `
+          SELECT s.user_id as "userId", u.full_name as "fullName", tl.id
+          FROM telegram_links tl
+          JOIN students s ON s.id = tl.student_id
+          JOIN users u ON u.id = s.user_id
+          WHERE tl.code = $1 AND tl.used = FALSE
+          ORDER BY tl.id DESC
+          LIMIT 1
+        `,
+        [code]
+      );
+      const link = rows[0];
+      if (!link) {
+        return res.status(404).json({ message: "Kod noto'g'ri yoki eskirgan" });
+      }
+      await getSupabasePool().query(`UPDATE telegram_links SET used = TRUE WHERE id = $1`, [link.id]);
+      const token = signToken({ id: link.userId, role: "student", fullName: link.fullName });
+      const profile = await getUserProfileAsync(link.userId);
+      return res.json({ token, user: profile });
+    }
 
-  db.prepare(`UPDATE telegram_links SET used = 1 WHERE code = ?`).run(code);
-  const token = signToken({ id: link.userId, role: "student", fullName: link.fullName });
-  res.json({ token, user: getUserProfile(link.userId) });
+    const link = db.prepare(`
+      SELECT s.user_id as userId, u.full_name as fullName
+      FROM telegram_links tl
+      JOIN students s ON s.id = tl.student_id
+      JOIN users u ON u.id = s.user_id
+      WHERE tl.code = ? AND tl.used = 0
+      ORDER BY tl.id DESC
+      LIMIT 1
+    `).get(code);
+
+    if (!link) {
+      return res.status(404).json({ message: "Kod noto'g'ri yoki eskirgan" });
+    }
+
+    db.prepare(`UPDATE telegram_links SET used = 1 WHERE code = ?`).run(code);
+    const token = signToken({ id: link.userId, role: "student", fullName: link.fullName });
+    res.json({ token, user: getUserProfile(link.userId) });
+  };
+  handleTelegramVerify().catch((error) => {
+    res.status(500).json({ message: error.message || "Kod tekshirilmadi" });
+  });
 });
 
 router.get("/meta", authenticate, (req, res) => {
-  const unreadCount = listNotifications({ userId: req.user.id, role: req.user.role, unreadOnly: true }).length;
-  res.json({
-    user: getUserProfile(req.user.id),
-    teachers: listTeachers(),
-    courses: req.user.role === "director" ? listAllCourses() : listCourses(),
-    branches: listBranches(),
-    unreadNotifications: unreadCount,
-    unreadContactRequests:
+  const handleMeta = async () => {
+    const unreadNotifications =
+      config.dbProvider === "postgres"
+        ? await listNotificationsAsync({ userId: req.user.id, role: req.user.role, unreadOnly: true })
+        : listNotifications({ userId: req.user.id, role: req.user.role, unreadOnly: true });
+    const contactRequests =
       req.user.role === "reception" || req.user.role === "director"
-        ? listContactRequests({ unreadOnly: true }).length
-        : 0
+        ? (config.dbProvider === "postgres"
+            ? await listContactRequestsAsync({ unreadOnly: true })
+            : listContactRequests({ unreadOnly: true }))
+        : [];
+
+    res.json({
+      user: config.dbProvider === "postgres" ? await getUserProfileAsync(req.user.id) : getUserProfile(req.user.id),
+      teachers: config.dbProvider === "postgres" ? await listTeachersAsync() : listTeachers(),
+      courses:
+        req.user.role === "director"
+          ? (config.dbProvider === "postgres" ? await listAllCoursesAsync() : listAllCourses())
+          : (config.dbProvider === "postgres" ? await listCoursesAsync() : listCourses()),
+      branches: config.dbProvider === "postgres" ? await listBranchesAsync() : listBranches(),
+      unreadNotifications: unreadNotifications.length,
+      unreadContactRequests: contactRequests.length
+    });
+  };
+  handleMeta().catch((error) => {
+    res.status(500).json({ message: error.message || "Meta ma'lumotlarni olib bo'lmadi" });
   });
 });
 
 router.get("/profile", authenticate, (req, res) => {
-  res.json(getUserProfile(req.user.id));
+  const handleProfile = async () => {
+    res.json(config.dbProvider === "postgres" ? await getUserProfileAsync(req.user.id) : getUserProfile(req.user.id));
+  };
+  handleProfile().catch((error) => {
+    res.status(500).json({ message: error.message || "Profilni olib bo'lmadi" });
+  });
 });
 
 router.put("/profile", authenticate, (req, res) => {
-  const current = db.prepare(`SELECT username FROM users WHERE id = ?`).get(req.user.id);
-  if (req.body.username && req.body.username !== current?.username) {
-    const exists = db.prepare(`SELECT id FROM users WHERE username = ? AND id != ?`).get(req.body.username, req.user.id);
+  const handleProfileUpdate = async () => {
+    let current;
+    let exists;
+
+    if (config.dbProvider === "postgres") {
+      const currentResult = await getSupabasePool().query(
+        `SELECT username FROM users WHERE id = $1 LIMIT 1`,
+        [req.user.id]
+      );
+      current = currentResult.rows[0];
+      if (req.body.username && req.body.username !== current?.username) {
+        const existsResult = await getSupabasePool().query(
+          `SELECT id FROM users WHERE username = $1 AND id != $2 LIMIT 1`,
+          [req.body.username, req.user.id]
+        );
+        exists = existsResult.rows[0];
+      }
+    } else {
+      current = db.prepare(`SELECT username FROM users WHERE id = ?`).get(req.user.id);
+      if (req.body.username && req.body.username !== current?.username) {
+        exists = db.prepare(`SELECT id FROM users WHERE username = ? AND id != ?`).get(req.body.username, req.user.id);
+      }
+    }
+
     if (exists) {
       return res.status(409).json({ message: "Bu username band" });
     }
-  }
 
-  const profile = updateUserProfile(req.user.id, {
-    fullName: req.body.fullName,
-    username: req.body.username,
-    phone: req.body.phone,
-    profileImage: req.body.profileImage,
-    password: req.body.password ? bcrypt.hashSync(req.body.password, 10) : null
+    const payload = {
+      fullName: req.body.fullName,
+      username: req.body.username,
+      phone: req.body.phone,
+      profileImage: req.body.profileImage,
+      password: req.body.password ? bcrypt.hashSync(req.body.password, 10) : null
+    };
+
+    const profile =
+      config.dbProvider === "postgres"
+        ? await updateUserProfileAsync(req.user.id, payload)
+        : updateUserProfile(req.user.id, payload);
+    res.json(profile);
+  };
+  handleProfileUpdate().catch((error) => {
+    res.status(500).json({ message: error.message || "Profil yangilanmadi" });
   });
-  res.json(profile);
 });
 
 router.get("/reception/students", authenticate, authorize("reception", "director"), (req, res) => {

@@ -93,7 +93,7 @@ async function sendCabinetLink(ctx) {
 }
 
 export function startBot() {
-  if (!config.telegramBotToken) {
+  if (!config.botEnabled || !config.telegramBotToken) {
     return null;
   }
 
@@ -175,7 +175,11 @@ export function startBot() {
   bot.hears("\u{1F9FE} To'lovim", sendPaymentInfo);
   bot.hears("\u{1F510} Kabinet havolasi", sendCabinetLink);
 
-  bot.launch();
+  bot.launch().catch((error) => {
+    const code = error?.response?.error_code;
+    const description = error?.response?.description || error?.message || "Bot launch xatosi";
+    console.error(`Telegram bot ishga tushmadi (${code || "unknown"}): ${description}`);
+  });
 
   cron.schedule("0 9 * * *", async () => {
     if (!bot) {

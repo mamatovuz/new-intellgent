@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { config } from "./config.js";
 import { getDb } from "./db.js";
+import { getSupabasePool } from "./supabase-db.js";
 
 export function signToken(payload) {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
@@ -41,4 +42,22 @@ export function getUserProfile(userId) {
     FROM users
     WHERE id = ?
   `).get(userId);
+}
+
+export async function getUserProfileAsync(userId) {
+  if (config.dbProvider !== "postgres") {
+    return getUserProfile(userId);
+  }
+
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT id, full_name as "fullName", username, phone, role, telegram_id as "telegramId", profile_image as "profileImage"
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] || null;
 }

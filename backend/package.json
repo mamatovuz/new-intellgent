@@ -7,7 +7,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed.js",
-    "supabase:schema": "node src/supabase-setup.js"
+    "supabase:schema": "node src/supabase-setup.js",
+    "supabase:migrate-data": "node src/supabase-migrate-data.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

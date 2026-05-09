@@ -16,9 +16,11 @@ import {
 import QRCode from "qrcode";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
+import { getSupabasePool } from "./supabase-db.js";
 
 const db = getDb();
 const uploadsDir = path.resolve("backend", "uploads");
+const isPostgres = config.dbProvider === "postgres";
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -2633,6 +2635,506 @@ export function getUserProfileLite(userId) {
     FROM users
     WHERE id = ?
   `).get(userId);
+}
+
+function mapUserProfileRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: Number(row.id),
+    fullName: row.fullname ?? row.fullName,
+    username: row.username,
+    phone: row.phone,
+    role: row.role,
+    telegramId: row.telegramid ?? row.telegramId,
+    profileImage: row.profileimage ?? row.profileImage
+  };
+}
+
+async function getTrialProgressAsync(studentId, enrolledAt) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT COUNT(*)::int as count
+      FROM attendance
+      WHERE student_id = $1
+        AND status = 'present'
+        AND lesson_date >= $2::date
+    `,
+    [studentId, enrolledAt || dayjs().format("YYYY-MM-DD")]
+  );
+  return Number(rows[0]?.count || 0);
+}
+
+async function getUserProfileLiteAsync(userId) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT id, full_name as "fullName", username, phone, role, telegram_id as "telegramId", profile_image as "profileImage"
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [userId]
+  );
+  return rows[0] ? mapUserProfileRow(rows[0]) : null;
+}
+
+export async function getStudentAuthByPhoneAsync(phone) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT
+        sa.id,
+        sa.student_id as "studentId",
+        sa.phone,
+        sa.access_token as "accessToken",
+        sa.password_hash as "passwordHash",
+        s.user_id as "userId"
+      FROM student_auth sa
+      JOIN students s ON s.id = sa.student_id
+      WHERE REPLACE(sa.phone, ' ', '') = $1
+      LIMIT 1
+    `,
+    [normalizePhone(phone)]
+  );
+  return rows[0] || null;
+}
+
+export async function loginStudentByAccessTokenAsync(accessToken) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT sa.student_id as "studentId", s.user_id as "userId"
+      FROM student_auth sa
+      JOIN students s ON s.id = sa.student_id
+      WHERE sa.access_token = $1
+      LIMIT 1
+    `,
+    [accessToken]
+  );
+  const auth = rows[0];
+
+  if (!auth) {
+    throw new Error("Kirish tokeni topilmadi");
+  }
+
+  return getUserProfileLiteAsync(auth.userId);
+}
+
+export async function getStudentByPhoneAsync(phone) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT
+        s.id,
+        u.full_name as "fullName",
+        u.phone,
+        u.telegram_id as "telegramId",
+        s.balance,
+        s.status,
+        s.enrolled_at as "enrolledAt",
+        s.billing_start_date as "billingStartDate",
+        s.trial_required as "trialRequired",
+        s.payment_due_date as "paymentDueDate",
+        s.last_payment_date as "lastPaymentDate",
+        s.is_archived as "isArchived",
+        c.id as "courseId",
+        c.title as "courseTitle",
+        c.monthly_fee as "monthlyFee",
+        COALESCE(s.group_schedule, c.schedule) as schedule,
+        t.id as "teacherId",
+        t.full_name as "teacherName",
+        s.user_id as "userId",
+        u.profile_image as "profileImage"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN courses c ON c.id = s.course_id
+      LEFT JOIN users t ON t.id = s.teacher_id
+      WHERE u.phone = $1
+      LIMIT 1
+    `,
+    [phone]
+  );
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+  return {
+    ...row,
+    trialRequired: Number(row.trialRequired || 3),
+    trialProgress: await getTrialProgressAsync(row.id, row.enrolledAt)
+  };
+}
+
+async function getStudentAuthRecordByStudentIdAsync(studentId) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT id, student_id as "studentId", phone, access_token as "accessToken", password_hash as "passwordHash"
+      FROM student_auth
+      WHERE student_id = $1
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  return rows[0] || null;
+}
+
+async function ensureStudentAuthAsync(studentId, phone, passwordHash = null) {
+  const pool = getSupabasePool();
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const normalizedPhone = normalizePhone(phone);
+  const existing = await getStudentAuthRecordByStudentIdAsync(studentId);
+
+  if (existing) {
+    const nextAccessToken = existing.accessToken || generateAccessToken();
+    await pool.query(
+      `
+        UPDATE student_auth
+        SET phone = $1, access_token = $2, password_hash = COALESCE($3, password_hash), updated_at = $4
+        WHERE student_id = $5
+      `,
+      [normalizedPhone, nextAccessToken, passwordHash, now, studentId]
+    );
+
+    return {
+      ...existing,
+      phone: normalizedPhone,
+      accessToken: nextAccessToken,
+      passwordHash: passwordHash || existing.passwordHash
+    };
+  }
+
+  const accessToken = generateAccessToken();
+  await pool.query(
+    `
+      INSERT INTO student_auth (student_id, phone, access_token, password_hash, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+    [studentId, normalizedPhone, accessToken, passwordHash, now, now]
+  );
+
+  return getStudentAuthRecordByStudentIdAsync(studentId);
+}
+
+export async function validateStudentRegistrationTokenAsync(token) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT
+        qt.id,
+        qt.token,
+        qt.student_id as "studentId",
+        qt.expires_at as "expiresAt",
+        qt.used,
+        s.is_registered as "isRegistered",
+        u.full_name as "fullName",
+        u.phone
+      FROM qr_tokens qt
+      JOIN students s ON s.id = qt.student_id
+      JOIN users u ON u.id = s.user_id
+      WHERE qt.token = $1
+      LIMIT 1
+    `,
+    [token]
+  );
+  const row = rows[0];
+
+  if (!row) {
+    throw new Error("Token topilmadi");
+  }
+  if (row.used) {
+    throw new Error("Token allaqachon ishlatilgan");
+  }
+  if (row.isRegistered) {
+    throw new Error("Student allaqachon ro'yxatdan o'tgan");
+  }
+  if (dayjs(row.expiresAt).isBefore(dayjs())) {
+    throw new Error("Token muddati tugagan");
+  }
+
+  const [firstName = "", ...rest] = (row.fullName || "").split(" ");
+  return {
+    token: row.token,
+    studentId: Number(row.studentId),
+    firstName,
+    lastName: rest.join(" "),
+    fullName: row.fullName,
+    phone: row.phone,
+    expiresAt: row.expiresAt
+  };
+}
+
+export async function registerStudentByTokenAsync({ token, phone, passwordHash }) {
+  const qr = await validateStudentRegistrationTokenAsync(token);
+  if (normalizePhone(qr.phone) !== normalizePhone(phone)) {
+    throw new Error("Telefon raqam student ma'lumoti bilan mos emas");
+  }
+
+  const pool = getSupabasePool();
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  await ensureStudentAuthAsync(qr.studentId, phone, passwordHash);
+
+  await pool.query(`UPDATE students SET is_registered = TRUE WHERE id = $1`, [qr.studentId]);
+  await pool.query(`UPDATE qr_tokens SET used = TRUE, used_at = $1 WHERE token = $2`, [now, token]);
+
+  return qr;
+}
+
+export async function createTelegramLinkCodeAsync(phone) {
+  const student = await getStudentByPhoneAsync(phone);
+  if (!student) {
+    return null;
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  await getSupabasePool().query(
+    `
+      INSERT INTO telegram_links (student_id, phone, code, used, created_at)
+      VALUES ($1, $2, $3, FALSE, $4)
+    `,
+    [student.id, phone, code, dayjs().format("YYYY-MM-DD HH:mm:ss")]
+  );
+
+  return {
+    studentId: student.id,
+    code
+  };
+}
+
+export async function consumeTelegramCodeAsync(code, telegramId) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT id, student_id as "studentId"
+      FROM telegram_links
+      WHERE code = $1 AND used = FALSE
+      ORDER BY id DESC
+      LIMIT 1
+    `,
+    [code]
+  );
+  const link = rows[0];
+
+  if (!link) {
+    return null;
+  }
+
+  const studentResult = await pool.query(
+    `
+      SELECT s.id, s.user_id as "userId", u.full_name as "fullName"
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+      LIMIT 1
+    `,
+    [link.studentId]
+  );
+  const student = studentResult.rows[0];
+
+  await pool.query(`UPDATE telegram_links SET used = TRUE WHERE id = $1`, [link.id]);
+  await pool.query(`UPDATE users SET telegram_id = $1 WHERE id = $2`, [String(telegramId), student.userId]);
+
+  return student;
+}
+
+export async function listBranchesAsync() {
+  const { rows } = await getSupabasePool().query(
+    `SELECT id, name, address FROM branches ORDER BY name`
+  );
+  return rows.map((row) => ({ ...row, id: Number(row.id) }));
+}
+
+export async function listCoursesAsync() {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT c.id, c.branch_id as "branchId", b.name as "branchName", c.title, c.monthly_fee as "monthlyFee", c.schedule, c.is_active as "isActive"
+      FROM courses c
+      LEFT JOIN branches b ON b.id = c.branch_id
+      WHERE c.is_active = TRUE
+      ORDER BY c.title
+    `
+  );
+  return rows.map((item) => ({ ...item, id: Number(item.id), branchId: item.branchId ? Number(item.branchId) : null, isActive: Boolean(item.isActive) }));
+}
+
+export async function listAllCoursesAsync() {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT c.id, c.branch_id as "branchId", b.name as "branchName", c.title, c.monthly_fee as "monthlyFee", c.schedule, c.is_active as "isActive", c.created_at as "createdAt"
+      FROM courses c
+      LEFT JOIN branches b ON b.id = c.branch_id
+      ORDER BY c.title
+    `
+  );
+  return rows.map((item) => ({ ...item, id: Number(item.id), branchId: item.branchId ? Number(item.branchId) : null, isActive: Boolean(item.isActive) }));
+}
+
+export async function listTeachersAsync() {
+  const pool = getSupabasePool();
+  const teacherResult = await pool.query(
+    `
+      SELECT id, full_name as "fullName", username, phone, monthly_salary as "monthlySalary", profile_image as "profileImage"
+      FROM users
+      WHERE role = 'teacher'
+      ORDER BY full_name
+    `
+  );
+  const assignmentResult = await pool.query(
+    `SELECT teacher_id as "teacherId", course_id as "courseId" FROM teacher_course_assignments`
+  );
+
+  return teacherResult.rows.map((teacher) => ({
+    ...teacher,
+    id: Number(teacher.id),
+    monthlySalary: Number(teacher.monthlySalary || 0),
+    courseIds: assignmentResult.rows
+      .filter((item) => Number(item.teacherId) === Number(teacher.id))
+      .map((item) => Number(item.courseId))
+  }));
+}
+
+export async function listNotificationsAsync({ userId = null, role = null, unreadOnly = false } = {}) {
+  const values = [];
+  const clauses = [];
+
+  if (userId) {
+    values.push(userId);
+    clauses.push(`(target_user_id = $${values.length} OR target_user_id IS NULL)`);
+  }
+  if (role) {
+    values.push(role);
+    clauses.push(`(target_role = $${values.length} OR target_role IS NULL)`);
+  }
+  if (unreadOnly) {
+    clauses.push(`status = 'unread'`);
+  }
+
+  const whereClause = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT id, target_role as "targetRole", target_user_id as "targetUserId", type, title, message, metadata, status, created_at as "createdAt", read_at as "readAt"
+      FROM notifications
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `,
+    values
+  );
+  return rows.map((item) => ({ ...item, id: Number(item.id), targetUserId: item.targetUserId ? Number(item.targetUserId) : null }));
+}
+
+export async function listContactRequestsAsync({ unreadOnly = false } = {}) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT id, full_name as "fullName", phone, message, status, created_at as "createdAt", read_at as "readAt"
+      FROM contact_requests
+      ${unreadOnly ? `WHERE status = 'new'` : ""}
+      ORDER BY created_at DESC, id DESC
+    `
+  );
+  return rows.map((row) => ({ ...row, id: Number(row.id) }));
+}
+
+export async function updateUserProfileAsync(userId, payload) {
+  const pool = getSupabasePool();
+  const currentResult = await pool.query(
+    `SELECT username, password_hash as "passwordHash", profile_image as "profileImage" FROM users WHERE id = $1 LIMIT 1`,
+    [userId]
+  );
+  const current = currentResult.rows[0];
+  const nextPasswordHash = payload.password ? payload.password : null;
+  const nextProfileImage = payload.profileImage ? persistProfileImage(payload.profileImage) : current?.profileImage || null;
+
+  await pool.query(
+    `
+      UPDATE users
+      SET full_name = $1, username = $2, phone = COALESCE($3, phone), profile_image = $4
+      WHERE id = $5
+    `,
+    [payload.fullName, payload.username, payload.phone || null, nextProfileImage, userId]
+  );
+
+  if (nextPasswordHash) {
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [nextPasswordHash, userId]);
+  }
+
+  return getUserProfileLiteAsync(userId);
+}
+
+export async function listDeveloperProfilesAsync() {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        id, slug, username, full_name as "fullName", age, role_title as "roleTitle",
+        short_bio as "shortBio", bio, skills, image, banner_image as "bannerImage",
+        certificate_image as "certificateImage", telegram_url as "telegramUrl",
+        instagram_url as "instagramUrl", github_url as "githubUrl",
+        website_url as "websiteUrl", is_active as "isActive"
+      FROM developer_profiles
+      WHERE is_active = TRUE
+      ORDER BY id ASC
+    `
+  );
+  return rows.map(mapDeveloperRow);
+}
+
+export async function getDeveloperProfileBySlugAsync(slug) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        id, slug, username, full_name as "fullName", age, role_title as "roleTitle",
+        short_bio as "shortBio", bio, skills, image, banner_image as "bannerImage",
+        certificate_image as "certificateImage", telegram_url as "telegramUrl",
+        instagram_url as "instagramUrl", github_url as "githubUrl",
+        website_url as "websiteUrl", is_active as "isActive"
+      FROM developer_profiles
+      WHERE slug = $1 AND is_active = TRUE
+      LIMIT 1
+    `,
+    [slug]
+  );
+  return mapDeveloperRow(rows[0]);
+}
+
+export async function getDeveloperProfileByUsernameAsync(username) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        id, slug, username, password_hash as "passwordHash", full_name as "fullName", age, role_title as "roleTitle",
+        short_bio as "shortBio", bio, skills, image, banner_image as "bannerImage",
+        certificate_image as "certificateImage", telegram_url as "telegramUrl",
+        instagram_url as "instagramUrl", github_url as "githubUrl",
+        website_url as "websiteUrl", is_active as "isActive"
+      FROM developer_profiles
+      WHERE username = $1 AND is_active = TRUE
+      LIMIT 1
+    `,
+    [username]
+  );
+  const row = rows[0];
+  return row ? { ...mapDeveloperRow(row), passwordHash: row.passwordHash } : null;
+}
+
+export async function getDeveloperProfileByIdAsync(id) {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        id, slug, username, full_name as "fullName", age, role_title as "roleTitle",
+        short_bio as "shortBio", bio, skills, image, banner_image as "bannerImage",
+        certificate_image as "certificateImage", telegram_url as "telegramUrl",
+        instagram_url as "instagramUrl", github_url as "githubUrl",
+        website_url as "websiteUrl", is_active as "isActive"
+      FROM developer_profiles
+      WHERE id = $1 AND is_active = TRUE
+      LIMIT 1
+    `,
+    [id]
+  );
+  return mapDeveloperRow(rows[0]);
 }
 
 export function createCourse(payload) {

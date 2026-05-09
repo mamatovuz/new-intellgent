@@ -2,11 +2,14 @@ import cors from "cors";
 import express from "express";
 import path from "node:path";
 import { migrate, seed } from "./db.js";
+import { config } from "./config.js";
 import router from "./routes.js";
 
 export function createApp() {
-  migrate();
-  seed();
+  if (config.dbProvider !== "postgres") {
+    migrate();
+    seed();
+  }
 
   const app = express();
   app.use(cors());

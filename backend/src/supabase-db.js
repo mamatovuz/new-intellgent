@@ -20,6 +20,10 @@ function getPool() {
   return poolInstance;
 }
 
+export function getSupabasePool() {
+  return getPool();
+}
+
 export async function testSupabaseConnection() {
   const pool = getPool();
   const result = await pool.query("SELECT NOW() as now");

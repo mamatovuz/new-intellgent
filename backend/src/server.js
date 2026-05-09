@@ -6,7 +6,7 @@ const app = createApp();
 
 app.listen(config.port, () => {
   console.log(`Intelligent backend ishga tushdi: http://localhost:${config.port}`);
+  console.log(`DB provider: ${config.dbProvider}`);
 });
 
 startBot();
-
