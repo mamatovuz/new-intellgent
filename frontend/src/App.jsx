@@ -3841,88 +3841,6 @@ function StudentDashboardPage({ token }) {
 							: "Qarzdorlik yo'q"}
 					</small>
 				</div>
-				<div className='student-record-list'>
-					{students.map((student, index) => (
-						<div key={`student-card-${student.id}`} className='student-record-card'>
-							<div className='student-record-head'>
-								<div className='student-identity'>
-									<div className={`avatar-badge tone-${index % 5}`}>
-										{getInitials(student.fullName)}
-									</div>
-									<div>
-										<strong>{student.fullName}</strong>
-										<span>{getStudyMonthLabel(student)}</span>
-									</div>
-								</div>
-								<div className='student-record-status'>
-									<Badge tone={getStudentStatusMeta(student.status).tone}>
-										{getStudentStatusMeta(student.status).label}
-									</Badge>
-									{student.status === 'trial' ? (
-										<span>{student.trialProgress || 0}/{student.trialRequired || 3} kun</span>
-									) : student.paymentDueDate ? (
-										<span>{student.paymentDueDate}</span>
-									) : null}
-								</div>
-							</div>
-							<div className='student-record-grid'>
-								<div className='student-record-block'>
-									<strong>{student.phone}</strong>
-									<span>
-										{student.telegramId
-											? `Telegram ulangan: ${student.telegramId}`
-											: 'Telegram ulanmagan'}
-									</span>
-								</div>
-								<div className='student-record-block'>
-									<strong>{student.courseTitle}</strong>
-									<span>{student.teacherName}</span>
-								</div>
-								<div className='student-record-block'>
-									<strong>{formatMoney(Math.abs(student.balance))}</strong>
-									<span>
-										{student.status === 'active'
-											? 'Joriy balans'
-											: student.status === 'trial'
-												? 'Sinov holati'
-												: 'Qarz summasi'}
-									</span>
-								</div>
-							</div>
-							<div className='student-record-footer'>
-								<div className='course-cell'>
-									{student.status === 'trial' ? (
-										<span>Muddat: {student.paymentDueDate || "Belgilanmagan"}</span>
-									) : student.paymentDueDate ? (
-										<span>To'lov muddati: {student.paymentDueDate}</span>
-									) : (
-										<span>Holat yangilangan</span>
-									)}
-								</div>
-								<div className='table-actions compact'>
-									<button type='button' onClick={() => setStudentModal({ ...student })}>
-										<Icon name='edit' />
-									</button>
-									<button type='button' onClick={() => handleHistory(student.id)}>
-										<Icon name='history' />
-									</button>
-									<button type='button' onClick={() => handleRegisterLink(student.id)}>
-										<Icon name='qr_code_2' />
-									</button>
-									<button
-										type='button'
-										onClick={() => navigate(`/reception/payments?studentId=${student.id}`)}
-									>
-										<Icon name='payments' />
-									</button>
-									<button type='button' onClick={() => handleDelete(student.id)}>
-										<Icon name='delete' />
-									</button>
-								</div>
-							</div>
-						</div>
-					))}
-				</div>
 			</section>
 
 			<div className='student-summary-grid'>
@@ -4692,6 +4610,69 @@ function groupStudentsByLearningTrack(students = []) {
 			if (byTime !== 0) return byTime
 			return a.courseTitle.localeCompare(b.courseTitle, 'uz')
 		})
+}
+
+function buildReceptionTracks(students = [], meta = {}) {
+	const courses = Array.isArray(meta?.courses) ? meta.courses.filter(course => course.isActive !== false) : []
+	const teachers = Array.isArray(meta?.teachers) ? meta.teachers : []
+	const tracks = new Map()
+
+	const pushTrack = ({ key, courseTitle, teacherName, schedule, members }) => {
+		if (tracks.has(key)) return
+		tracks.set(key, {
+			key,
+			courseTitle,
+			teacherName,
+			schedule: schedule || "Jadval kiritilmagan",
+			label: `${courseTitle} / ${teacherName}`,
+			members: [...members].sort((a, b) =>
+				String(a.fullName || '').localeCompare(String(b.fullName || ''), 'uz'),
+			),
+		})
+	}
+
+	courses.forEach(course => {
+		const relatedTeachers = teachers.filter(teacher =>
+			(teacher.courseIds || []).includes(Number(course.id)),
+		)
+		const teacherPool = relatedTeachers.length
+			? relatedTeachers
+			: [{ id: `no-teacher-${course.id}`, fullName: "Ustoz biriktirilmagan" }]
+
+		teacherPool.forEach(teacher => {
+			const members = students.filter(student => {
+				const sameCourse =
+					Number(student.courseId || 0) === Number(course.id) ||
+					String(student.courseTitle || '') === String(course.title || '')
+				if (!sameCourse) return false
+				if (String(teacher.id).startsWith('no-teacher-')) return true
+				return (
+					Number(student.teacherId || 0) === Number(teacher.id) ||
+					String(student.teacherName || '') === String(teacher.fullName || '')
+				)
+			})
+
+			pushTrack({
+				key: `${course.id}__${teacher.id}`,
+				courseTitle: course.title || "Noma'lum kurs",
+				teacherName: teacher.fullName || "Ustoz biriktirilmagan",
+				schedule: members[0]?.schedule || course.schedule || '',
+				members,
+			})
+		})
+	})
+
+	groupStudentsByLearningTrack(students).forEach(group => {
+		if (!tracks.has(group.key)) {
+			pushTrack(group)
+		}
+	})
+
+	return Array.from(tracks.values()).sort((a, b) => {
+		const byTime = getScheduleSortKey(a.schedule) - getScheduleSortKey(b.schedule)
+		if (byTime !== 0) return byTime
+		return String(a.courseTitle || '').localeCompare(String(b.courseTitle || ''), 'uz')
+	})
 }
 
 function PaymentCollectionWorkspace({
@@ -5570,7 +5551,7 @@ function ReceptionDashboardPage({ token }) {
 	)
 }
 
-function ReceptionPaymentsPage({ token }) {
+function ReceptionPaymentsPage({ token, meta }) {
 	const [searchParams] = useSearchParams()
 	const { students, reload } = useReceptionData(token, {
 		search: '',
@@ -5581,7 +5562,10 @@ function ReceptionPaymentsPage({ token }) {
 	const [paymentGroupModal, setPaymentGroupModal] = useState(null)
 	const [paymentStudentModal, setPaymentStudentModal] = useState(null)
 	const [paymentStudentSearch, setPaymentStudentSearch] = useState('')
-	const groupedStudents = useMemo(() => groupStudentsByLearningTrack(students), [students])
+	const groupedStudents = useMemo(
+		() => buildReceptionTracks(students, meta),
+		[students, meta],
+	)
 
 	async function handlePaymentSaved() {
 		const nextPayments = await api.getAllPayments(token)
@@ -5859,7 +5843,7 @@ function AttendancePresenceToggle({ checked, onChange, disabled = false }) {
 	)
 }
 
-function AttendanceManagerPage({ token, role = 'reception' }) {
+function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 	const { students } = useReceptionData(token, { search: '', status: '' })
 	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
 	const [groupSearch, setGroupSearch] = useState('')
@@ -5867,7 +5851,10 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 	const [attendanceMap, setAttendanceMap] = useState({})
 	const [history, setHistory] = useState([])
 	const [groupModal, setGroupModal] = useState(null)
-	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
+	const groups = useMemo(
+		() => (role === 'reception' ? buildReceptionTracks(students, meta) : groupStudentsForAttendance(students)),
+		[students, meta, role],
+	)
 	const editable = role === 'reception'
 
 	useEffect(() => {
@@ -6046,8 +6033,8 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 	)
 }
 
-function ReceptionAttendancePage({ token }) {
-	return <AttendanceManagerPage token={token} role='reception' />
+function ReceptionAttendancePage({ token, meta }) {
+	return <AttendanceManagerPage token={token} meta={meta} role='reception' />
 }
 
 function ReceptionSettingsPage({ meta, token, onProfileUpdated }) {
@@ -7540,7 +7527,7 @@ function ProtectedApp({ auth, meta, onLogout, onProfileUpdated }) {
 				/>
 				<Route
 					path='/reception/payments'
-					element={<ReceptionPaymentsPage token={auth.token} />}
+					element={<ReceptionPaymentsPage token={auth.token} meta={meta} />}
 				/>
 				<Route
 					path='/reception/requests'
@@ -7548,7 +7535,7 @@ function ProtectedApp({ auth, meta, onLogout, onProfileUpdated }) {
 				/>
 				<Route
 					path='/reception/attendance'
-					element={<ReceptionAttendancePage token={auth.token} />}
+					element={<ReceptionAttendancePage token={auth.token} meta={meta} />}
 				/>
 				<Route
 					path='/reception/settings'
