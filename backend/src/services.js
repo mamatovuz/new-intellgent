@@ -2624,6 +2624,53 @@ export function getStudentDashboard(userId) {
   };
 }
 
+export async function createStudentRegistrationTokenAsync(studentId, expiresInSeconds = 90) {
+  const pool = getSupabasePool();
+  const { rows } = await pool.query(
+    `
+      SELECT s.id, u.full_name as "fullName", u.phone
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1 AND s.is_archived = FALSE
+      LIMIT 1
+    `,
+    [studentId]
+  );
+  const student = rows[0];
+
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+
+  await pool.query(`DELETE FROM qr_tokens WHERE student_id = $1 AND used = FALSE`, [studentId]);
+
+  const ttl = Math.min(120, Math.max(60, Number(expiresInSeconds || 90)));
+  const token = crypto.randomBytes(24).toString("hex");
+  const now = dayjs();
+  const expiresAt = now.add(ttl, "second").format("YYYY-MM-DD HH:mm:ss");
+
+  await pool.query(
+    `
+      INSERT INTO qr_tokens (token, student_id, expires_at, used, used_at, created_at)
+      VALUES ($1, $2, $3, FALSE, NULL, $4)
+    `,
+    [token, studentId, expiresAt, now.format("YYYY-MM-DD HH:mm:ss")]
+  );
+
+  const auth = await ensureStudentAuthAsync(studentId, student.phone);
+  const loginUrl = `${config.webUrl}/student/login?access=${auth.accessToken}`;
+
+  return {
+    token,
+    studentId,
+    fullName: student.fullName,
+    expiresAt,
+    registerUrl: loginUrl,
+    loginUrl,
+    defaultPassword: "12345678"
+  };
+}
+
 export async function getStudentDashboardAsync(userId) {
   const profile = await getStudentByUserIdAsync(userId);
   if (!profile) {

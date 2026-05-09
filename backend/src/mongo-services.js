@@ -408,8 +408,21 @@ export async function getStudentByPhoneMongo(phone) {
   return getStudentByUserIdMongo(user.id);
 }
 
+export async function getStudentByTelegramIdMongo(telegramId) {
+  const user = await User.findOne({ telegramId: String(telegramId), role: "student" }).lean();
+  if (!user) return null;
+  return getStudentByUserIdMongo(user.id);
+}
+
+export async function getStudentByIdMongo(studentId) {
+  const student = await Student.findOne({ id: Number(studentId) }).lean();
+  if (!student) return null;
+  return getStudentByUserIdMongo(student.userId);
+}
+
 export async function createTelegramLinkCodeMongo(phone) {
-  const user = await User.findOne({ phone }).lean();
+  const normalizedPhone = normalizePhone(phone);
+  const user = await User.findOne({ phone: normalizedPhone }).lean();
   if (!user) return null;
   const student = await Student.findOne({ userId: user.id }).lean();
   if (!student) return null;
@@ -418,7 +431,7 @@ export async function createTelegramLinkCodeMongo(phone) {
   await TelegramLink.create({
     id,
     studentId: student.id,
-    phone,
+    phone: normalizedPhone,
     code,
     used: false,
     createdAt: new Date()
@@ -429,7 +442,7 @@ export async function createTelegramLinkCodeMongo(phone) {
   };
 }
 
-export async function verifyTelegramCodeMongo(code) {
+export async function verifyTelegramCodeMongo(code, telegramId = null) {
   const link = await TelegramLink.findOne({ code, used: false }).sort({ id: -1 }).lean();
   if (!link) return null;
   const student = await Student.findOne({ id: link.studentId }).lean();
@@ -437,9 +450,14 @@ export async function verifyTelegramCodeMongo(code) {
   const user = await User.findOne({ id: student.userId }).lean();
   if (!user) return null;
   await TelegramLink.updateOne({ id: link.id }, { $set: { used: true } });
+  if (telegramId) {
+    await User.updateOne({ id: user.id }, { $set: { telegramId: String(telegramId) } });
+  }
   return {
     userId: user.id,
-    fullName: user.fullName
+    fullName: user.fullName,
+    phone: user.phone,
+    telegramId: telegramId ? String(telegramId) : user.telegramId || null
   };
 }
 

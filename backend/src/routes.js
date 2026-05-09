@@ -21,6 +21,7 @@ import {
   createCourse,
   createCourseAsync,
   createStudentRegistrationToken,
+  createStudentRegistrationTokenAsync,
   createTeacher,
   createTeacherAsync,
   createTelegramLinkCode,
@@ -1476,16 +1477,26 @@ router.put("/student/me/profile/password", authenticate, authorize("student"), (
 });
 
 router.get("/developers/me", authenticate, authorize("developer_portfolio"), (req, res) => {
-  const developer = getDeveloperProfileById(req.user.id);
-  if (!developer) {
-    return res.status(404).json({ message: "Dasturchi topilmadi" });
-  }
-  res.json(developer);
+  const handleDeveloperMe = async () => {
+    const developer =
+      config.dbProvider === "mongodb"
+        ? await getDeveloperProfileByIdMongo(req.user.id)
+        : config.dbProvider === "postgres"
+          ? await getDeveloperProfileByIdAsync(req.user.id)
+          : getDeveloperProfileById(req.user.id);
+    if (!developer) {
+      return res.status(404).json({ message: "Dasturchi topilmadi" });
+    }
+    res.json(developer);
+  };
+  handleDeveloperMe().catch((error) => {
+    res.status(500).json({ message: error.message || "Dasturchi topilmadi" });
+  });
 });
 
 router.put("/developers/me", authenticate, authorize("developer_portfolio"), (req, res) => {
-  try {
-    const developer = updateDeveloperProfile(req.user.id, {
+  const handleDeveloperUpdate = async () => {
+    const payload = {
       username: req.body.username,
       fullName: req.body.fullName,
       age: req.body.age,
@@ -1501,11 +1512,16 @@ router.put("/developers/me", authenticate, authorize("developer_portfolio"), (re
       githubUrl: req.body.githubUrl,
       websiteUrl: req.body.websiteUrl,
       passwordHash: req.body.password ? bcrypt.hashSync(req.body.password, 10) : null
-    });
+    };
+    const developer =
+      config.dbProvider === "mongodb"
+        ? await updateDeveloperProfileMongo(req.user.id, payload)
+        : updateDeveloperProfile(req.user.id, payload);
     res.json(developer);
-  } catch (error) {
+  };
+  handleDeveloperUpdate().catch((error) => {
     res.status(400).json({ message: error.message || "Dasturchi profili yangilanmadi" });
-  }
+  });
 });
 
 export default router;
