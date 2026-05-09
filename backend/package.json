@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "supabase:schema": "node src/supabase-setup.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.0.7",
     "pdfkit": "^0.18.0",
+    "pg": "^8.16.0",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.5",
     "telegraf": "^4.16.3"

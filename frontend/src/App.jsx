@@ -2212,7 +2212,7 @@ function HomePage() {
 				<section className='landing-v2-courses' id='courses'>
 					<div className='landing-v2-section-head'>
 						<h2>Bizning Kurslarimiz</h2>
-						<p>Director panelida kiritilgan kurslar shu yerda o'z narxi bilan avtomatik ko'rinadi.</p>
+						
 					</div>
 					<div className='landing-v2-course-grid'>
 						{publicCourses.length ? publicCourses.map((course, index) => {
@@ -2235,7 +2235,7 @@ function HomePage() {
 						}) : (
 							<div className='landing-v2-course-empty glass-card'>
 								<strong>Hozircha kurs qo'shilmagan</strong>
-								<p>Director panelidan kurs nomi va narxini kiritsangiz, shu yerda avtomatik chiqadi.</p>
+								
 							</div>
 						)}
 					</div>
