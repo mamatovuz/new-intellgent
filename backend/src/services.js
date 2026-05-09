@@ -22,7 +22,6 @@ import { getSupabasePool } from "./supabase-db.js";
 const db = getDb();
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const uploadsDir = path.join(runtimeRoot, "uploads");
-const isPostgres = config.dbProvider === "postgres";
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });

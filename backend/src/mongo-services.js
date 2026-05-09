@@ -1281,6 +1281,173 @@ export async function updateDeveloperProfileMongo(id, payload) {
   };
 }
 
+function formatMoneyMongo(value) {
+  return `${Number(value || 0).toLocaleString("ru-RU")} so'm`;
+}
+
+async function tryRegisterReminderDispatchMongo(studentId, reminderType, dispatchDate) {
+  const exists = await ReminderDispatch.findOne({
+    studentId: Number(studentId),
+    reminderType,
+    dispatchDate: new Date(dispatchDate)
+  }).lean();
+  if (exists) {
+    return false;
+  }
+  const id = await getNextSequence("reminder_dispatches");
+  await ReminderDispatch.create({
+    id,
+    studentId: Number(studentId),
+    reminderType,
+    dispatchDate: new Date(dispatchDate),
+    createdAt: new Date()
+  });
+  return true;
+}
+
+export async function listDebtorsMongo() {
+  const students = await Student.find({ status: "debtor", isArchived: false }).lean();
+  const userIds = [...new Set(students.map((item) => item.userId))];
+  const courseIds = [...new Set(students.map((item) => item.courseId).filter(Boolean))];
+  const [users, courses] = await Promise.all([
+    User.find({ id: { $in: userIds } }).lean(),
+    Course.find({ id: { $in: courseIds } }).lean()
+  ]);
+  const userMap = new Map(users.map((item) => [item.id, item]));
+  const courseMap = new Map(courses.map((item) => [item.id, item]));
+  return students.map((student) => {
+    const user = userMap.get(student.userId);
+    const course = courseMap.get(student.courseId);
+    return {
+      studentId: student.id,
+      userId: student.userId,
+      fullName: user?.fullName || "",
+      telegramId: user?.telegramId || null,
+      balance: Number(student.balance || 0),
+      monthlyFee: Number(course?.monthlyFee || 0),
+      courseTitle: course?.title || ""
+    };
+  });
+}
+
+export async function listUpcomingPaymentsMongo(days = 3) {
+  const today = dayjs().startOf("day");
+  const endDate = today.add(Number(days || 3), "day");
+  const students = await Student.find({
+    isArchived: false,
+    paymentDueDate: { $ne: null }
+  }).lean();
+  const userIds = [...new Set(students.map((item) => item.userId))];
+  const courseIds = [...new Set(students.map((item) => item.courseId).filter(Boolean))];
+  const [users, courses] = await Promise.all([
+    User.find({ id: { $in: userIds } }).lean(),
+    Course.find({ id: { $in: courseIds } }).lean()
+  ]);
+  const userMap = new Map(users.map((item) => [item.id, item]));
+  const courseMap = new Map(courses.map((item) => [item.id, item]));
+  return students
+    .filter((student) => {
+      const due = student.paymentDueDate ? dayjs(student.paymentDueDate) : null;
+      return due && !due.isBefore(today) && !due.isAfter(endDate);
+    })
+    .map((student) => {
+      const user = userMap.get(student.userId);
+      const course = courseMap.get(student.courseId);
+      return {
+        studentId: student.id,
+        userId: student.userId,
+        fullName: user?.fullName || "",
+        telegramId: user?.telegramId || null,
+        monthlyFee: Number(course?.monthlyFee || 0),
+        courseTitle: course?.title || "",
+        dueDate: dayjs(student.paymentDueDate).format("YYYY-MM-DD")
+      };
+    });
+}
+
+export async function listTrialFinishedStudentsMongo(days = 0) {
+  const students = await Student.find({
+    isArchived: false,
+    status: { $in: ["active", "debtor"] },
+    trialRequired: { $gt: 0 },
+    paymentDueDate: { $ne: null }
+  }).lean();
+  const userIds = [...new Set(students.map((item) => item.userId))];
+  const courseIds = [...new Set(students.map((item) => item.courseId).filter(Boolean))];
+  const [users, courses] = await Promise.all([
+    User.find({ id: { $in: userIds } }).lean(),
+    Course.find({ id: { $in: courseIds } }).lean()
+  ]);
+  const userMap = new Map(users.map((item) => [item.id, item]));
+  const courseMap = new Map(courses.map((item) => [item.id, item]));
+  const targetDate = dayjs().add(Number(days || 0), "day").format("YYYY-MM-DD");
+  return students
+    .filter((student) => student.paymentDueDate && dayjs(student.paymentDueDate).format("YYYY-MM-DD") === targetDate)
+    .map((student) => {
+      const user = userMap.get(student.userId);
+      const course = courseMap.get(student.courseId);
+      return {
+        studentId: student.id,
+        userId: student.userId,
+        fullName: user?.fullName || "",
+        telegramId: user?.telegramId || null,
+        courseTitle: course?.title || "",
+        paymentDueDate: dayjs(student.paymentDueDate).format("YYYY-MM-DD")
+      };
+    });
+}
+
+export async function queueDailyReminderJobsMongo({ upcomingDays = 3 } = {}) {
+  const dispatchDate = dayjs().format("YYYY-MM-DD");
+  const jobs = [];
+
+  for (const student of await listDebtorsMongo()) {
+    if (!(await tryRegisterReminderDispatchMongo(student.studentId, "debt_daily", dispatchDate))) continue;
+    const debtAmount = Math.max(0, Number(student.monthlyFee || 0) - Number(student.balance || 0));
+    await createNotificationMongo({
+      targetUserId: student.userId,
+      type: "debt_reminder",
+      title: "Qarzdorlik eslatmasi",
+      message: `${formatMoneyMongo(debtAmount)} to'lovingiz kutilmoqda. Iltimos, qarzingizni to'lang.`,
+      metadata: { studentId: student.studentId, debtAmount, courseTitle: student.courseTitle }
+    });
+    jobs.push({ type: "debt", student });
+  }
+
+  for (const student of await listUpcomingPaymentsMongo(upcomingDays)) {
+    if (!(await tryRegisterReminderDispatchMongo(student.studentId, "payment_upcoming", dispatchDate))) continue;
+    await createNotificationMongo({
+      targetUserId: student.userId,
+      type: "payment_upcoming",
+      title: "To'lov eslatmasi",
+      message: `${student.courseTitle || "Kurs"} uchun oylik to'lov muddati ${student.dueDate} sanada tugaydi.`,
+      metadata: { studentId: student.studentId, amount: Number(student.monthlyFee || 0), dueDate: student.dueDate }
+    });
+    jobs.push({ type: "payment_upcoming", student });
+  }
+
+  for (const student of await listTrialFinishedStudentsMongo(0)) {
+    if (!(await tryRegisterReminderDispatchMongo(student.studentId, "trial_finished", dispatchDate))) continue;
+    await createNotificationMongo({
+      targetRole: "reception",
+      type: "trial_finished",
+      title: "Sinov muddati tugadi",
+      message: `${student.fullName} uchun sinov muddati tugadi va to'lov bosqichi boshlandi.`,
+      metadata: { studentId: student.studentId, paymentDueDate: student.paymentDueDate }
+    });
+    await createNotificationMongo({
+      targetUserId: student.userId,
+      type: "trial_finished_student",
+      title: "Sinov muddati tugadi",
+      message: `${student.courseTitle || "Kurs"} bo'yicha sinov muddati tugadi. Endi oylik to'lovni amalga oshiring.`,
+      metadata: { studentId: student.studentId, paymentDueDate: student.paymentDueDate }
+    });
+    jobs.push({ type: "trial_finished", student });
+  }
+
+  return jobs;
+}
+
 export async function updateUserProfileMongo(userId, payload) {
   const current = await User.findOne({ id: Number(userId) }).lean();
   if (!current) throw new Error("Foydalanuvchi topilmadi");

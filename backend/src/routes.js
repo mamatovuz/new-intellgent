@@ -12,8 +12,6 @@ import {
   archiveStudentAsync,
   buildPaymentReceiptAsset,
   buildQrCodeAsset,
-  buildFinanceCsv,
-  buildStudentsCsv,
   changeStudentPassword,
   changeStudentPasswordAsync,
   createContactRequestAsync,
@@ -1165,39 +1163,77 @@ router.delete("/director/courses/:id", authenticate, authorize("director"), (req
 });
 
 router.get("/director/reports/export", authenticate, authorize("director"), (req, res) => {
-  const type = req.query.type || "overview";
-  const format = req.query.format || "xlsx";
-  const reportFilters = {
-    period: req.query.period || "",
-    from: req.query.from || "",
-    to: req.query.to || ""
-  };
+  const handleDirectorExport = async () => {
+    const type = req.query.type || "overview";
+    const format = req.query.format || "xlsx";
+    const reportFilters = {
+      period: req.query.period || "",
+      from: req.query.from || "",
+      to: req.query.to || ""
+    };
 
-  if (format === "csv") {
-    const content = type === "finance" ? buildFinanceCsv() : buildStudentsCsv();
-    const fileName = type === "finance" ? "finance-report.csv" : "students-report.csv";
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
-    return res.send(content);
-  }
+    if (format === "csv") {
+      if (type === "finance") {
+        const finance =
+          config.dbProvider === "mongodb"
+            ? await getFinanceSummaryMongo()
+            : config.dbProvider === "postgres"
+              ? await getFinanceSummaryAsync()
+              : getFinanceSummary();
+        const content = [
+          "Kategoriya,Qiymat",
+          `Jami tushum,${finance.totals.totalRevenue}`,
+          `Bugungi tushum,${finance.totals.todayRevenue}`,
+          `Oylik tushum,${finance.totals.monthlyRevenue}`,
+          `O'qituvchi oyligi,${finance.totals.teachersPayroll}`,
+          `Boshqa xarajatlar,${finance.totals.operatingExpenses}`,
+          `Jami xarajatlar,${finance.totals.totalExpenses}`,
+          `Sof foyda,${finance.totals.netProfit}`
+        ].join("\n");
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", "attachment; filename=finance-report.csv");
+        return res.send(content);
+      }
 
-  if (format === "pdf") {
-    buildDirectorPdfReport(reportFilters).then((buffer) => {
+      const students =
+        config.dbProvider === "mongodb"
+          ? await listStudentsMongo({ includeArchived: true })
+          : config.dbProvider === "postgres"
+            ? await listStudentsAsync({ includeArchived: true })
+            : listStudents({ includeArchived: true });
+      const content = [
+        "Ism,Telefon,Kurs,O'qituvchi,Balans,Status,Arxiv",
+        ...students.map((student) =>
+          [
+            student.fullName,
+            student.phone,
+            student.courseTitle || "",
+            student.teacherName || "",
+            student.balance,
+            student.status,
+            student.isArchived ? "Ha" : "Yo'q"
+          ].join(",")
+        )
+      ].join("\n");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=students-report.csv");
+      return res.send(content);
+    }
+
+    if (format === "pdf") {
+      const buffer = await buildDirectorPdfReport(reportFilters);
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=ilm-nest-report.pdf");
-      res.send(buffer);
-    }).catch((error) => {
-      res.status(500).json({ message: error.message || "PDF report yaratilmadi" });
-    });
-    return;
-  }
+      return res.send(buffer);
+    }
 
-  buildDirectorWorkbook(reportFilters).then((buffer) => {
+    const buffer = await buildDirectorWorkbook(reportFilters);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", "attachment; filename=ilm-nest-report.xlsx");
     res.send(Buffer.from(buffer));
-  }).catch((error) => {
-    res.status(500).json({ message: error.message || "Excel report yaratilmadi" });
+  };
+  handleDirectorExport().catch((error) => {
+    res.status(500).json({ message: error.message || "Report eksport qilinmadi" });
   });
 });
 

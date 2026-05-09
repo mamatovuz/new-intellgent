@@ -1,13 +1,26 @@
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import dayjs from "dayjs";
+import { config } from "./config.js";
 import {
   getDirectorStats,
+  getDirectorStatsAsync,
   getFinanceSummary,
+  getFinanceSummaryAsync,
   listAllPayments,
+  listAllPaymentsAsync,
   listStudents,
-  listTeachers
+  listStudentsAsync,
+  listTeachers,
+  listTeachersAsync
 } from "./services.js";
+import {
+  getDirectorStatsMongo,
+  getFinanceSummaryMongo,
+  listAllPaymentsMongo,
+  listStudentsMongo,
+  listTeachersMongo
+} from "./mongo-services.js";
 
 function formatMoney(value) {
   return `${Number(value || 0).toLocaleString("ru-RU")} UZS`;
@@ -100,11 +113,39 @@ export async function buildDirectorWorkbook(options = {}) {
   workbook.created = new Date();
   workbook.modified = new Date();
 
-  const overview = getDirectorStats();
-  const finance = getFinanceSummary();
-  const students = listStudents({ includeArchived: true });
-  const payments = filterItemsByDate(listAllPayments(), options.from, options.to);
-  const teachers = listTeachers();
+  const overview =
+    config.dbProvider === "mongodb"
+      ? await getDirectorStatsMongo()
+      : config.dbProvider === "postgres"
+        ? await getDirectorStatsAsync()
+        : getDirectorStats();
+  const finance =
+    config.dbProvider === "mongodb"
+      ? await getFinanceSummaryMongo()
+      : config.dbProvider === "postgres"
+        ? await getFinanceSummaryAsync()
+        : getFinanceSummary();
+  const students =
+    config.dbProvider === "mongodb"
+      ? await listStudentsMongo({ includeArchived: true })
+      : config.dbProvider === "postgres"
+        ? await listStudentsAsync({ includeArchived: true })
+        : listStudents({ includeArchived: true });
+  const payments = filterItemsByDate(
+    config.dbProvider === "mongodb"
+      ? await listAllPaymentsMongo()
+      : config.dbProvider === "postgres"
+        ? await listAllPaymentsAsync()
+        : listAllPayments(),
+    options.from,
+    options.to
+  );
+  const teachers =
+    config.dbProvider === "mongodb"
+      ? await listTeachersMongo()
+      : config.dbProvider === "postgres"
+        ? await listTeachersAsync()
+        : listTeachers();
   const subtitle = buildFilterSubtitle(options);
 
   const summarySheet = workbook.addWorksheet("Umumiy");
@@ -257,10 +298,34 @@ function drawTable(doc, startY, headers, rows, columnWidths) {
 }
 
 export async function buildDirectorPdfReport(options = {}) {
-  const overview = getDirectorStats();
-  const finance = getFinanceSummary();
-  const students = listStudents({ includeArchived: false }).slice(0, 12);
-  const filteredPayments = filterItemsByDate(listAllPayments(), options.from, options.to);
+  const overview =
+    config.dbProvider === "mongodb"
+      ? await getDirectorStatsMongo()
+      : config.dbProvider === "postgres"
+        ? await getDirectorStatsAsync()
+        : getDirectorStats();
+  const finance =
+    config.dbProvider === "mongodb"
+      ? await getFinanceSummaryMongo()
+      : config.dbProvider === "postgres"
+        ? await getFinanceSummaryAsync()
+        : getFinanceSummary();
+  const students = (
+    config.dbProvider === "mongodb"
+      ? await listStudentsMongo({ includeArchived: false })
+      : config.dbProvider === "postgres"
+        ? await listStudentsAsync({ includeArchived: false })
+        : listStudents({ includeArchived: false })
+  ).slice(0, 12);
+  const filteredPayments = filterItemsByDate(
+    config.dbProvider === "mongodb"
+      ? await listAllPaymentsMongo()
+      : config.dbProvider === "postgres"
+        ? await listAllPaymentsAsync()
+        : listAllPayments(),
+    options.from,
+    options.to
+  );
   const subtitle = buildFilterSubtitle(options);
 
   const doc = new PDFDocument({ size: "A4", margin: 40 });

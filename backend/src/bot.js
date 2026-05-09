@@ -6,6 +6,7 @@ import {
   getStudentAccessLinkByUserIdMongo,
   getStudentByIdMongo,
   getStudentByTelegramIdMongo,
+  queueDailyReminderJobsMongo,
   verifyTelegramCodeMongo
 } from "./mongo-services.js";
 import {
@@ -228,11 +229,10 @@ export function startBot() {
       return;
     }
 
-    if (config.dbProvider === "mongodb") {
-      return;
-    }
-
-    const jobs = queueDailyReminderJobs({ upcomingDays: 3 });
+    const jobs =
+      config.dbProvider === "mongodb"
+        ? await queueDailyReminderJobsMongo({ upcomingDays: 3 })
+        : queueDailyReminderJobs({ upcomingDays: 3 });
     for (const job of jobs) {
       if (!job.student?.telegramId) {
         continue;
