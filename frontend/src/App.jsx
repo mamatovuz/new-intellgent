@@ -4905,6 +4905,15 @@ function PaymentCollectionWorkspace({
 						</div>
 						<Badge tone='default'>{visibleMembers.length} ta student</Badge>
 					</div>
+					<div className='payment-inline-search'>
+						<input
+							type='text'
+							className='toolbar-search'
+							placeholder="Studentni qidiring..."
+							value={studentSearch}
+							onChange={event => setStudentSearch(event.target.value)}
+						/>
+					</div>
 					<div className='payment-workspace-grid'>
 						<div className='payment-student-list'>
 							{visibleMembers.map((student, index) => (
@@ -4924,7 +4933,7 @@ function PaymentCollectionWorkspace({
 										</div>
 									</div>
 									<div className='payment-student-card-meta'>
-										<span>{formatMoney(student.monthlyFee || 0)}</span>
+										<span>{getStudyMonthLabel(student)} / {formatMoney(student.monthlyFee || 0)}</span>
 										<Badge tone={getStudentStatusMeta(student.status).tone}>
 											{getStudentStatusMeta(student.status).label}
 										</Badge>
@@ -4944,19 +4953,10 @@ function PaymentCollectionWorkspace({
 									{getStudentStatusMeta(selectedStudent.status).label}
 								</Badge>
 							</div>
-							<div className='payment-editor-stats'>
-								<div>
-									<span>Oylik kurs narxi</span>
-									<strong>{formatMoney(minimumAmount)}</strong>
-								</div>
-								<div>
-									<span>Joriy balans</span>
-									<strong>{formatMoney(selectedStudent.balance || 0)}</strong>
-								</div>
-								<div>
-									<span>Ustoz</span>
-									<strong>{selectedStudent.teacherName || '-'}</strong>
-								</div>
+							<div className='payment-editor-summary'>
+								<span>Oylik: {formatMoney(minimumAmount)}</span>
+								<span>Balans: {formatMoney(selectedStudent.balance || 0)}</span>
+								<span>Ustoz: {selectedStudent.teacherName || '-'}</span>
 							</div>
 							<div className='field-grid compact-grid'>
 								<div>
@@ -4993,7 +4993,7 @@ function PaymentCollectionWorkspace({
 									</select>
 								</div>
 							</div>
-							<label className='toggle-row'>
+							<label className='toggle-row compact'>
 								<input
 									type='checkbox'
 									checked={paymentForm.allowDiscount}
@@ -5007,7 +5007,7 @@ function PaymentCollectionWorkspace({
 								/>
 								<div>
 									<strong>Sababli to'lov</strong>
-									<span>Kurs narxidan kamroq summa qabul qilish uchun sabab kiriting</span>
+									<span>Kamroq summa uchun sabab yozing</span>
 								</div>
 							</label>
 							{paymentForm.allowDiscount ? (

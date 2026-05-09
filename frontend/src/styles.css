@@ -4173,6 +4173,15 @@ background: #00236f;
   display: none;
 }
 
+.payment-flow-shell.inside-modal .payment-workspace-head {
+  display: none;
+}
+
+.payment-flow-shell.inside-modal .payment-workspace-grid {
+  margin-top: 0;
+  grid-template-columns: 1fr;
+}
+
 .section-title-row.compact {
   margin-bottom: 14px;
   padding-bottom: 12px;
@@ -4225,6 +4234,10 @@ background: #00236f;
   display: grid;
   gap: 10px;
   align-content: start;
+}
+
+.payment-inline-search {
+  margin: 0 0 14px;
 }
 
 .payment-student-card {
@@ -4296,6 +4309,15 @@ background: #00236f;
   gap: 10px;
 }
 
+.payment-editor-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .payment-editor-stats div {
   min-height: 72px;
   padding: 12px;
@@ -4362,6 +4384,15 @@ background: #00236f;
   outline: none;
   border-color: rgba(19, 51, 133, 0.38);
   box-shadow: 0 0 0 3px rgba(19, 51, 133, 0.08);
+}
+
+.toggle-row.compact {
+  padding: 12px 14px;
+}
+
+.toggle-row.compact .attendance-check-copy span,
+.toggle-row.compact span {
+  font-size: 12px;
 }
 
 .field-help {
