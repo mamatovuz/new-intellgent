@@ -4429,12 +4429,11 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 		status: initialData.status || 'trial',
 		billingStartDate: initialData.billingStartDate || '',
 		scheduleDays: initialSchedule.days,
-		startTime: initialSchedule.startTime,
-		endTime: initialSchedule.endTime,
 	})
 	const selectedCourse = meta.courses.find(
 		course => Number(course.id) === Number(form.courseId),
 	)
+	const selectedCourseSchedule = parseScheduleString(selectedCourse?.schedule || '')
 	const availableTeachers = meta.teachers.filter(teacher =>
 		(teacher.courseIds || []).includes(Number(form.courseId)),
 	)
@@ -4478,8 +4477,8 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 						trialRequired: form.status === 'active' ? 0 : 3,
 						schedule: buildScheduleString(
 							form.scheduleDays,
-							form.startTime,
-							form.endTime,
+							selectedCourseSchedule.startTime,
+							selectedCourseSchedule.endTime,
 						),
 					})
 				}}
@@ -4556,8 +4555,7 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 						<label>Dars kunlari</label>
 						<div className='weekday-grid'>
 							{WEEKDAY_OPTIONS.map(day => {
-								const allowedDays = parseScheduleString(selectedCourse?.schedule || '')
-									.days
+								const allowedDays = selectedCourseSchedule.days
 								const disabled = allowedDays.length
 									? !allowedDays.includes(day.key)
 									: false
@@ -4587,22 +4585,6 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 								)
 							})}
 						</div>
-					</div>
-					<div>
-						<label>Dars boshlanish vaqti</label>
-						<input
-							type='time'
-							value={form.startTime}
-							onChange={e => setForm({ ...form, startTime: e.target.value })}
-						/>
-					</div>
-					<div>
-						<label>Dars tugash vaqti</label>
-						<input
-							type='time'
-							value={form.endTime}
-							onChange={e => setForm({ ...form, endTime: e.target.value })}
-						/>
 					</div>
 					<div>
 						<label>Oylik boshlanish sanasi</label>
