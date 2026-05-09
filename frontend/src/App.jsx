@@ -824,6 +824,57 @@ function EmptyStateNotice({ message }) {
 	return <div className='dashboard-empty-state'>{message}</div>
 }
 
+function fileToBase64(file) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onload = () => {
+			const result = String(reader.result || '')
+			resolve(result.includes(',') ? result.split(',')[1] : result)
+		}
+		reader.onerror = () => reject(new Error("Faylni o'qib bo'lmadi"))
+		reader.readAsDataURL(file)
+	})
+}
+
+function downloadStudentImportTemplate() {
+	const rows = [
+		[
+			'full_name',
+			'phone',
+			'course',
+			'teacher',
+			'status',
+			'enrolled_at',
+			'billing_start_date',
+			'balance',
+			'study_month',
+			'note',
+		],
+		[
+			'Muhammadali Karimov',
+			'+998932303410',
+			'IELTS Intensive',
+			'Dilshod Teacher',
+			'faol',
+			'2025-12-10',
+			'2026-05-01',
+			'800000',
+			'6',
+			'Eski student importi',
+		],
+	]
+	const csv = rows.map(row => row.join(',')).join('\n')
+	const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+	const url = URL.createObjectURL(blob)
+	const link = document.createElement('a')
+	link.href = url
+	link.download = 'student-import-template.csv'
+	document.body.appendChild(link)
+	link.click()
+	document.body.removeChild(link)
+	URL.revokeObjectURL(url)
+}
+
 function readFileAsDataUrl(file) {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader()
@@ -5871,6 +5922,158 @@ function ReceptionAttendancePage({ token, meta }) {
 	return <AttendanceManagerPage token={token} meta={meta} role='reception' />
 }
 
+function StudentImportSection({ token }) {
+	const [selectedFile, setSelectedFile] = useState(null)
+	const [preview, setPreview] = useState(null)
+	const [loading, setLoading] = useState(false)
+	const [importing, setImporting] = useState(false)
+
+	async function handlePreview() {
+		if (!selectedFile) {
+			await showError('Import uchun fayl tanlang')
+			return
+		}
+		try {
+			setLoading(true)
+			const fileDataBase64 = await fileToBase64(selectedFile)
+			const result = await api.previewStudentImport(token, {
+				fileName: selectedFile.name,
+				fileDataBase64,
+			})
+			setPreview(result)
+		} catch (error) {
+			await showError(error.message)
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	async function handleImport() {
+		if (!preview?.summary?.readyRows) {
+			await showError("Import uchun tayyor qator topilmadi")
+			return
+		}
+		try {
+			setImporting(true)
+			const result = await api.importStudentsBatch(token, preview.rows)
+			await showSuccess('Import yakunlandi', `${result.createdCount} ta o'quvchi qo'shildi`)
+			setSelectedFile(null)
+			setPreview(null)
+		} catch (error) {
+			await showError(error.message)
+		} finally {
+			setImporting(false)
+		}
+	}
+
+	return (
+		<section className='card settings-card'>
+			<div className='card-head-row'>
+				<div>
+					<h3>Eski o'quvchilarni import qilish</h3>
+					<p>Excel, CSV yoki JSON fayl orqali eski studentlarni bir martada tizimga yuklang</p>
+				</div>
+				<ActionButton secondary icon='download' onClick={downloadStudentImportTemplate}>
+					Shablon
+				</ActionButton>
+			</div>
+			<div className='import-panel'>
+				<div className='import-panel-top'>
+					<label className='file-upload-box'>
+						<input
+							type='file'
+							accept='.xlsx,.csv,.json'
+							onChange={event => {
+								setSelectedFile(event.target.files?.[0] || null)
+								setPreview(null)
+							}}
+						/>
+						<div>
+							<strong>{selectedFile ? selectedFile.name : 'Import faylini tanlang'}</strong>
+							<span>.xlsx, .csv yoki .json yuklashingiz mumkin</span>
+						</div>
+					</label>
+					<div className='import-panel-actions'>
+						<ActionButton secondary icon='preview' onClick={handlePreview}>
+							{loading ? 'Tekshirilmoqda...' : "Preview ko'rish"}
+						</ActionButton>
+						<ActionButton icon='upload_file' onClick={handleImport}>
+							{importing ? 'Import qilinmoqda...' : 'Import qilish'}
+						</ActionButton>
+					</div>
+				</div>
+				{preview ? (
+					<div className='import-preview top-space'>
+						<div className='import-summary-grid'>
+							<div className='import-summary-card'>
+								<span>Jami qator</span>
+								<strong>{preview.summary.totalRows}</strong>
+							</div>
+							<div className='import-summary-card success'>
+								<span>Tayyor</span>
+								<strong>{preview.summary.readyRows}</strong>
+							</div>
+							<div className='import-summary-card danger'>
+								<span>Xato</span>
+								<strong>{preview.summary.errorRows}</strong>
+							</div>
+							<div className='import-summary-card warning'>
+								<span>Ogohlantirish</span>
+								<strong>{preview.summary.warningRows}</strong>
+							</div>
+						</div>
+						<div className='table-shell responsive-cards top-space'>
+							<table>
+								<thead>
+									<tr>
+										<th>Qator</th>
+										<th>O'quvchi</th>
+										<th>Kurs</th>
+										<th>O'qituvchi</th>
+										<th>Holat</th>
+										<th>Izoh</th>
+									</tr>
+								</thead>
+								<tbody>
+									{preview.rows.map(row => (
+										<tr key={`${row.rowNumber}-${row.phone}`}>
+											<td data-label='Qator'>#{row.rowNumber}</td>
+											<td data-label="O'quvchi">
+												<div className='import-student-cell'>
+													<strong>{row.fullName || '-'}</strong>
+													<span>{row.phone || '-'}</span>
+												</div>
+											</td>
+											<td data-label='Kurs'>{row.courseTitle || '-'}</td>
+											<td data-label="O'qituvchi">{row.teacherName || '-'}</td>
+											<td data-label='Holat'>
+												<Badge tone={row.ready ? 'success' : 'danger'}>
+													{row.ready ? 'Tayyor' : 'Xato'}
+												</Badge>
+											</td>
+											<td data-label='Izoh'>
+												<div className='import-issues'>
+													{row.errors?.length ? (
+														<span className='danger-text'>{row.errors.join(', ')}</span>
+													) : row.warnings?.length ? (
+														<span className='warning-text'>{row.warnings.join(', ')}</span>
+													) : (
+														<span className='muted-label'>Tayyor</span>
+													)}
+												</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				) : null}
+			</div>
+		</section>
+	)
+}
+
 function ReceptionSettingsPage({ meta, token, onProfileUpdated }) {
 	return (
 		<>
@@ -5884,6 +6087,7 @@ function ReceptionSettingsPage({ meta, token, onProfileUpdated }) {
 				title='Reception profili'
 				onProfileUpdated={onProfileUpdated}
 			/>
+			<StudentImportSection token={token} />
 		</>
 	)
 }

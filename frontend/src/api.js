@@ -161,6 +161,18 @@ export const api = {
       token,
       body: JSON.stringify(payload)
     }),
+  previewStudentImport: (token, payload) =>
+    request("/reception/students/import/preview", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload)
+    }),
+  importStudentsBatch: (token, rows) =>
+    request("/reception/students/import/commit", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ rows })
+    }),
   updateStudent: (token, studentId, payload) =>
     request(`/reception/students/${studentId}`, {
       method: "PUT",

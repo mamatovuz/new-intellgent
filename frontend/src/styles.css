@@ -8035,6 +8035,137 @@ th {
   color: var(--navy);
 }
 
+.import-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.import-panel-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.file-upload-box {
+  flex: 1 1 360px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px dashed rgba(19, 51, 133, 0.22);
+  border-radius: 12px;
+  background: rgba(250, 252, 255, 0.9);
+  cursor: pointer;
+}
+
+.file-upload-box input {
+  display: none;
+}
+
+.file-upload-box strong {
+  display: block;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.file-upload-box span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.import-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.import-summary-card {
+  padding: 14px 16px;
+  border: 1px solid rgba(19, 51, 133, 0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.import-summary-card span {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.import-summary-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.import-summary-card.success {
+  background: rgba(38, 179, 78, 0.06);
+}
+
+.import-summary-card.warning {
+  background: rgba(217, 149, 16, 0.06);
+}
+
+.import-summary-card.danger {
+  background: rgba(212, 59, 59, 0.06);
+}
+
+.import-student-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-student-cell strong {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.import-student-cell span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.import-issues {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .import-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .import-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .import-panel-actions {
+    width: 100%;
+  }
+
+  .import-panel-actions .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .info-lines {
   display: grid;
   gap: 10px;
