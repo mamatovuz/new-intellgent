@@ -820,6 +820,10 @@ function TrendLineChart({
 	)
 }
 
+function EmptyStateNotice({ message }) {
+	return <div className='dashboard-empty-state'>{message}</div>
+}
+
 function readFileAsDataUrl(file) {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader()
@@ -3917,42 +3921,46 @@ function StudentDashboardPage({ token }) {
 							Barchasini ko'rish
 						</Link>
 					</div>
-					<div className='table-shell'>
-						<table>
-							<thead>
-								<tr>
-									<th>SANA</th>
-									<th>SUMMA</th>
-									<th>USUL</th>
-									<th>STATUS</th>
-									<th>AMAL</th>
-								</tr>
-							</thead>
-							<tbody>
-								{payments.map(payment => (
-									<tr key={payment.id}>
-										<td>{payment.createdAt}</td>
-										<td className='amount-cell'>
-											{formatMoney(payment.amount)}
-										</td>
-										<td>{getPaymentMethodMeta(payment.method).shortLabel}</td>
-										<td>
-											<Badge
-												tone={payment.status === 'paid' ? 'success' : 'danger'}
-											>
-												{payment.status === 'paid'
-													? 'Muvaffaqiyatli'
-													: payment.status}
-											</Badge>
-										</td>
-										<td className='receipt-cell'>
-											<Icon name='receipt_long' />
-										</td>
+					{payments.length ? (
+						<div className='table-shell'>
+							<table>
+								<thead>
+									<tr>
+										<th>SANA</th>
+										<th>SUMMA</th>
+										<th>USUL</th>
+										<th>STATUS</th>
+										<th>AMAL</th>
 									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
+								</thead>
+								<tbody>
+									{payments.map(payment => (
+										<tr key={payment.id}>
+											<td>{payment.createdAt}</td>
+											<td className='amount-cell'>
+												{formatMoney(payment.amount)}
+											</td>
+											<td>{getPaymentMethodMeta(payment.method).shortLabel}</td>
+											<td>
+												<Badge
+													tone={payment.status === 'paid' ? 'success' : 'danger'}
+												>
+													{payment.status === 'paid'
+														? 'Muvaffaqiyatli'
+														: payment.status}
+												</Badge>
+											</td>
+											<td className='receipt-cell'>
+												<Icon name='receipt_long' />
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					) : (
+						<EmptyStateNotice message="To'lovlar tarixi hozircha yo'q." />
+					)}
 				</section>
 			</div>
 		</>
@@ -3974,28 +3982,32 @@ function StudentAttendancePage({ token }) {
 				<StatCard label='Kelmadi' value={`${data.last30Days.absent} ta`} note='Absent' tone='danger' icon='cancel' />
 			</div>
 			<section className='card table-card'>
-				<div className='table-shell responsive-cards' hidden>
-					<table>
-						<thead>
-							<tr>
-								<th>Sana</th>
-								<th>Holat</th>
-							</tr>
-						</thead>
-						<tbody>
-							{data.items.map(item => (
-								<tr key={`${item.date}-${item.status}`}>
-									<td>{item.date}</td>
-									<td data-label="O'quvchi">
-										<Badge tone={item.status === 'present' ? 'success' : 'danger'}>
-											{item.status === 'present' ? 'Keldi' : 'Kelmadi'}
-										</Badge>
-									</td>
+				{data.items.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>Sana</th>
+									<th>Holat</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{data.items.map(item => (
+									<tr key={`${item.date}-${item.status}`}>
+										<td>{item.date}</td>
+										<td data-label="O'quvchi">
+											<Badge tone={item.status === 'present' ? 'success' : 'danger'}>
+												{item.status === 'present' ? 'Keldi' : 'Kelmadi'}
+											</Badge>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Davomat ma'lumoti hozircha yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -4015,38 +4027,42 @@ function StudentPaymentsPage({ token }) {
 				<StatCard label='Qarz' value={formatMoney(data.debt)} note="Agar mavjud bo'lsa" tone={data.debt > 0 ? 'danger' : 'default'} icon='warning' />
 			</div>
 			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>SANA</th>
-								<th>SUMMA</th>
-								<th>USUL</th>
-								<th>STATUS</th>
-								<th>QABUL QILDI</th>
-							</tr>
-						</thead>
-						<tbody>
-							{data.items.map(payment => (
-								<tr key={payment.id}>
-									<td>{payment.createdAt}</td>
-									<td className='amount-cell'>{formatMoney(payment.amount)}</td>
-									<td>{getPaymentMethodMeta(payment.method).shortLabel}</td>
-									<td data-label='Kontakt'>
-										<Badge
-											tone={payment.status === 'paid' ? 'success' : 'danger'}
-										>
-											{payment.status === 'paid'
-												? 'Muvaffaqiyatli'
-												: payment.status}
-										</Badge>
-									</td>
-									<td>{payment.receivedBy || '-'}</td>
+				{data.items.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>SANA</th>
+									<th>SUMMA</th>
+									<th>USUL</th>
+									<th>STATUS</th>
+									<th>QABUL QILDI</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{data.items.map(payment => (
+									<tr key={payment.id}>
+										<td>{payment.createdAt}</td>
+										<td className='amount-cell'>{formatMoney(payment.amount)}</td>
+										<td>{getPaymentMethodMeta(payment.method).shortLabel}</td>
+										<td data-label='Kontakt'>
+											<Badge
+												tone={payment.status === 'paid' ? 'success' : 'danger'}
+											>
+												{payment.status === 'paid'
+													? 'Muvaffaqiyatli'
+													: payment.status}
+											</Badge>
+										</td>
+										<td>{payment.receivedBy || '-'}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="To'lov tarixi hozircha yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -4106,13 +4122,17 @@ function StudentNotificationsPage({ token }) {
 		<>
 			<PageHeader title='Bildirishnomalar' subtitle='Student uchun barcha ogohlantirishlar' />
 			<section className='card'>
-				<div className='timeline-list' hidden>
-					{items.map(item => (
-						<button key={item.id} type='button' className={item.status === 'read' ? 'notification-item read' : 'notification-item'} onClick={() => readNotification(item.id)}>
-							<strong>{item.title}</strong>
-							<span>{item.message}</span>
-						</button>
-					))}
+				<div className='timeline-list'>
+					{items.length ? (
+						items.map(item => (
+							<button key={item.id} type='button' className={item.status === 'read' ? 'notification-item read' : 'notification-item'} onClick={() => readNotification(item.id)}>
+								<strong>{item.title}</strong>
+								<span>{item.message}</span>
+							</button>
+						))
+					) : (
+						<div className='notification-empty'>Bildirishnoma yo'q.</div>
+					)}
 				</div>
 			</section>
 		</>
@@ -5065,20 +5085,21 @@ function ReceptionStudentsPage({ token, meta }) {
 					</div>
 					<Badge tone='default'>{students.length} ta</Badge>
 				</div>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'quvchi</th>
-								<th>Kontakt</th>
-								<th>Kurs va O'qituvchi</th>
-								<th>Balans</th>
-								<th>Status</th>
-								<th>Amallar</th>
-							</tr>
-						</thead>
-						<tbody>
-							{students.map((student, index) => (
+				{students.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>O'quvchi</th>
+									<th>Kontakt</th>
+									<th>Kurs va O'qituvchi</th>
+									<th>Balans</th>
+									<th>Status</th>
+									<th>Amallar</th>
+								</tr>
+							</thead>
+							<tbody>
+								{students.map((student, index) => (
 								<tr key={student.id}>
 									<td data-label="Kurs va O'qituvchi">
 											<div className='student-identity'>
@@ -5186,10 +5207,13 @@ function ReceptionStudentsPage({ token, meta }) {
 										</div>
 									</td>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="O'quvchilar hozircha yo'q." />
+				)}
 			</section>
 
 			{studentModal ? (
@@ -5403,7 +5427,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 					</div>
 				</div>
 				<div className='attendance-group-grid top-space'>
-					{groupedStudents.map(group => (
+					{groupedStudents.length ? groupedStudents.map(group => (
 						<button
 							key={group.key}
 							type='button'
@@ -5431,7 +5455,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 								</div>
 							</div>
 						</button>
-					))}
+					)) : <EmptyStateNotice message="To'lov uchun guruhlar hozircha yo'q." />}
 				</div>
 			</section>
 			<section className='card table-card'>
@@ -5441,32 +5465,36 @@ function ReceptionPaymentsPage({ token, meta }) {
 						<h3>So'nggi qabul qilingan to'lovlar</h3>
 					</div>
 				</div>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'quvchi</th>
-								<th>Kurs</th>
-								<th>Miqdor</th>
-								<th>Usul</th>
-								<th>Sabab</th>
-								<th>Sana</th>
-							</tr>
-						</thead>
-						<tbody>
-							{payments.map(payment => (
-								<tr key={payment.id}>
-									<td data-label="O'quvchi">{payment.studentName}</td>
-									<td data-label='Kurs'>{payment.courseTitle}</td>
-									<td data-label='Miqdor' className='amount-cell'>{formatMoney(payment.amount)}</td>
-									<td data-label='Usul'>{getPaymentMethodMeta(payment.method).shortLabel}</td>
-									<td data-label='Sabab'>{payment.reason || '-'}</td>
-									<td data-label='Sana'>{payment.createdAt}</td>
+				{payments.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>O'quvchi</th>
+									<th>Kurs</th>
+									<th>Miqdor</th>
+									<th>Usul</th>
+									<th>Sabab</th>
+									<th>Sana</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{payments.map(payment => (
+									<tr key={payment.id}>
+										<td data-label="O'quvchi">{payment.studentName}</td>
+										<td data-label='Kurs'>{payment.courseTitle}</td>
+										<td data-label='Miqdor' className='amount-cell'>{formatMoney(payment.amount)}</td>
+										<td data-label='Usul'>{getPaymentMethodMeta(payment.method).shortLabel}</td>
+										<td data-label='Sabab'>{payment.reason || '-'}</td>
+										<td data-label='Sana'>{payment.createdAt}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="To'lovlar hozircha yo'q." />
+				)}
 			</section>
 			{paymentGroupModal ? (
 				<Modal
@@ -5483,7 +5511,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 							onChange={event => setPaymentStudentSearch(event.target.value)}
 						/>
 						<div className='payment-picker-list top-space'>
-							{visiblePaymentModalStudents.map((student, index) => (
+							{visiblePaymentModalStudents.length ? visiblePaymentModalStudents.map((student, index) => (
 								<button
 									key={student.id}
 									type='button'
@@ -5516,7 +5544,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 										{getStudentStatusMeta(student.status).label}
 									</Badge>
 								</button>
-							))}
+							)) : <EmptyStateNotice message="Bu guruhda student topilmadi." />}
 						</div>
 					</div>
 				</Modal>
@@ -5567,44 +5595,48 @@ function ReceptionContactRequestsPage({ token }) {
 				subtitle="Asosiy sahifadagi murojaatlar reception paneliga tushadi"
 			/>
 			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>F.I.Sh</th>
-								<th>Telefon</th>
-								<th>Xabar</th>
-								<th>Holat</th>
-								<th>Sana</th>
-								<th>Amal</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.map(item => (
-								<tr key={item.id}>
-									<td data-label='F.I.Sh'>{item.fullName}</td>
-									<td data-label='Telefon'>{item.phone}</td>
-									<td data-label='Xabar'>{item.message}</td>
-									<td data-label='Holat'>
-										<Badge tone={item.status === 'new' ? 'warning' : 'success'}>
-											{item.status === 'new' ? 'Yangi' : "Ko'rildi"}
-										</Badge>
-									</td>
-									<td data-label='Sana'>{item.createdAt}</td>
-									<td data-label='Amal'>
-										{item.status === 'new' ? (
-											<button type='button' className='page-btn' onClick={() => handleRead(item.id)}>
-												Ko'rildi
-											</button>
-										) : (
-											<span className='muted-label'>Tayyor</span>
-										)}
-									</td>
+				{items.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>F.I.Sh</th>
+									<th>Telefon</th>
+									<th>Xabar</th>
+									<th>Holat</th>
+									<th>Sana</th>
+									<th>Amal</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{items.map(item => (
+									<tr key={item.id}>
+										<td data-label='F.I.Sh'>{item.fullName}</td>
+										<td data-label='Telefon'>{item.phone}</td>
+										<td data-label='Xabar'>{item.message}</td>
+										<td data-label='Holat'>
+											<Badge tone={item.status === 'new' ? 'warning' : 'success'}>
+												{item.status === 'new' ? 'Yangi' : "Ko'rildi"}
+											</Badge>
+										</td>
+										<td data-label='Sana'>{item.createdAt}</td>
+										<td data-label='Amal'>
+											{item.status === 'new' ? (
+												<button type='button' className='page-btn' onClick={() => handleRead(item.id)}>
+													Ko'rildi
+												</button>
+											) : (
+												<span className='muted-label'>Tayyor</span>
+											)}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Habar yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -5739,7 +5771,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 					</div>
 				</div>
 				<div className='attendance-group-grid top-space'>
-					{visibleGroups.map(group => {
+					{visibleGroups.length ? visibleGroups.map(group => {
 						const schedule = group.members[0]?.schedule || "Vaqt kiritilmagan"
 						return (
 							<button
@@ -5767,7 +5799,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 								</div>
 							</button>
 						)
-					})}
+					}) : <EmptyStateNotice message="Bugungi davomat uchun guruh topilmadi." />}
 				</div>
 			</section>
 			{groupModal ? (
@@ -5786,7 +5818,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 							/>
 						</div>
 						<div className='attendance-student-list top-space'>
-							{visibleMembers.map((student, index) => {
+							{visibleMembers.length ? visibleMembers.map((student, index) => {
 								const statusValue =
 									attendanceMap[student.id] || historyMap[student.id] || 'absent'
 								const isPresent = statusValue === 'present'
@@ -5816,7 +5848,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 										</div>
 									</article>
 								)
-							})}
+							}) : <EmptyStateNotice message="Bu guruhda student yo'q." />}
 						</div>
 						<div className='attendance-footer'>
 							<div className='attendance-actions'>
@@ -5910,11 +5942,11 @@ function TeacherAttendancePage({ token }) {
 						value={selectedGroup}
 						onChange={e => setSelectedGroup(e.target.value)}
 					>
-						{groups.map(group => (
+						{groups.length ? groups.map(group => (
 							<option key={group.key} value={group.key}>
 								Guruh: {group.label}
 							</option>
-						))}
+						)) : <option value=''>Guruh yo'q</option>}
 					</select>
 					<input type='date' value={lessonDate} onChange={event => setLessonDate(event.target.value)} />
 				</div>
@@ -5961,41 +5993,45 @@ function TeacherAttendancePage({ token }) {
 					<h3>{currentGroup.label || "Davomat ko'rinishi"}</h3>
 					<span>{currentGroup.members.length} o'quvchi ro'yxatda</span>
 				</div>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'QUVCHI F.I.SH</th>
-								<th>STATUS</th>
-								<th>IZOH</th>
-							</tr>
-						</thead>
-						<tbody>
-							{currentGroup.members.map((student, index) => {
-								const current = historyMap[student.id] || 'present'
-								const meta = getAttendanceStatusMeta(current)
-								return (
-									<tr key={student.id}>
-										<td data-label="O'quvchi">
-											<div className='student-identity'>
-												<div className={`avatar-badge tone-${index % 5}`}>
-													{getInitials(student.fullName)}
+				{currentGroup.members.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>O'QUVCHI F.I.SH</th>
+									<th>STATUS</th>
+									<th>IZOH</th>
+								</tr>
+							</thead>
+							<tbody>
+								{currentGroup.members.map((student, index) => {
+									const current = historyMap[student.id] || 'present'
+									const meta = getAttendanceStatusMeta(current)
+									return (
+										<tr key={student.id}>
+											<td data-label="O'quvchi">
+												<div className='student-identity'>
+													<div className={`avatar-badge tone-${index % 5}`}>
+														{getInitials(student.fullName)}
+													</div>
+													<strong>{student.fullName}</strong>
 												</div>
-												<strong>{student.fullName}</strong>
-											</div>
-										</td>
-										<td data-label='Status'>
-											<Badge tone={meta.tone}>{meta.label}</Badge>
-										</td>
-										<td data-label='Izoh'>
-											<span className='muted-label'>-</span>
-										</td>
-									</tr>
-								)
-							})}
-						</tbody>
-					</table>
-				</div>
+											</td>
+											<td data-label='Status'>
+												<Badge tone={meta.tone}>{meta.label}</Badge>
+											</td>
+											<td data-label='Izoh'>
+												<span className='muted-label'>-</span>
+											</td>
+										</tr>
+									)
+								})}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Tanlangan guruhda davomat yozuvi yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -6143,60 +6179,68 @@ function TeacherStatisticsPage({ token }) {
 				subtitle='Davomat va guruh samaradorligi'
 			/>
 			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>Student</th>
-								<th>Kurs</th>
-								<th>Davomat</th>
-							</tr>
-						</thead>
-						<tbody>
-							{students.map(student => (
-								<tr key={student.id}>
-									<td data-label='Student'>{student.fullName}</td>
-									<td data-label='Kurs'>{student.courseTitle}</td>
-									<td data-label='Davomat' className='amount-cell'>{student.attendancePercent}%</td>
+				{students.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>Student</th>
+									<th>Kurs</th>
+									<th>Davomat</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{students.map(student => (
+									<tr key={student.id}>
+										<td data-label='Student'>{student.fullName}</td>
+										<td data-label='Kurs'>{student.courseTitle}</td>
+										<td data-label='Davomat' className='amount-cell'>{student.attendancePercent}%</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Studentlar hozircha yo'q." />
+				)}
 			</section>
 			<section className='card table-card'>
 				<div className='card-head-row'>
 					<h3>Davomat tarixi</h3>
 					<p>So'nggi 30 kunlik yozuvlar</p>
 				</div>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>Sana</th>
-								<th>Student</th>
-								<th>Kurs</th>
-								<th>Holat</th>
-							</tr>
-						</thead>
-						<tbody>
-							{history.map(item => (
-								<tr key={item.id}>
-									<td data-label='Sana'>{item.lessonDate}</td>
-									<td data-label='Student'>{item.studentName}</td>
-									<td data-label='Kurs'>{item.courseTitle}</td>
-									<td data-label='Holat'>
-										<Badge
-											tone={item.status === 'present' ? 'success' : 'danger'}
-										>
-											{item.status === 'present' ? 'Keldi' : 'Kelmadi'}
-										</Badge>
-									</td>
+				{history.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>Sana</th>
+									<th>Student</th>
+									<th>Kurs</th>
+									<th>Holat</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{history.map(item => (
+									<tr key={item.id}>
+										<td data-label='Sana'>{item.lessonDate}</td>
+										<td data-label='Student'>{item.studentName}</td>
+										<td data-label='Kurs'>{item.courseTitle}</td>
+										<td data-label='Holat'>
+											<Badge
+												tone={item.status === 'present' ? 'success' : 'danger'}
+											>
+												{item.status === 'present' ? 'Keldi' : 'Kelmadi'}
+											</Badge>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Davomat tarixi hozircha yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -6553,46 +6597,50 @@ function DirectorDashboardPage({ token }) {
 					</Link>
 				</div>
 
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>YO'NALISH</th>
-								<th>GURUHLAR</th>
-								<th>O'QUVCHILAR</th>
-								<th>TUSHUM</th>
-								<th>SAMARADORLIK</th>
-							</tr>
-						</thead>
-						<tbody>
-							{data.courseAnalysis.map((course, index) => (
-								<tr key={course.id}>
-									<td data-label="Yo'nalish">
-										<div className='course-analytics-name'>
-											<div className={`course-icon tone-${index % 4}`}>
-												{['EN', 'MT', 'WD', 'IT'][index % 4]}
-											</div>
-											<div>
-												<strong>{course.title}</strong>
-											</div>
-										</div>
-									</td>
-									<td data-label='Guruhlar'>{course.groupsCount} ta</td>
-									<td data-label="O'quvchilar">{course.studentsCount} ta</td>
-									<td data-label='Tushum' className='amount-cell'>{formatMoney(course.revenue)}</td>
-									<td
-										data-label='Samaradorlik'
-										className={
-											course.efficiency >= 85 ? 'success-text' : 'warning-text'
-										}
-									>
-										{course.efficiency}%
-									</td>
+				{data.courseAnalysis.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>YO'NALISH</th>
+									<th>GURUHLAR</th>
+									<th>O'QUVCHILAR</th>
+									<th>TUSHUM</th>
+									<th>SAMARADORLIK</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{data.courseAnalysis.map((course, index) => (
+									<tr key={course.id}>
+										<td data-label="Yo'nalish">
+											<div className='course-analytics-name'>
+												<div className={`course-icon tone-${index % 4}`}>
+													{['EN', 'MT', 'WD', 'IT'][index % 4]}
+												</div>
+												<div>
+													<strong>{course.title}</strong>
+												</div>
+											</div>
+										</td>
+										<td data-label='Guruhlar'>{course.groupsCount} ta</td>
+										<td data-label="O'quvchilar">{course.studentsCount} ta</td>
+										<td data-label='Tushum' className='amount-cell'>{formatMoney(course.revenue)}</td>
+										<td
+											data-label='Samaradorlik'
+											className={
+												course.efficiency >= 85 ? 'success-text' : 'warning-text'
+											}
+										>
+											{course.efficiency}%
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Yo'nalishlar bo'yicha ma'lumot hozircha yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -6612,42 +6660,46 @@ function DirectorStudentsPage({ token }) {
 				subtitle="Barcha studentlar bo'yicha umumiy nazorat"
 			/>
 			<section className='card table-card'>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'quvchi</th>
-								<th>Kurs</th>
-								<th>O'qituvchi</th>
-								<th>Balans</th>
-								<th>Status</th>
-								<th>To'lov muddati</th>
-							</tr>
-						</thead>
-						<tbody>
-							{students.map(student => (
-								<tr key={student.id}>
-									<td data-label="O'quvchi">{student.fullName}</td>
-									<td data-label='Kurs'>{student.courseTitle}</td>
-									<td data-label="O'qituvchi">{student.teacherName}</td>
-									<td data-label='Balans' className='amount-cell'>
-										{formatMoney(student.balance)}
-									</td>
-									<td data-label='Status'>
-										<Badge tone={getStudentStatusMeta(student.status).tone}>
-											{getStudentStatusMeta(student.status).label}
-										</Badge>
-									</td>
-									<td data-label="To'lov muddati">
-										{student.status === 'trial'
-											? `${student.trialProgress || 0}/${student.trialRequired || 3} kun`
-											: student.paymentDueDate || '-'}
-									</td>
+				{students.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>O'quvchi</th>
+									<th>Kurs</th>
+									<th>O'qituvchi</th>
+									<th>Balans</th>
+									<th>Status</th>
+									<th>To'lov muddati</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{students.map(student => (
+									<tr key={student.id}>
+										<td data-label="O'quvchi">{student.fullName}</td>
+										<td data-label='Kurs'>{student.courseTitle}</td>
+										<td data-label="O'qituvchi">{student.teacherName}</td>
+										<td data-label='Balans' className='amount-cell'>
+											{formatMoney(student.balance)}
+										</td>
+										<td data-label='Status'>
+											<Badge tone={getStudentStatusMeta(student.status).tone}>
+												{getStudentStatusMeta(student.status).label}
+											</Badge>
+										</td>
+										<td data-label="To'lov muddati">
+											{student.status === 'trial'
+												? `${student.trialProgress || 0}/${student.trialRequired || 3} kun`
+												: student.paymentDueDate || '-'}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="O'quvchilar hozircha yo'q." />
+				)}
 			</section>
 		</>
 	)
@@ -6713,16 +6765,20 @@ function DirectorPaymentsPage({ token }) {
 								<span className='mini-meta'>Qaysi kanal ko'proq ishlayapti</span>
 							</div>
 							<div className='metric-chip-grid'>
-								{finance.paymentMethods.map(item => (
-									<div key={item.method} className='metric-chip-card'>
-										<strong>
-											<Icon name={getPaymentMethodMeta(item.method).icon} className='inline-icon' />{' '}
-											{getPaymentMethodMeta(item.method).label}
-										</strong>
-										<span>{item.count} ta tranzaksiya</span>
-										<b>{formatMoney(item.amount)}</b>
-									</div>
-								))}
+								{finance.paymentMethods.length ? (
+									finance.paymentMethods.map(item => (
+										<div key={item.method} className='metric-chip-card'>
+											<strong>
+												<Icon name={getPaymentMethodMeta(item.method).icon} className='inline-icon' />{' '}
+												{getPaymentMethodMeta(item.method).label}
+											</strong>
+											<span>{item.count} ta tranzaksiya</span>
+											<b>{formatMoney(item.amount)}</b>
+										</div>
+									))
+								) : (
+									<EmptyStateNotice message="To'lov usullari bo'yicha ma'lumot yo'q." />
+								)}
 							</div>
 						</div>
 						<div className='analytics-panel'>
@@ -6731,15 +6787,19 @@ function DirectorPaymentsPage({ token }) {
 								<span className='mini-meta'>Tushum bo'yicha</span>
 							</div>
 							<div className='timeline-list'>
-								{finance.topTeachers.map(teacher => (
-									<div key={teacher.id} className='timeline-item'>
-										<strong>{teacher.fullName}</strong>
-										<span>
-											Tushum: {formatMoney(teacher.revenue)} · Oylik:{' '}
-											{formatMoney(teacher.monthlySalary || 0)}
-										</span>
-									</div>
-								))}
+								{finance.topTeachers.length ? (
+									finance.topTeachers.map(teacher => (
+										<div key={teacher.id} className='timeline-item'>
+											<strong>{teacher.fullName}</strong>
+											<span>
+												Tushum: {formatMoney(teacher.revenue)} · Oylik:{' '}
+												{formatMoney(teacher.monthlySalary || 0)}
+											</span>
+										</div>
+									))
+								) : (
+									<EmptyStateNotice message="O'qituvchilar bo'yicha ma'lumot yo'q." />
+								)}
 							</div>
 						</div>
 						<div className='analytics-panel'>
@@ -6773,28 +6833,32 @@ function DirectorPaymentsPage({ token }) {
 					</div>
 				) : null}
 				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'quvchi</th>
-								<th>Kurs</th>
-								<th>Miqdor</th>
-								<th>Usul</th>
-								<th>Sana</th>
-							</tr>
-						</thead>
-						<tbody>
-							{payments.map(payment => (
-								<tr key={payment.id}>
-									<td data-label="O'quvchi">{payment.studentName}</td>
-									<td data-label='Kurs'>{payment.courseTitle}</td>
-									<td data-label='Miqdor' className='amount-cell'>{formatMoney(payment.amount)}</td>
-									<td data-label='Usul'>{getPaymentMethodMeta(payment.method).shortLabel}</td>
-									<td data-label='Sana'>{payment.createdAt}</td>
+					{payments.length ? (
+						<table>
+							<thead>
+								<tr>
+									<th>O'quvchi</th>
+									<th>Kurs</th>
+									<th>Miqdor</th>
+									<th>Usul</th>
+									<th>Sana</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{payments.map(payment => (
+									<tr key={payment.id}>
+										<td data-label="O'quvchi">{payment.studentName}</td>
+										<td data-label='Kurs'>{payment.courseTitle}</td>
+										<td data-label='Miqdor' className='amount-cell'>{formatMoney(payment.amount)}</td>
+										<td data-label='Usul'>{getPaymentMethodMeta(payment.method).shortLabel}</td>
+										<td data-label='Sana'>{payment.createdAt}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					) : (
+						<EmptyStateNotice message="To'lovlar hozircha yo'q." />
+					)}
 				</div>
 			</section>
 		</>
@@ -6850,41 +6914,53 @@ function DirectorStatisticsPage({ token }) {
 						<div className='analytics-panel'>
 							<h3>Kurslar</h3>
 							<div className='timeline-list'>
-								{finance.byCourse.map(item => (
-									<div key={item.title} className='timeline-item'>
-										<strong>{item.title}</strong>
-										<span>{formatMoney(item.revenue)}</span>
-									</div>
-								))}
+								{finance.byCourse.length ? (
+									finance.byCourse.map(item => (
+										<div key={item.title} className='timeline-item'>
+											<strong>{item.title}</strong>
+											<span>{formatMoney(item.revenue)}</span>
+										</div>
+									))
+								) : (
+									<EmptyStateNotice message="Kurslar bo'yicha ma'lumot yo'q." />
+								)}
 							</div>
 						</div>
 						<div className='analytics-panel'>
 							<h3>To'lov usullari</h3>
 							<div className='metric-chip-grid'>
-								{finance.paymentMethods.map(item => (
-									<div key={item.method} className='metric-chip-card'>
-										<strong>
-											<Icon name={getPaymentMethodMeta(item.method).icon} className='inline-icon' />{' '}
-											{getPaymentMethodMeta(item.method).label}
-										</strong>
-										<span>{item.count} ta</span>
-										<b>{formatMoney(item.amount)}</b>
-									</div>
-								))}
+								{finance.paymentMethods.length ? (
+									finance.paymentMethods.map(item => (
+										<div key={item.method} className='metric-chip-card'>
+											<strong>
+												<Icon name={getPaymentMethodMeta(item.method).icon} className='inline-icon' />{' '}
+												{getPaymentMethodMeta(item.method).label}
+											</strong>
+											<span>{item.count} ta</span>
+											<b>{formatMoney(item.amount)}</b>
+										</div>
+									))
+								) : (
+									<EmptyStateNotice message="To'lov usullari bo'yicha ma'lumot yo'q." />
+								)}
 							</div>
 						</div>
 						<div className='analytics-panel'>
 							<h3>Top o'qituvchilar</h3>
 							<div className='timeline-list'>
-								{finance.topTeachers.map(teacher => (
-									<div key={teacher.id} className='timeline-item'>
-										<strong>{teacher.fullName}</strong>
-										<span>
-											Tushum: {formatMoney(teacher.revenue)} · Oylik:{' '}
-											{formatMoney(teacher.monthlySalary || 0)}
-										</span>
-									</div>
-								))}
+								{finance.topTeachers.length ? (
+									finance.topTeachers.map(teacher => (
+										<div key={teacher.id} className='timeline-item'>
+											<strong>{teacher.fullName}</strong>
+											<span>
+												Tushum: {formatMoney(teacher.revenue)} · Oylik:{' '}
+												{formatMoney(teacher.monthlySalary || 0)}
+											</span>
+										</div>
+									))
+								) : (
+									<EmptyStateNotice message="O'qituvchilar bo'yicha ma'lumot yo'q." />
+								)}
 							</div>
 						</div>
 					</div>
@@ -6928,34 +7004,38 @@ function DirectorStatisticsPage({ token }) {
 					</div>
 				</div>
 				<div className='table-shell responsive-cards top-space'>
-					<table>
-						<thead>
-							<tr>
-								<th>O'qituvchi</th>
-								<th>Student</th>
-								<th>Faol</th>
-								<th>Sinov</th>
-								<th>Qarzdor</th>
-								<th>Davomat</th>
-								<th>Tushum</th>
-							</tr>
-						</thead>
-						<tbody>
-							{data.teacherPerformance.map(teacher => (
-								<tr key={teacher.id}>
-									<td data-label="O'qituvchi">{teacher.fullName}</td>
-									<td data-label='Student'>{teacher.studentsCount} ta</td>
-									<td data-label='Faol'>{teacher.activeStudentsCount} ta</td>
-									<td data-label='Sinov'>{teacher.trialStudentsCount} ta</td>
-									<td data-label='Qarzdor'>{teacher.debtorsCount} ta</td>
-									<td data-label='Davomat' className={teacher.attendancePercent >= 80 ? 'success-text' : 'warning-text'}>
-										{teacher.attendancePercent}%
-									</td>
-									<td data-label='Tushum' className='amount-cell'>{formatMoney(teacher.revenue)}</td>
+					{data.teacherPerformance.length ? (
+						<table>
+							<thead>
+								<tr>
+									<th>O'qituvchi</th>
+									<th>Student</th>
+									<th>Faol</th>
+									<th>Sinov</th>
+									<th>Qarzdor</th>
+									<th>Davomat</th>
+									<th>Tushum</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{data.teacherPerformance.map(teacher => (
+									<tr key={teacher.id}>
+										<td data-label="O'qituvchi">{teacher.fullName}</td>
+										<td data-label='Student'>{teacher.studentsCount} ta</td>
+										<td data-label='Faol'>{teacher.activeStudentsCount} ta</td>
+										<td data-label='Sinov'>{teacher.trialStudentsCount} ta</td>
+										<td data-label='Qarzdor'>{teacher.debtorsCount} ta</td>
+										<td data-label='Davomat' className={teacher.attendancePercent >= 80 ? 'success-text' : 'warning-text'}>
+											{teacher.attendancePercent}%
+										</td>
+										<td data-label='Tushum' className='amount-cell'>{formatMoney(teacher.revenue)}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					) : (
+						<EmptyStateNotice message="O'qituvchilar statistikasi hozircha yo'q." />
+					)}
 				</div>
 			</section>
 		</>
@@ -7142,49 +7222,53 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 						Yangi kurs
 					</ActionButton>
 				</div>
-				<div className='table-shell'>
-					<table>
-						<thead>
-							<tr>
-								<th>Nomi</th>
-								<th>Oylik to'lov</th>
-								<th>Jadval</th>
-								<th>Holat</th>
-								<th>Amallar</th>
-							</tr>
-						</thead>
-						<tbody>
-							{bundle.courses.map(course => (
-								<tr key={course.id}>
-									<td data-label='Nomi'>{course.title}</td>
-									<td data-label="Oylik to'lov">{formatMoney(course.monthlyFee)}</td>
-									<td data-label='Jadval'>{course.schedule}</td>
-									<td data-label='Holat'>
-										<Badge tone={course.isActive ? 'success' : 'gray'}>
-											{course.isActive ? 'Faol' : 'Ochiq emas'}
-										</Badge>
-									</td>
-									<td data-label='Amallar'>
-										<div className='table-actions'>
-											<button
-												type='button'
-												onClick={() => setCourseModal({ ...course })}
-											>
-												<Icon name='edit' />
-											</button>
-											<button
-												type='button'
-												onClick={() => handleDeleteCourse(course.id)}
-											>
-												<Icon name='delete' />
-											</button>
-										</div>
-									</td>
+				{bundle.courses.length ? (
+					<div className='table-shell'>
+						<table>
+							<thead>
+								<tr>
+									<th>Nomi</th>
+									<th>Oylik to'lov</th>
+									<th>Jadval</th>
+									<th>Holat</th>
+									<th>Amallar</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{bundle.courses.map(course => (
+									<tr key={course.id}>
+										<td data-label='Nomi'>{course.title}</td>
+										<td data-label="Oylik to'lov">{formatMoney(course.monthlyFee)}</td>
+										<td data-label='Jadval'>{course.schedule}</td>
+										<td data-label='Holat'>
+											<Badge tone={course.isActive ? 'success' : 'gray'}>
+												{course.isActive ? 'Faol' : 'Ochiq emas'}
+											</Badge>
+										</td>
+										<td data-label='Amallar'>
+											<div className='table-actions'>
+												<button
+													type='button'
+													onClick={() => setCourseModal({ ...course })}
+												>
+													<Icon name='edit' />
+												</button>
+												<button
+													type='button'
+													onClick={() => handleDeleteCourse(course.id)}
+												>
+													<Icon name='delete' />
+												</button>
+											</div>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="Kurslar hozircha qo'shilmagan." />
+				)}
 			</section>
 			<section className='card table-card'>
 				<div className='card-head-row'>
@@ -7205,64 +7289,68 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 						Yangi o'qituvchi
 					</ActionButton>
 				</div>
-				<div className='table-shell responsive-cards'>
-					<table>
-						<thead>
-							<tr>
-								<th>F.I.Sh</th>
-								<th>Username</th>
-								<th>Telefon</th>
-								<th>Oylik</th>
-								<th>Kurslar</th>
-								<th>Amallar</th>
-							</tr>
-						</thead>
-						<tbody>
-							{bundle.teachers.map(teacher => (
-								<tr key={teacher.id}>
-									<td data-label='F.I.Sh'>{teacher.fullName}</td>
-									<td data-label='Username'>{teacher.username}</td>
-									<td data-label='Telefon'>{teacher.phone || '-'}</td>
-									<td data-label='Oylik' className='amount-cell'>
-										{formatMoney(teacher.monthlySalary || 0)}
-									</td>
-									<td data-label='Kurslar'>
-										{(teacher.courseIds || []).length
-											? bundle.courses
-													.filter(course =>
-														(teacher.courseIds || []).includes(course.id),
-													)
-													.map(course => course.title)
-													.join(', ')
-											: '-'}
-									</td>
-									<td data-label='Amallar'>
-										<div className='table-actions'>
-											<button
-												type='button'
-												onClick={() =>
-													setTeacherModal({
-														...teacher,
-														password: '',
-														courseIds: teacher.courseIds || [],
-													})
-												}
-											>
-												<Icon name='edit' />
-											</button>
-											<button
-												type='button'
-												onClick={() => handleDeleteTeacher(teacher.id)}
-											>
-												<Icon name='delete' />
-											</button>
-										</div>
-									</td>
+				{bundle.teachers.length ? (
+					<div className='table-shell responsive-cards'>
+						<table>
+							<thead>
+								<tr>
+									<th>F.I.Sh</th>
+									<th>Username</th>
+									<th>Telefon</th>
+									<th>Oylik</th>
+									<th>Kurslar</th>
+									<th>Amallar</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{bundle.teachers.map(teacher => (
+									<tr key={teacher.id}>
+										<td data-label='F.I.Sh'>{teacher.fullName}</td>
+										<td data-label='Username'>{teacher.username}</td>
+										<td data-label='Telefon'>{teacher.phone || '-'}</td>
+										<td data-label='Oylik' className='amount-cell'>
+											{formatMoney(teacher.monthlySalary || 0)}
+										</td>
+										<td data-label='Kurslar'>
+											{(teacher.courseIds || []).length
+												? bundle.courses
+														.filter(course =>
+															(teacher.courseIds || []).includes(course.id),
+														)
+														.map(course => course.title)
+														.join(', ')
+												: '-'}
+										</td>
+										<td data-label='Amallar'>
+											<div className='table-actions'>
+												<button
+													type='button'
+													onClick={() =>
+														setTeacherModal({
+															...teacher,
+															password: '',
+															courseIds: teacher.courseIds || [],
+														})
+													}
+												>
+													<Icon name='edit' />
+												</button>
+												<button
+													type='button'
+													onClick={() => handleDeleteTeacher(teacher.id)}
+												>
+													<Icon name='delete' />
+												</button>
+											</div>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<EmptyStateNotice message="O'qituvchilar hozircha qo'shilmagan." />
+				)}
 			</section>
 			{courseModal ? (
 				<CourseModal
