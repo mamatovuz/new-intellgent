@@ -3997,109 +3997,6 @@ function StudentAttendancePage({ token }) {
 					</table>
 				</div>
 			</section>
-			<div className='two-column-grid reception-dashboard-grid'>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Bugungi guruhlar</h3>
-						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/attendance')}>
-							Davomatga o'tish
-						</button>
-					</div>
-					<div className='dashboard-mini-list'>
-						{todayGroups.length ? (
-							todayGroups.map(group => (
-								<button
-									type='button'
-									key={group.key}
-									className='mini-list-card'
-									onClick={() => navigate('/reception/attendance')}
-								>
-									<div>
-										<strong>{group.courseTitle}</strong>
-										<span>{group.teacherName}</span>
-									</div>
-									<div className='mini-list-side'>
-										<b>{group.members[0]?.schedule || "Vaqt yo'q"}</b>
-										<small>{group.members.length} ta student</small>
-									</div>
-								</button>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Bugun uchun guruh topilmadi.</div>
-						)}
-					</div>
-				</section>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Oxirgi harakatlar</h3>
-					</div>
-					<div className='timeline-list'>
-						{recentActivities.length ? (
-							recentActivities.map(item => (
-								<div key={item.id} className='timeline-item timeline-item-rich'>
-									<strong>{item.title}</strong>
-									<span>{item.description}</span>
-									<span>{item.meta}</span>
-								</div>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Hozircha oxirgi harakatlar yo'q.</div>
-						)}
-					</div>
-				</section>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Yangi murojaatlar</h3>
-						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/requests')}>
-							Barchasini ko'rish
-						</button>
-					</div>
-					<div className='dashboard-mini-list'>
-						{newRequests.length ? (
-							newRequests.map(item => (
-								<div key={item.id} className='mini-list-card static'>
-									<div>
-										<strong>{item.fullName}</strong>
-										<span>{item.phone}</span>
-									</div>
-									<div className='mini-list-side'>
-										<Badge tone='warning'>Yangi</Badge>
-										<small>{String(item.createdAt || '').slice(0, 10)}</small>
-									</div>
-								</div>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Yangi murojaat yo'q.</div>
-						)}
-					</div>
-				</section>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Qarzdorlar</h3>
-						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/students')}>
-							Ro'yxatga o'tish
-						</button>
-					</div>
-					<div className='dashboard-mini-list'>
-						{debtorsList.length ? (
-							debtorsList.map(student => (
-								<div key={student.id} className='mini-list-card static'>
-									<div>
-										<strong>{student.fullName}</strong>
-										<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
-									</div>
-									<div className='mini-list-side'>
-										<b>{formatMoney(Math.abs(Number(student.balance || 0)))}</b>
-										<small>{student.teacherName || "Ustoz yo'q"}</small>
-									</div>
-								</div>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Qarzdor student topilmadi.</div>
-						)}
-					</div>
-				</section>
-			</div>
 		</>
 	)
 }
@@ -4151,109 +4048,6 @@ function StudentPaymentsPage({ token }) {
 					</table>
 				</div>
 			</section>
-			<div className='two-column-grid reception-dashboard-grid'>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Bugungi guruhlar</h3>
-						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/attendance')}>
-							Davomatga o'tish
-						</button>
-					</div>
-					<div className='dashboard-mini-list'>
-						{todayGroups.length ? (
-							todayGroups.map(group => (
-								<button
-									type='button'
-									key={group.key}
-									className='mini-list-card'
-									onClick={() => navigate('/reception/attendance')}
-								>
-									<div>
-										<strong>{group.courseTitle}</strong>
-										<span>{group.teacherName}</span>
-									</div>
-									<div className='mini-list-side'>
-										<b>{group.members[0]?.schedule || "Vaqt yo'q"}</b>
-										<small>{group.members.length} ta student</small>
-									</div>
-								</button>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Bugun uchun guruh topilmadi.</div>
-						)}
-					</div>
-				</section>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Oxirgi harakatlar</h3>
-					</div>
-					<div className='timeline-list'>
-						{recentActivities.length ? (
-							recentActivities.map(item => (
-								<div key={item.id} className='timeline-item timeline-item-rich'>
-									<strong>{item.title}</strong>
-									<span>{item.description}</span>
-									<span>{item.meta}</span>
-								</div>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Hozircha oxirgi harakatlar yo'q.</div>
-						)}
-					</div>
-				</section>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Yangi murojaatlar</h3>
-						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/requests')}>
-							Barchasini ko'rish
-						</button>
-					</div>
-					<div className='dashboard-mini-list'>
-						{newRequests.length ? (
-							newRequests.map(item => (
-								<div key={item.id} className='mini-list-card static'>
-									<div>
-										<strong>{item.fullName}</strong>
-										<span>{item.phone}</span>
-									</div>
-									<div className='mini-list-side'>
-										<Badge tone='warning'>Yangi</Badge>
-										<small>{String(item.createdAt || '').slice(0, 10)}</small>
-									</div>
-								</div>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Yangi murojaat yo'q.</div>
-						)}
-					</div>
-				</section>
-				<section className='card reception-dashboard-section'>
-					<div className='section-title-row compact'>
-						<h3>Qarzdorlar</h3>
-						<button type='button' className='page-link-btn' onClick={() => navigate('/reception/students')}>
-							Ro'yxatga o'tish
-						</button>
-					</div>
-					<div className='dashboard-mini-list'>
-						{debtorsList.length ? (
-							debtorsList.map(student => (
-								<div key={student.id} className='mini-list-card static'>
-									<div>
-										<strong>{student.fullName}</strong>
-										<span>{student.courseTitle || "Kurs ko'rsatilmagan"}</span>
-									</div>
-									<div className='mini-list-side'>
-										<b>{formatMoney(Math.abs(Number(student.balance || 0)))}</b>
-										<small>{student.teacherName || "Ustoz yo'q"}</small>
-									</div>
-								</div>
-							))
-						) : (
-							<div className='dashboard-empty-state'>Qarzdor student topilmadi.</div>
-						)}
-					</div>
-				</section>
-			</div>
 		</>
 	)
 }
@@ -4616,9 +4410,17 @@ function buildReceptionTracks(students = [], meta = {}) {
 	const courses = Array.isArray(meta?.courses) ? meta.courses.filter(course => course.isActive !== false) : []
 	const teachers = Array.isArray(meta?.teachers) ? meta.teachers : []
 	const tracks = new Map()
+	const semanticKeys = new Set()
+
+	const toSemanticKey = (courseTitle, teacherName, schedule) =>
+		[String(courseTitle || '').trim(), String(teacherName || '').trim(), String(schedule || '').trim()]
+			.join('__')
+			.toLowerCase()
 
 	const pushTrack = ({ key, courseTitle, teacherName, schedule, members }) => {
-		if (tracks.has(key)) return
+		const semanticKey = toSemanticKey(courseTitle, teacherName, schedule || "Jadval kiritilmagan")
+		if (tracks.has(key) || semanticKeys.has(semanticKey)) return
+		semanticKeys.add(semanticKey)
 		tracks.set(key, {
 			key,
 			courseTitle,
