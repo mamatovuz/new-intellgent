@@ -4679,6 +4679,7 @@ function PaymentCollectionWorkspace({
 	initialStudentId = null,
 	onPaymentSaved,
 	embedded = true,
+	lockedGroupKey = '',
 }) {
 	const groupedStudents = useMemo(
 		() => groupStudentsByLearningTrack(students),
@@ -4686,7 +4687,7 @@ function PaymentCollectionWorkspace({
 	)
 	const [groupSearch, setGroupSearch] = useState('')
 	const [studentSearch, setStudentSearch] = useState('')
-	const [selectedGroupKey, setSelectedGroupKey] = useState('')
+	const [selectedGroupKey, setSelectedGroupKey] = useState(lockedGroupKey || '')
 	const [selectedStudentId, setSelectedStudentId] = useState(
 		initialStudentId ? Number(initialStudentId) : null,
 	)
@@ -4699,13 +4700,16 @@ function PaymentCollectionWorkspace({
 
 	const visibleGroups = useMemo(() => {
 		const query = groupSearch.trim().toLowerCase()
-		if (!query) return groupedStudents
-		return groupedStudents.filter(group =>
+		const baseGroups = lockedGroupKey
+			? groupedStudents.filter(group => group.key === lockedGroupKey)
+			: groupedStudents
+		if (!query) return baseGroups
+		return baseGroups.filter(group =>
 			[group.courseTitle, group.teacherName, group.schedule]
 				.filter(Boolean)
 				.some(value => String(value).toLowerCase().includes(query)),
 		)
-	}, [groupSearch, groupedStudents])
+	}, [groupSearch, groupedStudents, lockedGroupKey])
 
 	useEffect(() => {
 		if (!groupedStudents.length) {
@@ -4724,12 +4728,18 @@ function PaymentCollectionWorkspace({
 			}
 		}
 
+		if (lockedGroupKey) {
+			setSelectedGroupKey(lockedGroupKey)
+			return
+		}
+
 		if (!selectedGroupKey || !groupedStudents.some(group => group.key === selectedGroupKey)) {
 			setSelectedGroupKey(groupedStudents[0].key)
 		}
-	}, [groupedStudents, initialStudentId, selectedGroupKey])
+	}, [groupedStudents, initialStudentId, selectedGroupKey, lockedGroupKey])
 
 	const currentGroup =
+		groupedStudents.find(group => group.key === (lockedGroupKey || selectedGroupKey)) ||
 		visibleGroups.find(group => group.key === selectedGroupKey) ||
 		groupedStudents.find(group => group.key === selectedGroupKey) ||
 		visibleGroups[0] ||
@@ -4826,60 +4836,62 @@ function PaymentCollectionWorkspace({
 
 	return (
 		<div className={embedded ? 'payment-flow-shell' : 'payment-flow-shell inside-modal'}>
-			<section className='card payment-flow-card'>
-				<div className='attendance-hub-top'>
-					<div>
-						<span className='card-label'>Yo'nalish va ustoz</span>
-						<h3>To'lov qabul qilish oqimi</h3>
-						<p>Guruh kartasini oching, studentni tanlang va oylik to'lovni qabul qiling.</p>
+			{!lockedGroupKey ? (
+				<section className='card payment-flow-card'>
+					<div className='attendance-hub-top'>
+						<div>
+							<span className='card-label'>Yo'nalish va ustoz</span>
+							<h3>To'lov qabul qilish oqimi</h3>
+							<p>Guruh kartasini oching, studentni tanlang va oylik to'lovni qabul qiling.</p>
+						</div>
+						<div className='attendance-hub-controls'>
+							<input
+								type='text'
+								placeholder="Kurs, ustoz yoki vaqt bo'yicha qidiring..."
+								value={groupSearch}
+								onChange={event => setGroupSearch(event.target.value)}
+							/>
+							<input
+								type='text'
+								placeholder="Studentni qidiring..."
+								value={studentSearch}
+								onChange={event => setStudentSearch(event.target.value)}
+							/>
+						</div>
 					</div>
-					<div className='attendance-hub-controls'>
-						<input
-							type='text'
-							placeholder="Kurs, ustoz yoki vaqt bo'yicha qidiring..."
-							value={groupSearch}
-							onChange={event => setGroupSearch(event.target.value)}
-						/>
-						<input
-							type='text'
-							placeholder="Studentni qidiring..."
-							value={studentSearch}
-							onChange={event => setStudentSearch(event.target.value)}
-						/>
+					<div className='attendance-group-grid top-space'>
+						{visibleGroups.map(group => (
+							<button
+								key={group.key}
+								type='button'
+								className={`attendance-group-card ${selectedGroupKey === group.key ? 'selected' : ''}`}
+								onClick={() => {
+									setSelectedGroupKey(group.key)
+									setStudentSearch('')
+								}}
+							>
+								<div className='attendance-group-head'>
+									<div>
+										<strong>{group.courseTitle}</strong>
+										<span>{group.teacherName}</span>
+									</div>
+									<Badge tone='default'>{group.members.length} ta</Badge>
+								</div>
+								<div className='attendance-group-body'>
+									<div className='attendance-group-time'>
+										<Icon name='schedule' />
+										<span>{group.schedule}</span>
+									</div>
+									<div className='attendance-group-meta'>
+										<span>To'lov oynasini oching</span>
+										<Icon name='chevron_right' />
+									</div>
+								</div>
+							</button>
+						))}
 					</div>
-				</div>
-				<div className='attendance-group-grid top-space'>
-					{visibleGroups.map(group => (
-						<button
-							key={group.key}
-							type='button'
-							className={`attendance-group-card ${selectedGroupKey === group.key ? 'selected' : ''}`}
-							onClick={() => {
-								setSelectedGroupKey(group.key)
-								setStudentSearch('')
-							}}
-						>
-							<div className='attendance-group-head'>
-								<div>
-									<strong>{group.courseTitle}</strong>
-									<span>{group.teacherName}</span>
-								</div>
-								<Badge tone='default'>{group.members.length} ta</Badge>
-							</div>
-							<div className='attendance-group-body'>
-								<div className='attendance-group-time'>
-									<Icon name='schedule' />
-									<span>{group.schedule}</span>
-								</div>
-								<div className='attendance-group-meta'>
-									<span>To'lov oynasini oching</span>
-									<Icon name='chevron_right' />
-								</div>
-							</div>
-						</button>
-					))}
-				</div>
-			</section>
+				</section>
+			) : null}
 
 			{currentGroup && selectedStudent ? (
 				<section className='card payment-workspace-card top-space'>
@@ -5539,11 +5551,14 @@ function ReceptionPaymentsPage({ token }) {
 		includeArchived: false,
 	})
 	const [payments, setPayments] = usePaymentsData(token)
+	const [paymentGroupModal, setPaymentGroupModal] = useState(null)
+	const groupedStudents = useMemo(() => groupStudentsByLearningTrack(students), [students])
 
 	async function handlePaymentSaved() {
 		const nextPayments = await api.getAllPayments(token)
 		setPayments(nextPayments)
 		reload({ search: '', status: '', includeArchived: false })
+		setPaymentGroupModal(null)
 	}
 
 	return (
@@ -5552,13 +5567,43 @@ function ReceptionPaymentsPage({ token }) {
 				title="To'lovlar"
 				subtitle="Yo'nalish, ustoz va vaqt bo'yicha guruhni tanlab oylik to'lovni qabul qiling"
 			/>
-			<PaymentCollectionWorkspace
-				token={token}
-				students={students}
-				payments={payments}
-				initialStudentId={searchParams.get('studentId')}
-				onPaymentSaved={handlePaymentSaved}
-			/>
+			<section className='card payment-flow-card'>
+				<div className='attendance-hub-top'>
+					<div>
+						<span className='card-label'>Yo'nalish va ustoz</span>
+						<h3>To'lov qilinadigan guruhlar</h3>
+						<p>Kurs kartasini oching, keyin studentni tanlab to'lov qiling.</p>
+					</div>
+				</div>
+				<div className='attendance-group-grid top-space'>
+					{groupedStudents.map(group => (
+						<button
+							key={group.key}
+							type='button'
+							className='attendance-group-card'
+							onClick={() => setPaymentGroupModal(group)}
+						>
+							<div className='attendance-group-head'>
+								<div>
+									<strong>{group.courseTitle}</strong>
+									<span>{group.teacherName}</span>
+								</div>
+								<Badge tone='default'>{group.members.length} ta</Badge>
+							</div>
+							<div className='attendance-group-body'>
+								<div className='attendance-group-time'>
+									<Icon name='schedule' />
+									<span>{group.schedule}</span>
+								</div>
+								<div className='attendance-group-meta'>
+									<span>Studentlarni ochish</span>
+									<Icon name='chevron_right' />
+								</div>
+							</div>
+						</button>
+					))}
+				</div>
+			</section>
 			<section className='card table-card'>
 				<div className='section-title-row'>
 					<div>
@@ -5593,6 +5638,23 @@ function ReceptionPaymentsPage({ token }) {
 					</table>
 				</div>
 			</section>
+			{paymentGroupModal ? (
+				<Modal
+					title={paymentGroupModal.courseTitle}
+					subtitle={`${paymentGroupModal.teacherName} · ${paymentGroupModal.schedule}`}
+					onClose={() => setPaymentGroupModal(null)}
+				>
+					<PaymentCollectionWorkspace
+						token={token}
+						students={students}
+						payments={payments}
+						initialStudentId={searchParams.get('studentId')}
+						onPaymentSaved={handlePaymentSaved}
+						embedded={false}
+						lockedGroupKey={paymentGroupModal.key}
+					/>
+				</Modal>
+			) : null}
 		</>
 	)
 }
@@ -5843,24 +5905,17 @@ function AttendanceManagerPage({ token, role = 'reception' }) {
 								const isPresent = statusValue === 'present'
 								const meta = getAttendanceStatusMeta(statusValue)
 								return (
-									<article key={student.id} className='attendance-student-card'>
-										<div className='attendance-student-card-head'>
-											<div className='student-identity'>
-												<div className={`avatar-badge tone-${index % 5}`}>
-													{getInitials(student.fullName)}
-												</div>
-												<div className='course-cell'>
-													<strong>{student.fullName}</strong>
-													<span>{getStudyMonthLabel(student)}</span>
-												</div>
+									<article key={student.id} className='attendance-student-row'>
+										<div className='attendance-student-row-main'>
+											<div className={`avatar-badge tone-${index % 5}`}>
+												{getInitials(student.fullName)}
 											</div>
-											<Badge tone={meta.tone}>{meta.label}</Badge>
+											<div className='attendance-student-row-copy'>
+												<strong>{student.fullName}</strong>
+												<span>{student.phone || '-'} · {student.teacherName || "Ustoz biriktirilmagan"}</span>
+											</div>
 										</div>
-										<div className='attendance-student-card-meta'>
-											<div className='contact-cell'>
-												<strong>{student.phone || '-'}</strong>
-												<span>{student.teacherName || "Ustoz biriktirilmagan"}</span>
-											</div>
+										<div className='attendance-student-row-check'>
 											<AttendancePresenceToggle
 												checked={isPresent}
 												disabled={!editable}
