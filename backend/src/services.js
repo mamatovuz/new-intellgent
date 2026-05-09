@@ -1326,12 +1326,54 @@ function getTeacherPayrollSummary() {
   };
 }
 
+async function getTeacherPayrollSummaryAsync() {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT
+        COUNT(*)::int as "teachersCount",
+        COALESCE(SUM(monthly_salary), 0) as "monthlyPayroll"
+      FROM users
+      WHERE role = 'teacher'
+    `
+  );
+
+  const totals = rows[0] || {};
+  return {
+    teachersCount: Number(totals.teachersCount || 0),
+    monthlyPayroll: Number(totals.monthlyPayroll || 0)
+  };
+}
+
 function getOperatingExpenseSummary() {
   const rows = db.prepare(`
     SELECT key, value
     FROM settings
     WHERE key IN ('rent_expense', 'advertising_expense', 'internet_expense', 'admin_salary_expense')
   `).all();
+
+  const values = Object.fromEntries(rows.map((item) => [item.key, Number(item.value || 0)]));
+  const rent = Number(values.rent_expense || 0);
+  const advertising = Number(values.advertising_expense || 0);
+  const internet = Number(values.internet_expense || 0);
+  const adminSalary = Number(values.admin_salary_expense || 0);
+
+  return {
+    rent,
+    advertising,
+    internet,
+    adminSalary,
+    total: rent + advertising + internet + adminSalary
+  };
+}
+
+async function getOperatingExpenseSummaryAsync() {
+  const { rows } = await getSupabasePool().query(
+    `
+      SELECT key, value
+      FROM settings
+      WHERE key IN ('rent_expense', 'advertising_expense', 'internet_expense', 'admin_salary_expense')
+    `
+  );
 
   const values = Object.fromEntries(rows.map((item) => [item.key, Number(item.value || 0)]));
   const rent = Number(values.rent_expense || 0);
@@ -3531,6 +3573,370 @@ export function getFinanceSummary() {
   };
 }
 
+export async function getDirectorStatsAsync() {
+  const pool = getSupabasePool();
+  const payroll = await getTeacherPayrollSummaryAsync();
+  const operatingExpenses = await getOperatingExpenseSummaryAsync();
+
+  const { rows: cardsRows } = await pool.query(
+    `
+      SELECT
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'paid' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)) as "monthlyRevenue",
+        (SELECT COUNT(*)::int FROM students) as "totalStudents",
+        (SELECT COUNT(*)::int FROM students WHERE status = 'debtor') as "debtorsCount",
+        (SELECT COUNT(*)::int FROM students WHERE status = 'trial' AND is_archived = FALSE) as "trialStudentsCount"
+    `
+  );
+
+  const { rows: monthlyRevenueRows } = await pool.query(
+    `
+      SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as period,
+             COALESCE(SUM(amount), 0) as revenue
+      FROM payments
+      WHERE status = 'paid'
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY DATE_TRUNC('month', created_at) DESC
+      LIMIT 6
+    `
+  );
+  const monthlyRevenue = monthlyRevenueRows.reverse().map((item) => ({
+    period: item.period,
+    label: dayjs(`${item.period}-01`).format("MMM"),
+    revenue: Number(item.revenue || 0)
+  }));
+
+  const dailyTrend = [];
+  for (let index = 0; index < 7; index += 1) {
+    const date = dayjs().subtract(6 - index, "day");
+    const { rows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(amount), 0) as revenue
+        FROM payments
+        WHERE status = 'paid' AND created_at::date = $1::date
+      `,
+      [date.format("YYYY-MM-DD")]
+    );
+    dailyTrend.push({
+      period: date.format("YYYY-MM-DD"),
+      label: date.format("DD MMM"),
+      startDate: date.format("YYYY-MM-DD"),
+      endDate: date.format("YYYY-MM-DD"),
+      revenue: Number(rows[0]?.revenue || 0)
+    });
+  }
+
+  const weeklyTrend = [];
+  for (let index = 0; index < 8; index += 1) {
+    const weekStart = dayjs().startOf("week").add(1, "day").subtract(7 * (7 - index), "day");
+    const weekEnd = weekStart.add(6, "day");
+    const { rows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(amount), 0) as revenue
+        FROM payments
+        WHERE status = 'paid'
+          AND created_at::date BETWEEN $1::date AND $2::date
+      `,
+      [weekStart.format("YYYY-MM-DD"), weekEnd.format("YYYY-MM-DD")]
+    );
+    weeklyTrend.push({
+      period: `${weekStart.format("YYYY-MM-DD")}_${weekEnd.format("YYYY-MM-DD")}`,
+      label: `${weekStart.format("DD MMM")} - ${weekEnd.format("DD MMM")}`,
+      startDate: weekStart.format("YYYY-MM-DD"),
+      endDate: weekEnd.format("YYYY-MM-DD"),
+      revenue: Number(rows[0]?.revenue || 0)
+    });
+  }
+
+  const monthlyTrend = [];
+  for (let index = 0; index < 6; index += 1) {
+    const monthDate = dayjs().startOf("month").subtract(5 - index, "month");
+    const { rows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(amount), 0) as revenue
+        FROM payments
+        WHERE status = 'paid'
+          AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', $1::date)
+      `,
+      [monthDate.format("YYYY-MM-DD")]
+    );
+    monthlyTrend.push({
+      period: monthDate.format("YYYY-MM"),
+      label: monthDate.format("MMM"),
+      startDate: monthDate.startOf("month").format("YYYY-MM-DD"),
+      endDate: monthDate.endOf("month").format("YYYY-MM-DD"),
+      revenue: Number(rows[0]?.revenue || 0)
+    });
+  }
+
+  const monthlyProfitTrend = monthlyTrend.map((item) => ({
+    ...item,
+    payroll: payroll.monthlyPayroll,
+    expenses: payroll.monthlyPayroll + operatingExpenses.total,
+    netProfit: Number(item.revenue || 0) - payroll.monthlyPayroll - operatingExpenses.total
+  }));
+
+  const courses = await listAllCoursesAsync();
+  const courseAnalysis = [];
+  for (const course of courses) {
+    const { rows: statsRows } = await pool.query(
+      `
+        SELECT
+          COUNT(*) FILTER (WHERE is_archived = FALSE)::int as "studentsCount",
+          COUNT(DISTINCT teacher_id) FILTER (WHERE is_archived = FALSE AND teacher_id IS NOT NULL)::int as "groupsCount",
+          COUNT(*) FILTER (WHERE status = 'active' AND is_archived = FALSE)::int as "activeCount",
+          COUNT(*) FILTER (WHERE status = 'trial' AND is_archived = FALSE)::int as "trialCount",
+          COUNT(*) FILTER (WHERE status = 'debtor' AND is_archived = FALSE)::int as "debtorsCount"
+        FROM students
+        WHERE course_id = $1
+      `,
+      [course.id]
+    );
+    const { rows: revenueRows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(p.amount), 0) as total
+        FROM payments p
+        JOIN students s ON s.id = p.student_id
+        WHERE s.course_id = $1 AND p.status = 'paid'
+      `,
+      [course.id]
+    );
+    const stats = statsRows[0] || {};
+    const studentsCount = Number(stats.studentsCount || 0);
+    const activeCount = Number(stats.activeCount || 0);
+    courseAnalysis.push({
+      id: course.id,
+      title: course.title,
+      studentsCount,
+      groupsCount: Number(stats.groupsCount || 0),
+      revenue: Number(revenueRows[0]?.total || 0),
+      activeCount,
+      trialCount: Number(stats.trialCount || 0),
+      debtorsCount: Number(stats.debtorsCount || 0),
+      efficiency: studentsCount ? Math.min(97, 64 + studentsCount * 2 + activeCount) : 0
+    });
+  }
+  courseAnalysis.sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0) || Number(b.studentsCount || 0) - Number(a.studentsCount || 0));
+
+  const teachers = await listTeachersAsync();
+  const teacherPerformance = [];
+  for (const teacher of teachers) {
+    const { rows: studentRows } = await pool.query(
+      `
+        SELECT
+          COUNT(*) FILTER (WHERE is_archived = FALSE)::int as "studentsCount",
+          COUNT(*) FILTER (WHERE status = 'active' AND is_archived = FALSE)::int as "activeStudentsCount",
+          COUNT(*) FILTER (WHERE status = 'trial' AND is_archived = FALSE)::int as "trialStudentsCount",
+          COUNT(*) FILTER (WHERE status = 'debtor' AND is_archived = FALSE)::int as "debtorsCount"
+        FROM students
+        WHERE teacher_id = $1
+      `,
+      [teacher.id]
+    );
+    const { rows: attendanceRows } = await pool.query(
+      `
+        SELECT
+          SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END)::int as "presentCount",
+          COUNT(*)::int as "totalCount"
+        FROM attendance
+        WHERE teacher_id = $1
+      `,
+      [teacher.id]
+    );
+    const { rows: revenueRows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(p.amount), 0) as total
+        FROM payments p
+        JOIN students s ON s.id = p.student_id
+        WHERE s.teacher_id = $1 AND p.status = 'paid'
+      `,
+      [teacher.id]
+    );
+    const studentStats = studentRows[0] || {};
+    const attendance = attendanceRows[0] || {};
+    teacherPerformance.push({
+      id: teacher.id,
+      fullName: teacher.fullName,
+      monthlySalary: Number(teacher.monthlySalary || 0),
+      courseIds: teacher.courseIds || [],
+      studentsCount: Number(studentStats.studentsCount || 0),
+      activeStudentsCount: Number(studentStats.activeStudentsCount || 0),
+      trialStudentsCount: Number(studentStats.trialStudentsCount || 0),
+      debtorsCount: Number(studentStats.debtorsCount || 0),
+      revenue: Number(revenueRows[0]?.total || 0),
+      attendancePercent: Number(attendance.totalCount || 0)
+        ? Math.round((Number(attendance.presentCount || 0) / Number(attendance.totalCount || 1)) * 100)
+        : 0
+    });
+  }
+  teacherPerformance.sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0) || Number(b.studentsCount || 0) - Number(a.studentsCount || 0));
+
+  const { rows: breakdownRows } = await pool.query(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'active' AND is_archived = FALSE)::int as "activeCount",
+        COUNT(*) FILTER (WHERE status = 'trial' AND is_archived = FALSE)::int as "trialCount",
+        COUNT(*) FILTER (WHERE status = 'debtor' AND is_archived = FALSE)::int as "debtorCount"
+      FROM students
+    `
+  );
+
+  const { rows: admissionsRows } = await pool.query(
+    `
+      SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as period,
+             COUNT(*)::int as count
+      FROM students
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY DATE_TRUNC('month', created_at) DESC
+      LIMIT 6
+    `
+  );
+
+  const cards = cardsRows[0] || {};
+  return {
+    cards: {
+      monthlyRevenue: Number(cards.monthlyRevenue || 0),
+      totalStudents: Number(cards.totalStudents || 0),
+      debtorsCount: Number(cards.debtorsCount || 0),
+      trialStudentsCount: Number(cards.trialStudentsCount || 0),
+      teachersCount: payroll.teachersCount,
+      teachersPayroll: payroll.monthlyPayroll,
+      operatingExpenses: operatingExpenses.total,
+      totalExpenses: payroll.monthlyPayroll + operatingExpenses.total,
+      netProfit: Number(cards.monthlyRevenue || 0) - payroll.monthlyPayroll - operatingExpenses.total
+    },
+    monthlyRevenue,
+    trends: {
+      daily: dailyTrend,
+      weekly: weeklyTrend,
+      monthly: monthlyTrend,
+      monthlyProfit: monthlyProfitTrend
+    },
+    courseAnalysis,
+    teacherPerformance,
+    studentStatusBreakdown: {
+      activeCount: Number(breakdownRows[0]?.activeCount || 0),
+      trialCount: Number(breakdownRows[0]?.trialCount || 0),
+      debtorCount: Number(breakdownRows[0]?.debtorCount || 0)
+    },
+    admissionsTrend: admissionsRows.reverse(),
+    expenses: operatingExpenses
+  };
+}
+
+export async function getFinanceSummaryAsync() {
+  const pool = getSupabasePool();
+  const payroll = await getTeacherPayrollSummaryAsync();
+  const operatingExpenses = await getOperatingExpenseSummaryAsync();
+
+  const { rows: totalsRows } = await pool.query(
+    `
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as "totalRevenue",
+        COALESCE(SUM(CASE WHEN status = 'paid' AND created_at::date = CURRENT_DATE THEN amount ELSE 0 END), 0) as "todayRevenue",
+        COALESCE(SUM(CASE WHEN status = 'paid' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE) THEN amount ELSE 0 END), 0) as "monthlyRevenue"
+      FROM payments
+    `
+  );
+
+  const { rows: debtRows } = await pool.query(
+    `
+      SELECT COUNT(*)::int as "debtorsCount", COALESCE(SUM(ABS(balance)), 0) as "debtAmount"
+      FROM students
+      WHERE status = 'debtor' AND is_archived = FALSE
+    `
+  );
+
+  const courses = await listAllCoursesAsync();
+  const byCourse = [];
+  for (const course of courses) {
+    const { rows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(p.amount), 0) as total
+        FROM payments p
+        JOIN students s ON s.id = p.student_id
+        WHERE s.course_id = $1 AND p.status = 'paid'
+      `,
+      [course.id]
+    );
+    byCourse.push({ title: course.title, revenue: Number(rows[0]?.total || 0) });
+  }
+  byCourse.sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0));
+
+  const { rows: paymentMethodsRows } = await pool.query(
+    `
+      SELECT method, COUNT(*)::int as count, COALESCE(SUM(amount), 0) as amount
+      FROM payments
+      WHERE status = 'paid'
+      GROUP BY method
+      ORDER BY amount DESC
+    `
+  );
+
+  const { rows: monthlyRows } = await pool.query(
+    `
+      SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as period,
+             COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as revenue
+      FROM payments
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY DATE_TRUNC('month', created_at) DESC
+      LIMIT 6
+    `
+  );
+  const monthlyTrend = monthlyRows.reverse().map((item) => ({
+    ...item,
+    revenue: Number(item.revenue || 0),
+    payroll: payroll.monthlyPayroll,
+    operatingExpenses: operatingExpenses.total,
+    totalExpenses: payroll.monthlyPayroll + operatingExpenses.total,
+    netProfit: Number(item.revenue || 0) - payroll.monthlyPayroll - operatingExpenses.total
+  }));
+
+  const teachers = await listTeachersAsync();
+  const topTeachers = [];
+  for (const teacher of teachers) {
+    const { rows } = await pool.query(
+      `
+        SELECT COALESCE(SUM(p.amount), 0) as total
+        FROM payments p
+        JOIN students s ON s.id = p.student_id
+        WHERE s.teacher_id = $1 AND p.status = 'paid'
+      `,
+      [teacher.id]
+    );
+    topTeachers.push({
+      id: teacher.id,
+      fullName: teacher.fullName,
+      monthlySalary: Number(teacher.monthlySalary || 0),
+      revenue: Number(rows[0]?.total || 0)
+    });
+  }
+  topTeachers.sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0));
+
+  const totals = totalsRows[0] || {};
+  return {
+    totals: {
+      ...totals,
+      totalRevenue: Number(totals.totalRevenue || 0),
+      todayRevenue: Number(totals.todayRevenue || 0),
+      monthlyRevenue: Number(totals.monthlyRevenue || 0),
+      teachersPayroll: payroll.monthlyPayroll,
+      operatingExpenses: operatingExpenses.total,
+      totalExpenses: payroll.monthlyPayroll + operatingExpenses.total,
+      netProfit: Number(totals.monthlyRevenue || 0) - payroll.monthlyPayroll - operatingExpenses.total
+    },
+    debtors: {
+      debtorsCount: Number(debtRows[0]?.debtorsCount || 0),
+      debtAmount: Number(debtRows[0]?.debtAmount || 0)
+    },
+    byCourse,
+    paymentMethods: paymentMethodsRows.map((item) => ({ ...item, count: Number(item.count || 0), amount: Number(item.amount || 0) })),
+    monthlyTrend,
+    topTeachers: topTeachers.slice(0, 5),
+    payroll,
+    expenses: operatingExpenses
+  };
+}
+
 export function getSettingsBundle() {
   const rows = db.prepare(`SELECT key, value FROM settings`).all();
   const settings = Object.fromEntries(rows.map((item) => [item.key, item.value]));
@@ -3542,6 +3948,17 @@ export function getSettingsBundle() {
   };
 }
 
+export async function getSettingsBundleAsync() {
+  const { rows } = await getSupabasePool().query(`SELECT key, value FROM settings`);
+  const settings = Object.fromEntries(rows.map((item) => [item.key, item.value]));
+  return {
+    settings,
+    teachers: await listTeachersAsync(),
+    courses: await listAllCoursesAsync(),
+    branches: await listBranchesAsync()
+  };
+}
+
 export function saveSettings(payload) {
   const stmt = db.prepare(`
     INSERT INTO settings (key, value, updated_at)
@@ -3550,6 +3967,21 @@ export function saveSettings(payload) {
   `);
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
   Object.entries(payload).forEach(([key, value]) => stmt.run(key, String(value ?? ""), now));
+}
+
+export async function saveSettingsAsync(payload) {
+  const pool = getSupabasePool();
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  for (const [key, value] of Object.entries(payload)) {
+    await pool.query(
+      `
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+      `,
+      [key, String(value ?? ""), now]
+    );
+  }
 }
 
 export function updateUserProfile(userId, payload) {

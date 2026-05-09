@@ -6466,13 +6466,19 @@ function TeacherSettingsPage({ meta, token, onProfileUpdated }) {
 
 function DirectorDashboardPage({ token }) {
 	const [data, setData] = useState(null)
+	const [error, setError] = useState('')
 	const [chartPeriod, setChartPeriod] = useState('monthly')
 	const [dateRange, setDateRange] = useState({ from: '', to: '' })
 	const [hoveredPoint, setHoveredPoint] = useState(null)
 	useEffect(() => {
-		api.getDirectorOverview(token).then(setData)
+		setError('')
+		api
+			.getDirectorOverview(token)
+			.then(setData)
+			.catch(error => setError(error.message || "Analitika olinmadi"))
 	}, [token])
 
+	if (error) return <div className='card'>{error}</div>
 	if (!data) return <div className='card'>Analitika yuklanmoqda...</div>
 	const trendSets = data.trends || {
 		daily: [],
@@ -6912,9 +6918,14 @@ function DirectorStudentsPage({ token }) {
 function DirectorPaymentsPage({ token }) {
 	const [payments] = usePaymentsData(token)
 	const [finance, setFinance] = useState(null)
+	const [error, setError] = useState('')
 
 	useEffect(() => {
-		api.getDirectorFinance(token).then(setFinance)
+		setError('')
+		api
+			.getDirectorFinance(token)
+			.then(setFinance)
+			.catch(error => setError(error.message || "Moliya ma'lumotlari olinmadi"))
 	}, [token])
 
 	return (
@@ -6923,6 +6934,7 @@ function DirectorPaymentsPage({ token }) {
 				title="To'lovlar"
 				subtitle='Barcha tranzaksiyalar va oqimlar'
 			/>
+			{error ? <div className='card'>{error}</div> : null}
 			{finance ? (
 				<div className='three-column-grid'>
 					<StatCard
@@ -7076,10 +7088,17 @@ function DirectorAttendancePage() {
 function DirectorStatisticsPage({ token }) {
 	const [data, setData] = useState(null)
 	const [finance, setFinance] = useState(null)
+	const [error, setError] = useState('')
 	useEffect(() => {
-		api.getDirectorOverview(token).then(setData)
-		api.getDirectorFinance(token).then(setFinance)
+		setError('')
+		Promise.all([api.getDirectorOverview(token), api.getDirectorFinance(token)])
+			.then(([overview, financeSummary]) => {
+				setData(overview)
+				setFinance(financeSummary)
+			})
+			.catch(error => setError(error.message || "Statistika olinmadi"))
 	}, [token])
+	if (error) return <div className='card'>{error}</div>
 	if (!data) return <div className='card'>Yuklanmoqda...</div>
 	return (
 		<>
@@ -7248,6 +7267,7 @@ function DirectorStatisticsPage({ token }) {
 
 function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 	const [bundle, setBundle] = useState(null)
+	const [error, setError] = useState('')
 	const [courseModal, setCourseModal] = useState(null)
 	const [teacherModal, setTeacherModal] = useState(null)
 	const [expenseForm, setExpenseForm] = useState({
@@ -7258,7 +7278,11 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 	})
 
 	useEffect(() => {
-		api.getSettings(token).then(setBundle)
+		setError('')
+		api
+			.getSettings(token)
+			.then(setBundle)
+			.catch(error => setError(error.message || "Sozlamalar olinmadi"))
 	}, [token])
 
 	useEffect(() => {
@@ -7271,6 +7295,7 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 		})
 	}, [bundle])
 
+	if (error) return <div className='card'>{error}</div>
 	if (!bundle) return <div className='card'>Sozlamalar yuklanmoqda...</div>
 
 	async function handleCourseSubmit(event, form) {

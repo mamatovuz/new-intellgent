@@ -33,8 +33,11 @@ import {
   getDeveloperProfileBySlug,
   getDeveloperProfileByUsername,
   getDirectorStats,
+  getDirectorStatsAsync,
   getFinanceSummary,
+  getFinanceSummaryAsync,
   getSettingsBundle,
+  getSettingsBundleAsync,
   getStudentAttendance,
   getStudentAttendanceAsync,
   getStudentAccessLinkByUserId,
@@ -87,6 +90,7 @@ import {
   registerStudentByToken,
   registerStudentByTokenAsync,
   saveSettings,
+  saveSettingsAsync,
   updateCourse,
   updateCourseAsync,
   updateUserProfileAsync,
@@ -776,11 +780,21 @@ router.post("/attendance/bulk", authenticate, authorize("reception"), (req, res)
 });
 
 router.get("/director/overview", authenticate, authorize("director"), (_req, res) => {
-  res.json(getDirectorStats());
+  const handleDirectorOverview = async () => {
+    res.json(config.dbProvider === "postgres" ? await getDirectorStatsAsync() : getDirectorStats());
+  };
+  handleDirectorOverview().catch((error) => {
+    res.status(500).json({ message: error.message || "Analitika olinmadi" });
+  });
 });
 
 router.get("/director/finance", authenticate, authorize("director"), (_req, res) => {
-  res.json(getFinanceSummary());
+  const handleDirectorFinance = async () => {
+    res.json(config.dbProvider === "postgres" ? await getFinanceSummaryAsync() : getFinanceSummary());
+  };
+  handleDirectorFinance().catch((error) => {
+    res.status(500).json({ message: error.message || "Moliya ma'lumotlari olinmadi" });
+  });
 });
 
 router.get("/director/courses", authenticate, authorize("director"), (_req, res) => {
@@ -989,12 +1003,26 @@ router.post("/notifications/:id/read", authenticate, (req, res) => {
 });
 
 router.get("/settings", authenticate, authorize("director", "reception"), (_req, res) => {
-  res.json(getSettingsBundle());
+  const handleSettings = async () => {
+    res.json(config.dbProvider === "postgres" ? await getSettingsBundleAsync() : getSettingsBundle());
+  };
+  handleSettings().catch((error) => {
+    res.status(500).json({ message: error.message || "Sozlamalar olinmadi" });
+  });
 });
 
 router.put("/settings", authenticate, authorize("director"), (req, res) => {
-  saveSettings(req.body);
-  res.json({ message: "Sozlamalar saqlandi" });
+  const handleSettingsSave = async () => {
+    if (config.dbProvider === "postgres") {
+      await saveSettingsAsync(req.body);
+    } else {
+      saveSettings(req.body);
+    }
+    res.json({ message: "Sozlamalar saqlandi" });
+  };
+  handleSettingsSave().catch((error) => {
+    res.status(400).json({ message: error.message || "Sozlamalar saqlanmadi" });
+  });
 });
 
 router.get("/student/me", authenticate, authorize("student"), (req, res) => {
