@@ -1947,7 +1947,7 @@ function PublicSiteHeader() {
 					</span>
 					<span className='marketing-brand-copy'>
 						<strong>ILM NEST</strong>
-						
+						<span>Ta'lim markazi</span>
 					</span>
 				</Link>
 				<nav className='marketing-nav-shell'>
@@ -2123,8 +2123,47 @@ function HomePage() {
 								<a href='#courses' className='marketing-link-btn'>Batafsil ma'lumot</a>
 							</div>
 						</div>
-						<div className='landing-v2-hero-logo-card' aria-hidden='true'>
-							<img src='/logointelligent.jpg' alt='Intelligent logo' className='landing-v2-hero-logo-image' />
+						<div className='landing-v2-hero-preview' aria-hidden='true'>
+							<div className='landing-v2-preview-window'>
+								<div className='landing-v2-preview-top'>
+									<div>
+										<span className='card-label'>Boshqaruv oynasi</span>
+										<strong>ILM NEST Admin</strong>
+									</div>
+									<span className='landing-v2-preview-chip'>Live</span>
+								</div>
+								<div className='landing-v2-preview-shot'>
+									<img src='/landing-dashboard.png' alt='ILM NEST dashboard preview' />
+								</div>
+								<div className='landing-v2-preview-stats'>
+									<div className='landing-v2-preview-stat'>
+										<span>Bugungi to'lov</span>
+										<strong>8.2M UZS</strong>
+									</div>
+									<div className='landing-v2-preview-stat'>
+										<span>Davomat nazorati</span>
+										<strong>Reception</strong>
+									</div>
+									<div className='landing-v2-preview-stat'>
+										<span>Ogohlantirish</span>
+										<strong>Telegram</strong>
+									</div>
+								</div>
+								<div className='landing-v2-preview-list'>
+									<div className='landing-v2-preview-list-item'>
+										<strong>To'lov qabul qilish</strong>
+										<span>Guruh / student / to'lov oqimi</span>
+									</div>
+									<div className='landing-v2-preview-list-item'>
+										<strong>Davomat olish</strong>
+										<span>Checkbox bilan reception nazorati</span>
+									</div>
+									<div className='landing-v2-preview-list-item'>
+										<strong>Student kabineti</strong>
+										<span>To'lov, davomat va profil bitta tizimda</span>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</section>
