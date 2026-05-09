@@ -2128,40 +2128,41 @@ function HomePage() {
 								<div className='landing-v2-preview-top'>
 									<div>
 										<span className='card-label'>ILM NEST afzalliklari</span>
-										<strong>ILM NEST Admin</strong>
+										<strong>Ta'lim va nazorat bir joyda</strong>
 									</div>
 									<span className='landing-v2-preview-chip'>Live</span>
 								</div>
-								<div className='landing-v2-preview-shot'>
-									<img src='/landing-dashboard.png' alt='ILM NEST dashboard preview' />
-								</div>
 								<div className='landing-v2-preview-stats'>
 									<div className='landing-v2-preview-stat'>
-										<span>Bugungi to'lov</span>
-										<strong>8.2M UZS</strong>
+										<span>Yo'nalishlar</span>
+										<strong>10+</strong>
 									</div>
 									<div className='landing-v2-preview-stat'>
-										<span>Davomat nazorati</span>
-										<strong>Reception</strong>
+										<span>Sinov darsi</span>
+										<strong>Mavjud</strong>
 									</div>
 									<div className='landing-v2-preview-stat'>
-										<span>Ogohlantirish</span>
+										<span>Nazorat</span>
 										<strong>Telegram</strong>
 									</div>
 								</div>
-								<div className='landing-v2-preview-list'>
-									<div className='landing-v2-preview-list-item'>
-										<strong>To'lov qabul qilish</strong>
-										<span>Guruh / student / to'lov oqimi</span>
+								<div className='landing-v2-preview-feature-grid'>
+									<div className='landing-v2-preview-feature-card'>
+										<strong>Chet tillari</strong>
+										<span>Ingliz, nemis, rus, arab, koreys va turk tili</span>
 									</div>
-									<div className='landing-v2-preview-list-item'>
-										<strong>Davomat olish</strong>
-										<span>Checkbox bilan reception nazorati</span>
+									<div className='landing-v2-preview-feature-card'>
+										<strong>Aniq fanlar</strong>
+										<span>Matematika, kimyo, biologiya, fizika va tarix</span>
 									</div>
-									<div className='landing-v2-preview-list-item'>
-										<strong>Student kabineti</strong>
-										<span>To'lov, davomat va profil bitta tizimda</span>
+									<div className='landing-v2-preview-feature-card'>
+										<strong>Natijaga yo'naltirilgan</strong>
+										<span>Sinov darsi, davomat nazorati va oylik monitoring</span>
 									</div>
+								</div>
+								<div className='landing-v2-preview-note'>
+									<strong>Har oy eng yaxshi o'quvchilar uchun rag'bat mavjud</strong>
+									<span>Individual yondashuv, kuchli ustozlar va tartibli o'quv jarayoni bilan natijaga olib boramiz.</span>
 								</div>
 							</div>
 						</div>

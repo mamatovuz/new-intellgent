@@ -3635,22 +3635,6 @@ tbody tr:hover {
   font-weight: 800;
 }
 
-.landing-v2-preview-shot {
-  overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid #dfe7f4;
-  background: #eef3fb;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-}
-
-.landing-v2-preview-shot img {
-  width: 100%;
-  height: 240px;
-  display: block;
-  object-fit: cover;
-  object-position: center top;
-}
-
 .landing-v2-preview-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3682,16 +3666,38 @@ tbody tr:hover {
   line-height: 1.35;
 }
 
-.landing-v2-preview-list {
+.landing-v2-preview-feature-grid {
   display: grid;
   gap: 10px;
 }
 
-.landing-v2-preview-list-item {
+.landing-v2-preview-feature-card {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid #e3eaf5;
   background: #ffffff;
+}
+
+.landing-v2-preview-note {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f7faff 0%, #ffffff 100%);
+  border: 1px solid #dde6f3;
+}
+
+.landing-v2-preview-note strong {
+  display: block;
+  color: var(--navy);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.landing-v2-preview-note span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .landing-v2-stats,
@@ -8553,6 +8559,10 @@ th {
   }
 
   .landing-v2-preview-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-v2-preview-feature-grid {
     grid-template-columns: 1fr;
   }
 
