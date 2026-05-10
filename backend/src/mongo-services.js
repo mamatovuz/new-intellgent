@@ -771,7 +771,11 @@ export async function getStudentByTelegramIdMongo(telegramId) {
 }
 
 export async function getStudentByIdMongo(studentId) {
-  const student = await Student.findOne({ id: Number(studentId) }).lean();
+  const normalizedStudentId = Number(studentId);
+  if (!Number.isFinite(normalizedStudentId) || normalizedStudentId <= 0) {
+    return null;
+  }
+  const student = await Student.findOne({ id: normalizedStudentId }).lean();
   if (!student) return null;
   return getStudentByUserIdMongo(student.userId);
 }
@@ -1282,7 +1286,11 @@ export async function getTeacherStudentsMongo(teacherId) {
 }
 
 export async function getStudentByUserIdMongo(userId) {
-  const student = await Student.findOne({ userId: Number(userId) }).lean();
+  const normalizedUserId = Number(userId);
+  if (!Number.isFinite(normalizedUserId) || normalizedUserId <= 0) {
+    return null;
+  }
+  const student = await Student.findOne({ userId: normalizedUserId }).lean();
   if (!student) return null;
   const [user, course, teacher, trialProgress] = await Promise.all([
     User.findOne({ id: student.userId }).lean(),

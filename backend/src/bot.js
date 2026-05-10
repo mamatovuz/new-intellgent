@@ -67,6 +67,17 @@ async function safeReply(ctx, message, extra = undefined) {
   }
 }
 
+function wrapBotHandler(handler) {
+  return async (ctx) => {
+    try {
+      await handler(ctx);
+    } catch (error) {
+      console.error("Telegram handler xatosi:", error?.message || error);
+      await safeReply(ctx, "Xatolik yuz berdi. Qayta urinib ko'ring.");
+    }
+  };
+}
+
 function buildWebAppKeyboard(url) {
   return Markup.keyboard([
     [Markup.button.webApp("\u{1F310} Web App", url)],
@@ -142,7 +153,7 @@ export function startBot() {
 
   bot = new Telegraf(config.telegramBotToken);
 
-  bot.start(async (ctx) => {
+  bot.start(wrapBotHandler(async (ctx) => {
     const student = await getStudentByTelegramIdUniversal(ctx.from.id);
     if (student) {
       await sendStudentWelcome(ctx, student);
@@ -154,9 +165,9 @@ export function startBot() {
       "Assalomu alaykum.\n\nTelefon raqamingizni kiriting.",
       buildPhoneRequestKeyboard()
     );
-  });
+  }));
 
-  bot.on("contact", async (ctx) => {
+  bot.on("contact", wrapBotHandler(async (ctx) => {
     const phone = ctx.message?.contact?.phone_number?.replace(/\\s+/g, "") || "";
     if (!phone) {
       await safeReply(ctx, "Telefon raqamni yuborishda xatolik bo'ldi. Qayta urinib ko'ring.");
@@ -175,9 +186,9 @@ export function startBot() {
       ctx,
       `Tasdiqlash kodi: ${data.code}\n\nKodni shu chatga yuboring va akkauntingizni ulang.`
     );
-  });
+  }));
 
-  bot.hears(/^\+998\d{9}$/, async (ctx) => {
+  bot.hears(/^\+998\d{9}$/, wrapBotHandler(async (ctx) => {
     const phone = ctx.message.text.trim();
     const data = await createTelegramLinkCodeUniversal(phone);
 
@@ -191,9 +202,9 @@ export function startBot() {
       `\u{1F510} Tasdiqlash kodi: *${data.code}*\n\nKodni shu chatga yuboring va akkauntingizni ulang.`,
       { parse_mode: "Markdown" }
     );
-  });
+  }));
 
-  bot.hears(/^\d{6}$/, async (ctx) => {
+  bot.hears(/^\d{6}$/, wrapBotHandler(async (ctx) => {
     const code = ctx.message.text.trim();
     const student = await verifyTelegramCodeUniversal(code, ctx.from.id);
 
@@ -206,7 +217,7 @@ export function startBot() {
     const link = `${config.webUrl}/?studentToken=${token}`;
     await sendStudentWelcome(ctx, student);
     await safeReply(ctx, `\u{1F517} Zaxira havola: ${link}`);
-  });
+  }));
 
   bot.command("kurs", sendCourseInfo);
   bot.command("balans", sendBalanceInfo);
@@ -222,6 +233,14 @@ export function startBot() {
     const code = error?.response?.error_code;
     const description = error?.response?.description || error?.message || "Bot launch xatosi";
     console.error(`Telegram bot ishga tushmadi (${code || "unknown"}): ${description}`);
+  });
+
+  bot.catch((error, ctx) => {
+    console.error("Unhandled error while processing", {
+      update_id: ctx?.update?.update_id,
+      message: ctx?.update?.message,
+      error: error?.message || error
+    });
   });
 
   cron.schedule("0 9 * * *", async () => {
