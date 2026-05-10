@@ -276,6 +276,12 @@ export const api = {
       method: "POST",
       token
     }),
+  broadcastNotifications: (token, payload) =>
+    request("/notifications/broadcast", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload)
+    }),
   getSettings: (token) => request("/settings", { token }),
   saveSettings: (token, payload) =>
     request("/settings", {

@@ -1344,6 +1344,24 @@ tbody tr:hover {
   place-items: center;
 }
 
+.topbar-icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 18px rgba(220, 38, 38, 0.22);
+}
+
 .table-actions.compact {
   gap: 8px;
   flex-wrap: wrap;
@@ -8096,11 +8114,64 @@ th {
 .notifications-head {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .notifications-list {
   max-height: 320px;
   overflow: auto;
+}
+
+.stack-list {
+  display: grid;
+  gap: 16px;
+}
+
+.compact-gap {
+  gap: 12px;
+}
+
+.channel-row-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.field-grid.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.inline-end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.top-divider {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.broadcast-audience-note {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.broadcast-audience-note p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .notification-item,
@@ -8911,6 +8982,19 @@ th {
   .topbar-user {
     gap: 10px;
     align-items: center;
+  }
+
+  .notifications-popover {
+    position: fixed;
+    right: 14px;
+    left: 14px;
+    top: 72px;
+    width: min(340px, calc(100vw - 28px));
+    max-width: calc(100vw - 28px);
+  }
+
+  .field-grid.three-columns {
+    grid-template-columns: 1fr;
   }
 
   .user-meta {

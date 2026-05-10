@@ -1479,6 +1479,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 				: 'Education CRM'
 	const [notifications, setNotifications] = useState([])
 	const [showNotifications, setShowNotifications] = useState(false)
+	const unreadNotificationsCount = notifications.filter(item => item.status !== 'read').length
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 	const [searchValue, setSearchValue] = useState('')
 	const location = useLocation()
@@ -1598,12 +1599,16 @@ function RoleLayout({ user, onLogout, children, token }) {
 							onClick={() => setShowNotifications(value => !value)}
 						>
 							<Icon name='notifications' />
+							{unreadNotificationsCount ? (
+								<span className='topbar-icon-badge'>{unreadNotificationsCount}</span>
+							) : null}
 						</button>
 
 						{showNotifications ? (
 							<div className='notifications-popover'>
 								<div className='notifications-head'>
 									<strong>Bildirishnomalar</strong>
+									{unreadNotificationsCount ? <Badge tone='danger'>{unreadNotificationsCount} ta yangi</Badge> : null}
 								</div>
 								<div className='notifications-list'>
 									{notifications.length ? (
@@ -2203,15 +2208,15 @@ function HomePage() {
 								</div>
 								<div className='landing-v2-preview-feature-grid'>
 									<div className='landing-v2-preview-feature-card'>
-										<strong>Chet tillari</strong>
+										<strong>Chet tillari: </strong>
 										<span>Ingliz, nemis, rus, arab, koreys va turk tili</span>
 									</div>
 									<div className='landing-v2-preview-feature-card'>
-										<strong>Aniq fanlar</strong>
+										<strong>Aniq fanlar: </strong>
 										<span>Matematika, kimyo, biologiya, fizika va tarix</span>
 									</div>
 									<div className='landing-v2-preview-feature-card'>
-										<strong>Natijaga yo'naltirilgan</strong>
+										<strong>Natijaga yo'naltirilgan: </strong>
 										<span>Sinov darsi, davomat nazorati va oylik monitoring</span>
 									</div>
 								</div>
@@ -5043,16 +5048,17 @@ function ReceptionStudentsPage({ token, meta }) {
 	async function handleRegisterLink(studentId) {
 		try {
 			const data = await api.createStudentRegisterToken(token, studentId)
-			const qrUrl = data.qrImageDataUrl || getQrPreviewUrl(data.loginUrl || data.registerUrl)
-			const directUrl = data.loginUrl || data.registerUrl
+			const qrUrl = data.qrImageDataUrl || getQrPreviewUrl(data.botStartUrl || data.loginUrl || data.registerUrl)
+			const directUrl = data.botStartUrl || data.loginUrl || data.registerUrl
 			const result = await Swal.fire({
-				title: 'Student Web App havolasi',
+				title: "Student bot havolasi",
 				html: `
 					<div class="register-link-preview">
 						<img class="register-link-qr" src="${qrUrl}" alt="QR code" />
 						<div class="register-link-body">
 							<div class="register-link-meta"><strong>Default parol:</strong> ${data.defaultPassword || '12345678'}</div>
 							<div class="register-link-meta"><strong>QR yangilangan:</strong> ${data.expiresAt}</div>
+							<div class="register-link-meta"><strong>Yo'nalish:</strong> Telegram bot orqali ulash</div>
 							<a class="register-link-anchor" href="${directUrl}" target="_blank" rel="noreferrer">${directUrl}</a>
 						</div>
 					</div>
@@ -7270,6 +7276,12 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 	const [error, setError] = useState('')
 	const [courseModal, setCourseModal] = useState(null)
 	const [teacherModal, setTeacherModal] = useState(null)
+	const [telegramChannels, setTelegramChannels] = useState([])
+	const [broadcastForm, setBroadcastForm] = useState({
+		title: '',
+		message: '',
+		audience: 'students',
+	})
 	const [expenseForm, setExpenseForm] = useState({
 		rent_expense: 0,
 		advertising_expense: 0,
@@ -7293,6 +7305,16 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 			internet_expense: Number(bundle.settings.internet_expense || 0),
 			admin_salary_expense: Number(bundle.settings.admin_salary_expense || 0),
 		})
+		try {
+			const parsed =
+				bundle.telegramChannels ||
+				(bundle.settings.telegram_required_channels
+					? JSON.parse(bundle.settings.telegram_required_channels)
+					: [])
+			setTelegramChannels(Array.isArray(parsed) ? parsed : [])
+		} catch {
+			setTelegramChannels([])
+		}
 	}, [bundle])
 
 	if (error) return <div className='card'>{error}</div>
@@ -7344,6 +7366,62 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 		setBundle(await api.getSettings(token))
 		toast.fire({ icon: 'success', title: 'Xarajatlar saqlandi' })
 	}
+
+	function handleChannelChange(index, key, value) {
+		setTelegramChannels(current =>
+			current.map((item, itemIndex) =>
+				itemIndex === index ? { ...item, [key]: value } : item,
+			),
+		)
+	}
+
+	function handleAddChannel() {
+		setTelegramChannels(current => [...current, { id: '', title: '', url: '' }])
+	}
+
+	function handleRemoveChannel(index) {
+		setTelegramChannels(current => current.filter((_, itemIndex) => itemIndex !== index))
+	}
+
+	async function handleSaveChannels() {
+		const sanitized = telegramChannels
+			.map(item => ({
+				id: String(item.id || '').trim(),
+				title: String(item.title || '').trim(),
+				url: String(item.url || '').trim(),
+			}))
+			.filter(item => item.id || item.url)
+		await api.saveSettings(token, { telegram_required_channels: sanitized })
+		setBundle(await api.getSettings(token))
+		toast.fire({ icon: 'success', title: 'Telegram kanallari saqlandi' })
+	}
+
+	async function handleSendBroadcast(event) {
+		event.preventDefault()
+		if (!broadcastForm.title.trim() || !broadcastForm.message.trim()) {
+			await showError('Sarlavha va xabar matnini kiriting')
+			return
+		}
+		const result = await api.broadcastNotifications(token, broadcastForm)
+		setBroadcastForm(current => ({ ...current, title: '', message: '' }))
+		toast.fire({
+			icon: 'success',
+			title: `Yuborildi: sayt ${result.siteCount || 0} ta, bot ${result.botCount || 0} ta`,
+		})
+	}
+
+	const audienceOptions = [
+		{ value: 'students', label: "O'quvchilarga", note: "Sayt va bot orqali faqat o'quvchilarga boradi." },
+		{ value: 'teachers', label: "O'qituvchilarga", note: "Sayt va bot orqali faqat o'qituvchilarga boradi." },
+		{ value: 'reception', label: 'Receptionga', note: "Ichki admin xabar sifatida receptionga boradi." },
+		{ value: 'directors', label: 'Direktorlarga', note: "Faqat direktor akkauntlariga yuboriladi." },
+		{ value: 'staff', label: 'Xodimlarga', note: "Teacher, reception va directorlarga yuboriladi." },
+		{ value: 'students_teachers', label: "O'quvchi va o'qituvchilarga", note: "Sayt va bot orqali student ham, teacher ham oladi." },
+		{ value: 'bot_only', label: 'Botga', note: "Faol Telegram ulanishi bor foydalanuvchilarga faqat botdan ketadi." },
+		{ value: 'all', label: 'Barchaga', note: "Sayt bildirishnomasi va bot orqali hamma foydalanuvchiga boradi." },
+	]
+	const selectedAudience =
+		audienceOptions.find(option => option.value === broadcastForm.audience) || audienceOptions[0]
 
 	return (
 		<>
@@ -7435,6 +7513,124 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 					<div className='modal-actions'>
 						<ActionButton type='submit' icon='save'>
 							Xarajatlarni saqlash
+						</ActionButton>
+					</div>
+				</form>
+			</section>
+			<section className='card settings-card'>
+				<div className='card-head-row'>
+					<div>
+						<h3>Telegram kanallari</h3>
+						<p>Botdan foydalanishdan oldin obuna bo‘lishi kerak bo‘lgan kanal va guruhlar</p>
+					</div>
+					<ActionButton secondary icon='add' onClick={handleAddChannel}>
+						Kanal qo'shish
+					</ActionButton>
+				</div>
+				<div className='stack-list compact-gap'>
+					{telegramChannels.length ? telegramChannels.map((channel, index) => (
+						<div key={`channel-${index}`} className='channel-row-card'>
+							<div className='field-grid three-columns'>
+								<div>
+									<label>Nomi</label>
+									<input
+										type='text'
+										value={channel.title || ''}
+										onChange={event => handleChannelChange(index, 'title', event.target.value)}
+										placeholder='Matematika kanali'
+									/>
+								</div>
+								<div>
+									<label>Chat ID yoki @username</label>
+									<input
+										type='text'
+										value={channel.id || ''}
+										onChange={event => handleChannelChange(index, 'id', event.target.value)}
+										placeholder='@ilmnest_math'
+									/>
+								</div>
+								<div>
+									<label>Link</label>
+									<input
+										type='text'
+										value={channel.url || ''}
+										onChange={event => handleChannelChange(index, 'url', event.target.value)}
+										placeholder='https://t.me/ilmnest_math'
+									/>
+								</div>
+							</div>
+							<div className='inline-end'>
+								<button
+									type='button'
+									className='table-icon-button danger'
+									onClick={() => handleRemoveChannel(index)}
+								>
+									<Icon name='delete' />
+								</button>
+							</div>
+						</div>
+					)) : <EmptyStateNotice message='Majburiy kanal hozircha qo‘shilmagan.' />}
+				</div>
+				<div className='modal-actions top-divider'>
+					<ActionButton icon='save' onClick={handleSaveChannels}>
+						Kanallarni saqlash
+					</ActionButton>
+				</div>
+			</section>
+			<section className='card settings-card'>
+				<div className='card-head-row'>
+					<div>
+						<h3>Bildirishnoma yuborish</h3>
+						<p>Sayt va bot foydalanuvchilariga ommaviy xabar yuborish</p>
+					</div>
+				</div>
+				<form className='modal-form' onSubmit={handleSendBroadcast}>
+					<div className='field-grid'>
+						<div>
+							<label>Sarlavha</label>
+							<input
+								type='text'
+								value={broadcastForm.title}
+								onChange={event =>
+									setBroadcastForm(current => ({ ...current, title: event.target.value }))
+								}
+								placeholder='Masalan: Oylik to‘lov vaqti keldi'
+							/>
+						</div>
+						<div>
+							<label>Qayerga yuboriladi</label>
+							<select
+								value={broadcastForm.audience}
+								onChange={event =>
+									setBroadcastForm(current => ({ ...current, audience: event.target.value }))
+								}
+							>
+								{audienceOptions.map(option => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</div>
+					</div>
+					<div className='broadcast-audience-note'>
+						<Badge tone='default'>{selectedAudience.label}</Badge>
+						<p>{selectedAudience.note}</p>
+					</div>
+					<div>
+						<label>Xabar matni</label>
+						<textarea
+							rows={5}
+							value={broadcastForm.message}
+							onChange={event =>
+								setBroadcastForm(current => ({ ...current, message: event.target.value }))
+							}
+							placeholder='Masalan: Hurmatli o‘quvchi, may oyligi uchun to‘lov muddati keldi.'
+						/>
+					</div>
+					<div className='modal-actions'>
+						<ActionButton type='submit' icon='send'>
+							Xabarni yuborish
 						</ActionButton>
 					</div>
 				</form>

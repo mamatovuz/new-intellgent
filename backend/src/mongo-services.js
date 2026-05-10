@@ -70,6 +70,16 @@ function normalizeBillingStartDate(value) {
   return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
 }
 
+function parseJsonSettingMongo(value, fallback = null) {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function normalizeImportedDateMongo(value) {
   if (!value) return null;
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -851,6 +861,8 @@ export async function createStudentRegistrationTokenMongo(studentId, expiresInSe
 
   const auth = await ensureStudentAuthMongo(studentId, user.phone || "");
   const loginUrl = `${config.webUrl}/student/login?access=${auth.accessToken}`;
+  const botUsername = String(config.telegramBotUsername || "").replace(/^@+/, "");
+  const botStartUrl = botUsername ? `https://t.me/${botUsername}?start=${token}` : "";
 
   return {
     token,
@@ -859,8 +871,38 @@ export async function createStudentRegistrationTokenMongo(studentId, expiresInSe
     expiresAt: expiresAt.format("YYYY-MM-DD HH:mm:ss"),
     registerUrl: loginUrl,
     loginUrl,
+    botStartUrl,
     defaultPassword: "12345678"
   };
+}
+
+export async function consumeStartTokenMongo(token, telegramId) {
+  const row = await QrToken.findOne({ token }).lean();
+  if (!row) {
+    throw new Error("Token topilmadi");
+  }
+  if (dayjs(row.expiresAt).isBefore(dayjs())) {
+    throw new Error("Token muddati tugagan");
+  }
+
+  const student = await Student.findOne({ id: Number(row.studentId) }).lean();
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+
+  const user = await User.findOne({ id: Number(student.userId), role: "student" }).lean();
+  if (!user) {
+    throw new Error("Foydalanuvchi topilmadi");
+  }
+
+  await ensureStudentAuthMongo(student.id, user.phone || "");
+  await User.updateOne({ id: user.id }, { $set: { telegramId: String(telegramId) } });
+  await QrToken.updateOne(
+    { id: row.id },
+    { $set: { used: true, usedAt: new Date() } }
+  );
+
+  return getStudentByUserIdMongo(user.id);
 }
 
 export async function validateStudentRegistrationTokenMongo(token) {
@@ -1375,6 +1417,27 @@ export async function getStudentPaymentsMongo(userId) {
   };
 }
 
+export async function getStudentPaymentReceiptMongo(userId, paymentId) {
+  const student = await getStudentByUserIdMongo(userId);
+  if (!student) return null;
+  const payment = await Payment.findOne({
+    id: Number(paymentId),
+    studentId: Number(student.id)
+  }).lean();
+  if (!payment) return null;
+  return {
+    id: payment.id,
+    studentId: Number(student.id),
+    fullName: student.fullName,
+    phone: student.phone || "",
+    courseTitle: student.courseTitle || "",
+    amount: Number(payment.amount || 0),
+    method: payment.method,
+    paidAt: dayjs(payment.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+    reason: payment.reason || null
+  };
+}
+
 export async function getStudentScheduleMongo(userId) {
   const student = await getStudentByUserIdMongo(userId);
   if (!student) return null;
@@ -1442,8 +1505,10 @@ export async function markNotificationReadMongo(notificationId, userId = null) {
 export async function getSettingsBundleMongo() {
   const rows = await Setting.find().lean();
   const settings = Object.fromEntries(rows.map((item) => [item.key, item.value]));
+  const telegramChannels = parseJsonSettingMongo(settings.telegram_required_channels, []);
   return {
     settings,
+    telegramChannels: Array.isArray(telegramChannels) ? telegramChannels : [],
     teachers: await listTeachersMongo(),
     courses: await listAllCoursesMongo(),
     branches: await listBranchesMongo()
@@ -1454,10 +1519,99 @@ export async function saveSettingsMongo(payload) {
   for (const [key, value] of Object.entries(payload)) {
     await Setting.updateOne(
       { key },
-      { $set: { value: String(value ?? ""), updatedAt: new Date() } },
+      {
+        $set: {
+          value:
+            value && typeof value === "object"
+              ? JSON.stringify(value)
+              : String(value ?? ""),
+          updatedAt: new Date()
+        }
+      },
       { upsert: true }
     );
   }
+}
+
+export async function getTelegramChannelsMongo() {
+  const row = await Setting.findOne({ key: "telegram_required_channels" }).lean();
+  const channels = parseJsonSettingMongo(row?.value, []);
+  return Array.isArray(channels)
+    ? channels
+        .map((channel) => ({
+          id: String(channel?.id || "").trim(),
+          title: String(channel?.title || channel?.label || "").trim(),
+          url: String(channel?.url || "").trim()
+        }))
+        .filter((channel) => channel.id || channel.url)
+    : [];
+}
+
+async function createTargetedNotificationsMongo(userIds, type, title, message, metadata = null) {
+  for (const userId of userIds) {
+    await createNotificationMongo({
+      targetUserId: Number(userId),
+      type,
+      title,
+      message,
+      metadata
+    });
+  }
+}
+
+async function listUsersForAudienceMongo(audience = "students") {
+  const roleSets = {
+    students: ["student"],
+    teachers: ["teacher"],
+    reception: ["reception"],
+    directors: ["director"],
+    staff: ["teacher", "reception", "director"],
+    students_teachers: ["student", "teacher"],
+    all: ["student", "teacher", "reception", "director"],
+    bot_only: ["student", "teacher", "reception", "director"]
+  };
+  const roles = roleSets[audience] || roleSets.students;
+  return User.find({ role: { $in: roles } }).lean();
+}
+
+export async function broadcastNotificationMongo({ title, message, audience = "students", actorUserId = null }) {
+  const users = await listUsersForAudienceMongo(audience);
+  const siteRecipients = audience === "bot_only" ? [] : users;
+  const botRecipients =
+    audience === "students"
+      ? users.filter((user) => user.role === "student" && user.telegramId)
+      : audience === "teachers"
+        ? users.filter((user) => user.role === "teacher" && user.telegramId)
+        : audience === "reception"
+          ? users.filter((user) => user.role === "reception" && user.telegramId)
+          : audience === "directors"
+            ? users.filter((user) => user.role === "director" && user.telegramId)
+            : audience === "staff"
+              ? users.filter((user) => ["teacher", "reception", "director"].includes(user.role) && user.telegramId)
+      : audience === "students_teachers"
+        ? users.filter((user) => ["student", "teacher"].includes(user.role) && user.telegramId)
+        : users.filter((user) => user.telegramId);
+
+  await createTargetedNotificationsMongo(
+    [...new Set(siteRecipients.map((user) => Number(user.id)))],
+    "broadcast",
+    title,
+    message,
+    {
+      audience,
+      actorUserId: actorUserId ? Number(actorUserId) : null
+    }
+  );
+
+  return {
+    siteCount: siteRecipients.length,
+    botCount: botRecipients.length,
+    botRecipients: botRecipients.map((user) => ({
+      userId: Number(user.id),
+      fullName: user.fullName,
+      telegramId: String(user.telegramId)
+    }))
+  };
 }
 
 export async function createCourseMongo(payload) {

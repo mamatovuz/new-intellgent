@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { authenticate, authorize, comparePassword, getUserProfile, getUserProfileAsync, signToken } from "./auth.js";
 import { config } from "./config.js";
 import { buildDirectorPdfReport, buildDirectorWorkbook } from "./reports.js";
-import { sendStudentPaymentNotification } from "./bot.js";
+import { sendBotBroadcast, sendStudentPaymentNotification } from "./bot.js";
 import {
   addStudent,
   addStudentAsync,
@@ -116,6 +116,7 @@ import { getDb } from "./db.js";
 import {
   addStudentMongo,
   archiveStudentMongo,
+  broadcastNotificationMongo,
   changeStudentPasswordMongo,
   createContactRequestMongo,
   createCourseMongo,
@@ -776,7 +777,7 @@ router.post("/reception/students/:id/register-token", authenticate, authorize("r
         : config.dbProvider === "postgres"
           ? await createStudentRegistrationTokenAsync(Number(req.params.id), Number(req.body.expiresInSeconds || 90))
           : createStudentRegistrationToken(Number(req.params.id), Number(req.body.expiresInSeconds || 90));
-    const qrAsset = await buildQrCodeAsset(data.loginUrl || data.registerUrl);
+    const qrAsset = await buildQrCodeAsset(data.botStartUrl || data.loginUrl || data.registerUrl);
     res.json({
       ...data,
       qrImageDataUrl: qrAsset.imageDataUrl
@@ -1319,6 +1320,38 @@ router.post("/notifications/:id/read", authenticate, (req, res) => {
   };
   handleNotificationRead().catch((error) => {
     res.status(500).json({ message: error.message || "Bildirishnoma yangilanmadi" });
+  });
+});
+
+router.post("/notifications/broadcast", authenticate, authorize("director"), (req, res) => {
+  const handleBroadcast = async () => {
+    const title = String(req.body.title || "").trim();
+    const message = String(req.body.message || "").trim();
+    const audience = String(req.body.audience || "students").trim();
+    if (!title || !message) {
+      return res.status(400).json({ message: "Sarlavha va xabar matni majburiy" });
+    }
+
+    if (config.dbProvider === "mongodb") {
+      const result = await broadcastNotificationMongo({
+        title,
+        message,
+        audience,
+        actorUserId: req.user.id
+      });
+      await sendBotBroadcast(result.botRecipients, title, message).catch(() => null);
+      return res.json({
+        message: "Xabar yuborildi",
+        siteCount: result.siteCount,
+        botCount: result.botCount
+      });
+    }
+
+    return res.status(501).json({ message: "Broadcast hozircha bu database uchun tayyor emas" });
+  };
+
+  handleBroadcast().catch((error) => {
+    res.status(500).json({ message: error.message || "Xabar yuborilmadi" });
   });
 });
 
