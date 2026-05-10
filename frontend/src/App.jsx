@@ -1544,7 +1544,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 				<div className='sidebar-inner'>
 					<div className='sidebar-brand'>
 						<div className='brand-logo'>
-							<Icon name='school' />
+							<img src='/ilmnest.jpg' alt='ILM NEST logo' className='brand-logo-image' />
 						</div>
 						<div>
 							<strong>ILM NEST</strong>
@@ -2003,7 +2003,7 @@ function PublicSiteHeader() {
 			>
 				<Link to='/' className='marketing-brand'>
 					<span className='marketing-brand-mark'>
-						<img src='/logointelligent.jpg' alt='Intelligent logo' className='marketing-brand-logo-image' />
+						<img src='/ilmnest.jpg' alt='ILM NEST logo' className='marketing-brand-logo-image' />
 					</span>
 					<span className='marketing-brand-copy'>
 						<strong>ILM NEST</strong>
@@ -3492,7 +3492,7 @@ function StudentLoginPage({ onLogin }) {
 			<main className='admin-login-wrap'>
 				<div className='admin-brand'>
 					<div className='admin-brand-icon'>
-						<Icon name='auto_stories' className='filled-icon' />
+						<img src='/ilmnest.jpg' alt='ILM NEST logo' className='admin-brand-logo-image' />
 					</div>
 					<span className='admin-brand-text'>ILM NEST</span>
 				</div>
@@ -3596,7 +3596,7 @@ function AdminLoginPage({ onLogin }) {
 			<main className='admin-login-wrap'>
 				<div className='admin-brand'>
 					<div className='admin-brand-icon'>
-						<Icon name='auto_stories' className='filled-icon' />
+						<img src='/ilmnest.jpg' alt='ILM NEST logo' className='admin-brand-logo-image' />
 					</div>
 					<span className='admin-brand-text'>ILM NEST</span>
 				</div>
@@ -3712,7 +3712,7 @@ function StudentRegisterPage() {
 			<main className='admin-login-wrap'>
 				<div className='admin-brand'>
 					<div className='admin-brand-icon'>
-						<Icon name='auto_stories' className='filled-icon' />
+						<img src='/ilmnest.jpg' alt='ILM NEST logo' className='admin-brand-logo-image' />
 					</div>
 					<span className='admin-brand-text'>ILM NEST</span>
 				</div>

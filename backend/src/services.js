@@ -276,6 +276,8 @@ function normalizeImportedNumber(value) {
 
 function resolveReceiptLogoPath() {
   const candidates = [
+    path.resolve(process.cwd(), "frontend", "public", "ilmnest.jpg"),
+    path.resolve(process.cwd(), "..", "frontend", "public", "ilmnest.jpg"),
     path.resolve(process.cwd(), "frontend", "public", "logointelligent.jpg"),
     path.resolve(process.cwd(), "..", "frontend", "public", "logointelligent.jpg")
   ];

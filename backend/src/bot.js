@@ -84,11 +84,13 @@ function wrapBotHandler(handler) {
 }
 
 function buildWebAppKeyboard(url) {
-  return Markup.keyboard([
-    [Markup.button.webApp("\u{1F310} Web App", url)],
-    ["\u{1F4D8} Kursim", "\u{1F4B3} Balansim"],
-    ["\u{1F9FE} To'lovim", "\u{1F510} Kabinet havolasi"]
-  ]).resize();
+  const rows = [];
+  if (url) {
+    rows.push([Markup.button.webApp("\u{1F310} Web App", url)]);
+  }
+  rows.push(["\u{1F4D8} Kursim", "\u{1F4B3} Balansim"]);
+  rows.push(["\u{1F9FE} To'lovim", "\u{1F510} Kabinet havolasi"]);
+  return Markup.keyboard(rows).resize();
 }
 
 function buildPhoneRequestKeyboard() {
@@ -194,12 +196,15 @@ async function sendStudentWelcome(ctx, student) {
   }
   await safeReply(
     ctx,
-    `\u{1F44B} Assalomu alaykum, ${student.fullName}!\n\nILM NEST botiga xush kelibsiz. Pastdagi menyudan kerakli bo'limni tanlang.`,
-    webAppUrl ? buildQuickInlineKeyboard() : undefined
+    `\u{1F44B} Assalomu alaykum, ${student.fullName}!\n\nILM NEST botiga xush kelibsiz. Pastdagi menyudan kerakli bo'limni tanlang.`
   );
-  if (webAppUrl) {
-    await safeReply(ctx, "\u{1F4F2} Web App va tezkor menyu tayyor.", buildWebAppKeyboard(webAppUrl));
-  }
+  await safeReply(
+    ctx,
+    webAppUrl
+      ? "\u{1F4F2} Web App va tezkor menyu tayyor."
+      : "\u{1F4F2} Tezkor menyu tayyor.",
+    buildWebAppKeyboard(webAppUrl)
+  );
 }
 
 async function sendCourseInfo(ctx) {
@@ -211,8 +216,7 @@ async function sendCourseInfo(ctx) {
 
   await safeReply(
     ctx,
-    `\u{1F4D8} Kurs ma'lumoti\n\n\u{1F393} Yo'nalish: ${student.courseTitle || "-"}\n\u{1F468}\u200D\u{1F3EB} Ustoz: ${student.teacherName || "-"}\n\u{1F552} Dars vaqti: ${student.schedule || "-"}`,
-    buildQuickInlineKeyboard()
+    `\u{1F4D8} Kurs ma'lumoti\n\n\u{1F393} Yo'nalish: ${student.courseTitle || "-"}\n\u{1F468}\u200D\u{1F3EB} Ustoz: ${student.teacherName || "-"}\n\u{1F552} Dars vaqti: ${student.schedule || "-"}`
   );
 }
 
@@ -226,8 +230,7 @@ async function sendBalanceInfo(ctx) {
   const statusLabel = student.status === "active" ? "Faol" : student.status === "trial" ? "Sinovda" : "Qarzdor";
   await safeReply(
     ctx,
-    `\u{1F4B3} Balans holati\n\n\u{1F4B0} Joriy balans: ${Number(student.balance).toLocaleString("ru-RU")} so'm\n\u{1F4CC} Status: ${statusLabel}\n\u{1F4B8} Oylik to'lov: ${Number(student.monthlyFee || 0).toLocaleString("ru-RU")} so'm`,
-    buildQuickInlineKeyboard()
+    `\u{1F4B3} Balans holati\n\n\u{1F4B0} Joriy balans: ${Number(student.balance).toLocaleString("ru-RU")} so'm\n\u{1F4CC} Status: ${statusLabel}\n\u{1F4B8} Oylik to'lov: ${Number(student.monthlyFee || 0).toLocaleString("ru-RU")} so'm`
   );
 }
 
@@ -276,10 +279,16 @@ async function sendCabinetLink(ctx) {
   }
 
   const accessLink = await getStudentAccessLinkByUserIdUniversal(student.userId);
+  if (!accessLink) {
+    await safeReply(
+      ctx,
+      "\u274C Kabinet havolasi hozircha tayyor emas. Iltimos, birozdan keyin qayta urinib ko'ring yoki reception bilan bog'laning."
+    );
+    return;
+  }
   await safeReply(
     ctx,
-    `\u{1F510} Kabinet havolasi\n\nQuyidagi havola orqali student kabinetga kirishingiz mumkin:\n${accessLink}`,
-    buildQuickInlineKeyboard()
+    `\u{1F510} Kabinet havolasi\n\nQuyidagi havola orqali student kabinetga kirishingiz mumkin:\n${accessLink}`
   );
   await safeReply(ctx, "\u{1F310} Web App tugmasi ham pastda turibdi.", buildWebAppKeyboard(accessLink));
 }

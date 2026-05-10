@@ -192,6 +192,7 @@ async function findStudentUserByPhoneMongo(phone) {
 function mapStudentRowMongo(student, user, course, teacher, trialProgress = 0) {
   return {
     id: student.id,
+    userId: Number(student.userId || 0) || null,
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     balance: Number(student.balance || 0),
