@@ -97,7 +97,7 @@ async function ensureDefaultUsers(passwordHash, now) {
     director = await User.create({
       id: await getNextSequence("users"),
       fullName: "Azizbek Director",
-      username: "12345678",
+      username: "director",
       passwordHash,
       phone: "+998932303410",
       monthlySalary: 0,
@@ -106,6 +106,19 @@ async function ensureDefaultUsers(passwordHash, now) {
       profileImage: null,
       createdAt: now.toDate()
     });
+  } else {
+    await User.updateOne(
+      { id: director.id },
+      {
+        $set: {
+          username: "director",
+          passwordHash,
+          fullName: director.fullName || "Azizbek Director",
+          phone: director.phone || "+998932303410"
+        }
+      }
+    );
+    director = await User.findOne({ role: "director" }).lean();
   }
 
   let reception = await User.findOne({ role: "reception" }).lean();
@@ -122,6 +135,19 @@ async function ensureDefaultUsers(passwordHash, now) {
       profileImage: null,
       createdAt: now.toDate()
     });
+  } else {
+    await User.updateOne(
+      { id: reception.id },
+      {
+        $set: {
+          username: "reception",
+          passwordHash,
+          fullName: reception.fullName || "Malika Reception",
+          phone: reception.phone || "+998907778899"
+        }
+      }
+    );
+    reception = await User.findOne({ role: "reception" }).lean();
   }
 
   return {

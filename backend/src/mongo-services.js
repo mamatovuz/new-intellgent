@@ -12,6 +12,7 @@ import {
   Payment,
   QrToken,
   ReminderDispatch,
+  Setting,
   Student,
   StudentAuth,
   StudentHistory,
