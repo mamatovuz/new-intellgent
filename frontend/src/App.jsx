@@ -1881,7 +1881,7 @@ function TeacherModal({ initialData, courses, onClose, onSubmit }) {
 			subtitle="O'qituvchi ma'lumotlarini kiriting"
 			onClose={onClose}
 		>
-			<form className='modal-form' onSubmit={event => onSubmit(event, form)}>
+			<form className='modal-form teacher-modal-form' onSubmit={event => onSubmit(event, form)}>
 				<div className='field-grid'>
 					<div>
 						<label>Ism familiya</label>
@@ -1924,7 +1924,7 @@ function TeacherModal({ initialData, courses, onClose, onSubmit }) {
 					</div>
 					<div className='full-span'>
 						<label>O'qitadigan kurslari</label>
-						<div className='checkbox-grid'>
+						<div className='checkbox-grid checkbox-grid-scroll'>
 							{courses.map(course => {
 								const checked = (form.courseIds || []).includes(course.id)
 								return (

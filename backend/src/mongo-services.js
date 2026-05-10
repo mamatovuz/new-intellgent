@@ -50,7 +50,9 @@ function mapTeacher(user, courseIds = []) {
 }
 
 function normalizePhone(value = "") {
-  return String(value).replace(/\s+/g, "");
+  const digits = String(value || "").replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.startsWith("998") ? `+${digits}` : `+${digits}`;
 }
 
 function normalizeComparableText(value = "") {
@@ -153,6 +155,28 @@ function normalizeImportedNumberMongo(value) {
 
 function generateAccessTokenMongo() {
   return crypto.randomBytes(24).toString("hex");
+}
+
+async function findStudentUserByPhoneMongo(phone) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) return null;
+
+  const direct = await User.findOne({ phone: normalizedPhone, role: "student" }).lean();
+  if (direct) {
+    return direct;
+  }
+
+  const candidates = await User.find({
+    role: "student",
+    phone: { $exists: true, $ne: null }
+  }).lean();
+
+  const matched = candidates.find((item) => normalizePhone(item.phone) === normalizedPhone) || null;
+  if (matched && matched.phone !== normalizedPhone) {
+    await User.updateOne({ id: matched.id }, { $set: { phone: normalizedPhone } });
+    return { ...matched, phone: normalizedPhone };
+  }
+  return matched;
 }
 
 function mapStudentRowMongo(student, user, course, teacher, trialProgress = 0) {
@@ -687,7 +711,16 @@ export async function getAuthUserByUsernameMongo(username) {
 }
 
 export async function getStudentAuthByPhoneMongo(phone) {
-  const auth = await StudentAuth.findOne({ phone }).lean();
+  const normalizedPhone = normalizePhone(phone);
+  let auth = await StudentAuth.findOne({ phone: normalizedPhone }).lean();
+  if (!auth) {
+    const authRows = await StudentAuth.find({ phone: { $exists: true, $ne: null } }).lean();
+    auth = authRows.find((item) => normalizePhone(item.phone) === normalizedPhone) || null;
+    if (auth && auth.phone !== normalizedPhone) {
+      await StudentAuth.updateOne({ id: auth.id }, { $set: { phone: normalizedPhone } });
+      auth = { ...auth, phone: normalizedPhone };
+    }
+  }
   if (!auth) return null;
   const student = await Student.findOne({ id: auth.studentId }).lean();
   if (!student) return null;
@@ -726,8 +759,7 @@ export async function loginStudentByAccessTokenMongo(accessToken) {
 }
 
 export async function getStudentByPhoneMongo(phone) {
-  const normalizedPhone = normalizePhone(phone);
-  const user = await User.findOne({ phone: normalizedPhone, role: "student" }).lean();
+  const user = await findStudentUserByPhoneMongo(phone);
   if (!user) return null;
   return getStudentByUserIdMongo(user.id);
 }
@@ -746,7 +778,7 @@ export async function getStudentByIdMongo(studentId) {
 
 export async function createTelegramLinkCodeMongo(phone) {
   const normalizedPhone = normalizePhone(phone);
-  const user = await User.findOne({ phone: normalizedPhone }).lean();
+  const user = await findStudentUserByPhoneMongo(normalizedPhone);
   if (!user) return null;
   const student = await Student.findOne({ userId: user.id }).lean();
   if (!student) return null;
