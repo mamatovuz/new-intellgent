@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
+import ExcelJS from "exceljs";
 import { config } from "./config.js";
 import {
   Attendance,
@@ -52,10 +53,102 @@ function normalizePhone(value = "") {
   return String(value).replace(/\s+/g, "");
 }
 
+function normalizeComparableText(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['`â€™Ê»"]/g, "")
+    .replace(/[^a-z0-9\u0400-\u04ff]+/gi, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 function normalizeBillingStartDate(value) {
   if (!value) return null;
   const parsed = dayjs(value);
   return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
+}
+
+function normalizeImportedDateMongo(value) {
+  if (!value) return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const excelEpoch = dayjs("1899-12-30").add(value, "day");
+    return excelEpoch.isValid() ? excelEpoch.format("YYYY-MM-DD") : null;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const dotMatch = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dotMatch) return `${dotMatch[3]}-${dotMatch[2]}-${dotMatch[1]}`;
+  const slashMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (slashMatch) return `${slashMatch[3]}-${slashMatch[1]}-${slashMatch[2]}`;
+  const parsed = dayjs(raw);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
+}
+
+function normalizeImportedStatusMongo(value) {
+  const normalized = normalizeComparableText(value);
+  if (!normalized) return "active";
+  if (["faol", "active"].includes(normalized)) return "active";
+  if (["sinov", "trial"].includes(normalized)) return "trial";
+  if (["qarzdor", "debtor"].includes(normalized)) return "debtor";
+  if (["arxiv", "archived", "archive"].includes(normalized)) return "archived";
+  return null;
+}
+
+const IMPORT_HEADER_MAP_MONGO = {
+  fullName: ["full name", "fullname", "fullName", "full_name", "f i sh", "f.i.sh", "fish", "ism", "ism familiya", "ism familya", "oquvchi", "o quvchi"],
+  phone: ["phone", "telefon", "telefon raqami", "telefon raqam"],
+  courseTitle: ["course", "kurs", "course title", "course_title", "courseTitle", "yonalish", "yo nalish"],
+  teacherName: ["teacher", "teacherName", "oqituvchi", "o qituvchi", "ustoz"],
+  status: ["status", "holat"],
+  enrolledAt: ["enrolled at", "enrolled_at", "enrolledAt", "oqishni boshlagan sana", "boshlagan sana", "qoshilgan sana"],
+  billingStartDate: ["billing start date", "billing_start_date", "billingStartDate", "oylik boshlanish sanasi", "oylik sanasi"],
+  balance: ["balance", "balans", "joriy balans"],
+  studyMonth: ["study month", "study_month", "studyMonth", "oy", "nechinchi oy", "qaysi oy"],
+  note: ["note", "izoh", "comment", "sabab"]
+};
+
+function resolveImportFieldMongo(headerValue) {
+  const normalized = normalizeComparableText(headerValue);
+  const entry = Object.entries(IMPORT_HEADER_MAP_MONGO).find(([, aliases]) =>
+    aliases.some((alias) => normalizeComparableText(alias) === normalized)
+  );
+  return entry?.[0] || null;
+}
+
+function parseCsvLineMongo(line = "") {
+  const result = [];
+  let current = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"') {
+      if (quoted && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+    if (char === "," && !quoted) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function normalizeImportedNumberMongo(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const normalized = String(value).replace(/\s+/g, "").replace(/so'?m/gi, "").replace(/uzs/gi, "").replace(/,/g, ".");
+  const parsed = Number(normalized.replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function generateAccessTokenMongo() {
@@ -250,6 +343,236 @@ export async function listTeachersMongo() {
       assignments.filter((item) => item.teacherId === teacher.id).map((item) => item.courseId)
     )
   );
+}
+
+async function parseImportedStudentRowsFromFileMongo({ fileName, fileDataBase64 }) {
+  if (!fileName || !fileDataBase64) {
+    throw new Error("Import faylini yuboring");
+  }
+
+  const extension = String(fileName).toLowerCase().split(".").pop();
+  const buffer = Buffer.from(fileDataBase64, "base64");
+
+  if (extension === "json") {
+    const payload = JSON.parse(buffer.toString("utf8"));
+    return Array.isArray(payload) ? payload : payload.rows || [];
+  }
+
+  if (extension === "csv") {
+    const lines = buffer.toString("utf8").split(/\r?\n/).filter((line) => line.trim());
+    if (!lines.length) return [];
+    const headers = parseCsvLineMongo(lines[0]);
+    return lines.slice(1).map((line) => {
+      const values = parseCsvLineMongo(line);
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] ?? "";
+      });
+      return row;
+    });
+  }
+
+  if (extension === "xlsx" || extension === "xlsm") {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) return [];
+
+    const headerRow = worksheet.getRow(1);
+    const headers = headerRow.values.slice(1).map((value) => String(value || "").trim());
+    const rows = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const values = row.values.slice(1);
+      const record = {};
+      headers.forEach((header, index) => {
+        record[header] = values[index] ?? "";
+      });
+      rows.push(record);
+    });
+    return rows;
+  }
+
+  throw new Error("Faqat .xlsx, .csv yoki .json fayl yuklang");
+}
+
+function normalizeImportedStudentDraftMongo(rawRow, index) {
+  const draft = {
+    rowNumber: index + 2,
+    fullName: "",
+    phone: "",
+    courseTitle: "",
+    teacherName: "",
+    status: "active",
+    enrolledAt: null,
+    billingStartDate: null,
+    balance: 0,
+    studyMonth: null,
+    note: ""
+  };
+
+  Object.entries(rawRow || {}).forEach(([header, value]) => {
+    const field = resolveImportFieldMongo(header);
+    if (field) {
+      draft[field] = value;
+    }
+  });
+
+  draft.fullName = String(draft.fullName || "").trim();
+  draft.phone = normalizePhone(draft.phone || "");
+  draft.courseTitle = String(draft.courseTitle || "").trim();
+  draft.teacherName = String(draft.teacherName || "").trim();
+  draft.status = normalizeImportedStatusMongo(draft.status) || "active";
+  draft.enrolledAt = normalizeImportedDateMongo(draft.enrolledAt);
+  draft.billingStartDate = normalizeImportedDateMongo(draft.billingStartDate);
+  draft.balance = normalizeImportedNumberMongo(draft.balance);
+  draft.studyMonth =
+    draft.studyMonth === null || draft.studyMonth === undefined || draft.studyMonth === ""
+      ? null
+      : Math.max(1, Number(draft.studyMonth || 1));
+  draft.note = String(draft.note || "").trim();
+
+  if (!draft.enrolledAt && draft.studyMonth) {
+    draft.enrolledAt = dayjs().subtract(Math.max(0, Number(draft.studyMonth) - 1), "month").format("YYYY-MM-DD");
+  }
+  if (!draft.billingStartDate && draft.enrolledAt) {
+    draft.billingStartDate = draft.enrolledAt;
+  }
+
+  return draft;
+}
+
+function resolveImportedStudentDraftMongo(draft, context) {
+  const errors = [];
+  const warnings = [];
+
+  if (!draft.fullName) errors.push("F.I.SH kiritilmagan");
+  if (!draft.phone) errors.push("Telefon raqami kiritilmagan");
+  if (!draft.courseTitle) errors.push("Kurs nomi kiritilmagan");
+  if (!draft.teacherName) errors.push("O'qituvchi kiritilmagan");
+
+  const course = context.courses.find((item) => normalizeComparableText(item.title) === normalizeComparableText(draft.courseTitle));
+  if (!course && draft.courseTitle) errors.push("Kurs topilmadi");
+
+  const teacher = context.teachers.find((item) => normalizeComparableText(item.fullName) === normalizeComparableText(draft.teacherName));
+  if (!teacher && draft.teacherName) errors.push("O'qituvchi topilmadi");
+
+  if (teacher && course && !context.teacherCourseKeys.has(`${teacher.id}:${course.id}`)) {
+    errors.push("Tanlangan o'qituvchi bu kursga biriktirilmagan");
+  }
+
+  if (draft.phone && context.existingPhones.has(draft.phone)) {
+    errors.push("Bu telefon bilan student allaqachon mavjud");
+  }
+
+  if (draft.phone && context.filePhones.has(draft.phone)) {
+    errors.push("Import faylida telefon takrorlangan");
+  } else if (draft.phone) {
+    context.filePhones.add(draft.phone);
+  }
+
+  if (!draft.enrolledAt) warnings.push("Boshlanish sana topilmadi, bugungi sana olinadi");
+  if (draft.status === "active" && Number(draft.balance || 0) <= 0) {
+    warnings.push("Balans 0 bo'lsa tizim studentni qarzdor sifatida ko'rsatishi mumkin");
+  }
+
+  return {
+    ...draft,
+    courseId: course?.id || null,
+    teacherId: teacher?.id || null,
+    schedule: draft.note || course?.schedule || "",
+    errors,
+    warnings,
+    ready: errors.length === 0
+  };
+}
+
+export async function previewStudentImportMongo({ fileName, fileDataBase64 }) {
+  const rawRows = await parseImportedStudentRowsFromFileMongo({ fileName, fileDataBase64 });
+  const [courses, teachers, studentUsers, assignments] = await Promise.all([
+    listAllCoursesMongo(),
+    listTeachersMongo(),
+    User.find({ role: "student", phone: { $exists: true, $ne: null } }).lean(),
+    TeacherCourseAssignment.find().lean()
+  ]);
+
+  const existingPhones = new Set(studentUsers.map((item) => normalizePhone(item.phone)).filter(Boolean));
+  const teacherCourseKeys = new Set(assignments.map((item) => `${Number(item.teacherId)}:${Number(item.courseId)}`));
+
+  const context = {
+    courses,
+    teachers,
+    existingPhones,
+    teacherCourseKeys,
+    filePhones: new Set()
+  };
+
+  const rows = rawRows.map((row, index) =>
+    resolveImportedStudentDraftMongo(normalizeImportedStudentDraftMongo(row, index), context)
+  );
+
+  return {
+    summary: {
+      totalRows: rows.length,
+      readyRows: rows.filter((item) => item.ready).length,
+      errorRows: rows.filter((item) => item.errors.length).length,
+      warningRows: rows.filter((item) => item.warnings.length).length
+    },
+    rows
+  };
+}
+
+export async function importStudentsBatchMongo(rows, actorUserId = null) {
+  const payloadRows = Array.isArray(rows) ? rows : [];
+  if (!payloadRows.length) {
+    throw new Error("Import uchun qator topilmadi");
+  }
+
+  const preview = await previewStudentImportMongo({
+    fileName: "reimport.json",
+    fileDataBase64: Buffer.from(JSON.stringify(payloadRows), "utf8").toString("base64")
+  });
+
+  const invalid = preview.rows.filter((item) => !item.ready);
+  if (invalid.length) {
+    throw new Error("Importda xatolar bor. Avval preview natijasini tekshiring.");
+  }
+
+  const created = [];
+  for (const item of preview.rows) {
+    const result = await addStudentMongo(
+      {
+        fullName: item.fullName,
+        phone: item.phone,
+        courseId: Number(item.courseId),
+        teacherId: Number(item.teacherId),
+        balance: Number(item.balance || 0),
+        status: item.status,
+        enrolledAt: item.enrolledAt,
+        billingStartDate: item.billingStartDate,
+        schedule: item.schedule,
+        imported: true,
+        skipDirectorNotification: true
+      },
+      actorUserId
+    );
+    created.push({
+      studentId: result.studentId,
+      fullName: item.fullName
+    });
+  }
+
+  await createNotificationMongo({
+    targetRole: "director",
+    type: "students_imported",
+    title: "Eski o'quvchilar import qilindi",
+    message: `${created.length} ta o'quvchi import qilindi`
+  });
+
+  return {
+    createdCount: created.length,
+    created
+  };
 }
 
 export async function createContactRequestMongo({ fullName, phone, message }) {

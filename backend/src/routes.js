@@ -156,6 +156,7 @@ import {
   markContactRequestReadMongo,
   markNotificationReadMongo,
   loginStudentByAccessTokenMongo,
+  previewStudentImportMongo,
   recordPaymentMongo,
   registerStudentByTokenMongo,
   saveSettingsMongo,
@@ -164,6 +165,7 @@ import {
   updateTeacherMongo,
   updateUserProfileMongo,
   updateStudentMongo,
+  importStudentsBatchMongo,
   upsertAttendanceBatchMongo,
   validateStudentRegistrationTokenMongo,
   verifyTelegramCodeMongo
@@ -680,10 +682,16 @@ router.post("/reception/students", authenticate, authorize("reception", "directo
 
 router.post("/reception/students/import/preview", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
-    const result = await previewStudentImport({
-      fileName: req.body.fileName,
-      fileDataBase64: req.body.fileDataBase64
-    });
+    const result =
+      config.dbProvider === "mongodb"
+        ? await previewStudentImportMongo({
+            fileName: req.body.fileName,
+            fileDataBase64: req.body.fileDataBase64
+          })
+        : await previewStudentImport({
+            fileName: req.body.fileName,
+            fileDataBase64: req.body.fileDataBase64
+          });
     res.json(result);
   } catch (error) {
     res.status(400).json({ message: error.message || "Import preview yaratilmadi" });
@@ -692,7 +700,10 @@ router.post("/reception/students/import/preview", authenticate, authorize("recep
 
 router.post("/reception/students/import/commit", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
-    const result = await importStudentsBatch(req.body.rows, req.user.id);
+    const result =
+      config.dbProvider === "mongodb"
+        ? await importStudentsBatchMongo(req.body.rows, req.user.id)
+        : await importStudentsBatch(req.body.rows, req.user.id);
     res.status(201).json({
       message: `${result.createdCount} ta o'quvchi import qilindi`,
       ...result
