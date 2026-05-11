@@ -1325,7 +1325,28 @@ export async function listAttendanceHistoryMongo({ teacherId = null, studentId =
 }
 
 export async function getTeacherStudentsMongo(teacherId) {
-  return listStudentsMongo({ teacherId: Number(teacherId) });
+  const normalizedTeacherId = Number(teacherId);
+  if (!Number.isFinite(normalizedTeacherId) || normalizedTeacherId <= 0) {
+    return [];
+  }
+
+  const [teacher, assignments, students] = await Promise.all([
+    User.findOne({ id: normalizedTeacherId, role: "teacher" }).lean(),
+    TeacherCourseAssignment.find({ teacherId: normalizedTeacherId }).lean(),
+    listStudentsMongo({ includeArchived: false })
+  ]);
+
+  const assignedCourseIds = new Set(assignments.map((item) => Number(item.courseId)).filter(Boolean));
+  const teacherNameKey = normalizeComparableText(teacher?.fullName || "");
+
+  return students.filter((student) => {
+    const sameTeacherId = Number(student.teacherId || 0) === normalizedTeacherId;
+    const sameTeacherName =
+      teacherNameKey && normalizeComparableText(student.teacherName || "") === teacherNameKey;
+    const courseBelongsToTeacher = assignedCourseIds.has(Number(student.courseId || 0));
+    const hasExplicitTeacherLink = Boolean(student.teacherId) || Boolean(student.teacherName);
+    return sameTeacherId || sameTeacherName || (courseBelongsToTeacher && !hasExplicitTeacherLink);
+  });
 }
 
 export async function getStudentByUserIdMongo(userId) {

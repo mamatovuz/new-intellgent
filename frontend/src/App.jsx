@@ -4486,7 +4486,7 @@ function buildReceptionTracks(students = [], meta = {}) {
 	const courses = Array.isArray(meta?.courses) ? meta.courses.filter(course => course.isActive !== false) : []
 	const teachers = Array.isArray(meta?.teachers) ? meta.teachers : []
 	const tracks = new Map()
-	const semanticKeys = new Set()
+	const semanticIndex = new Map()
 
 	const toSemanticKey = (courseTitle, teacherName, schedule) =>
 		[String(courseTitle || '').trim(), String(teacherName || '').trim(), String(schedule || '').trim()]
@@ -4495,15 +4495,35 @@ function buildReceptionTracks(students = [], meta = {}) {
 
 	const pushTrack = ({ key, courseTitle, teacherName, schedule, members }) => {
 		const semanticKey = toSemanticKey(courseTitle, teacherName, schedule || "Jadval kiritilmagan")
-		if (tracks.has(key) || semanticKeys.has(semanticKey)) return
-		semanticKeys.add(semanticKey)
+		const normalizedMembers = Array.isArray(members) ? members : []
+		const existingKey = semanticIndex.get(semanticKey)
+		if (existingKey && tracks.has(existingKey)) {
+			const current = tracks.get(existingKey)
+			const mergedMembers = new Map()
+			;[...(current.members || []), ...normalizedMembers].forEach(student => {
+				if (student?.id) mergedMembers.set(Number(student.id), student)
+			})
+			tracks.set(existingKey, {
+				...current,
+				courseTitle: current.courseTitle || courseTitle,
+				teacherName: current.teacherName || teacherName,
+				schedule: current.schedule || schedule || "Jadval kiritilmagan",
+				label: `${current.courseTitle || courseTitle} / ${current.teacherName || teacherName}`,
+				members: Array.from(mergedMembers.values()).sort((a, b) =>
+					String(a.fullName || '').localeCompare(String(b.fullName || ''), 'uz'),
+				),
+			})
+			return
+		}
+		if (tracks.has(key)) return
+		semanticIndex.set(semanticKey, key)
 		tracks.set(key, {
 			key,
 			courseTitle,
 			teacherName,
 			schedule: schedule || "Jadval kiritilmagan",
 			label: `${courseTitle} / ${teacherName}`,
-			members: [...members].sort((a, b) =>
+			members: [...normalizedMembers].sort((a, b) =>
 				String(a.fullName || '').localeCompare(String(b.fullName || ''), 'uz'),
 			),
 		})
@@ -4546,11 +4566,13 @@ function buildReceptionTracks(students = [], meta = {}) {
 		}
 	})
 
-	return Array.from(tracks.values()).sort((a, b) => {
-		const byTime = getScheduleSortKey(a.schedule) - getScheduleSortKey(b.schedule)
-		if (byTime !== 0) return byTime
-		return String(a.courseTitle || '').localeCompare(String(b.courseTitle || ''), 'uz')
-	})
+	return Array.from(tracks.values())
+		.filter(group => Array.isArray(group.members) && group.members.length > 0)
+		.sort((a, b) => {
+			const byTime = getScheduleSortKey(a.schedule) - getScheduleSortKey(b.schedule)
+			if (byTime !== 0) return byTime
+			return String(a.courseTitle || '').localeCompare(String(b.courseTitle || ''), 'uz')
+		})
 }
 
 function PaymentCollectionWorkspace({
