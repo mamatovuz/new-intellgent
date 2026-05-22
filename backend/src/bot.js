@@ -91,7 +91,7 @@ function buildWebAppKeyboard(url) {
   }
   rows.push(["\u{1F4D8} Kursim", "\u{1F4B3} Balansim"]);
   rows.push(["\u{1F9FE} To'lovim", "\u{1F510} Kabinet havolasi"]);
-  return Markup.keyboard(rows).resize();
+  return Markup.keyboard(rows).resize().persistent();
 }
 
 function buildPhoneRequestKeyboard() {
@@ -199,13 +199,13 @@ async function sendStudentWelcome(ctx, student) {
     ctx,
     `\u{1F44B} Assalomu alaykum, ${student.fullName}!\n\nILM NEST botiga xush kelibsiz. Pastdagi menyudan kerakli bo'limni tanlang.`
   );
-  await safeReply(
-    ctx,
-    webAppUrl
-      ? "\u{1F4F2} Web App va tezkor menyu tayyor."
-      : "\u{1F4F2} Tezkor menyu tayyor.",
-    buildWebAppKeyboard(webAppUrl)
-  );
+  const keyboardMessage = webAppUrl
+    ? "\u{1F4F2} Web App va tezkor menyu tayyor."
+    : "\u{1F4F2} Tezkor menyu tayyor.";
+  const sent = await safeReply(ctx, keyboardMessage, buildWebAppKeyboard(webAppUrl));
+  if (!sent) {
+    await safeReply(ctx, "\u{1F4F2} Menyu tayyor.", buildWebAppKeyboard());
+  }
 }
 
 async function sendCourseInfo(ctx) {
@@ -340,7 +340,8 @@ export function startBot() {
 
     await safeReply(
       ctx,
-      `Tasdiqlash kodi: ${data.code}\n\nKodni shu chatga yuboring va akkauntingizni ulang.`
+      `Tasdiqlash kodi: ${data.code}\n\nKodni shu chatga yuboring va akkauntingizni ulang.`,
+      Markup.removeKeyboard()
     );
   }));
 
@@ -356,7 +357,10 @@ export function startBot() {
     await safeReply(
       ctx,
       `\u{1F510} Tasdiqlash kodi: *${data.code}*\n\nKodni shu chatga yuboring va akkauntingizni ulang.`,
-      { parse_mode: "Markdown" }
+      {
+        parse_mode: "Markdown",
+        ...Markup.removeKeyboard()
+      }
     );
   }));
 

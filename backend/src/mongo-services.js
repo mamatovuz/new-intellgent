@@ -1751,10 +1751,10 @@ export async function updateTeacherMongo(teacherId, payload) {
 }
 
 export async function deleteTeacherMongo(teacherId) {
-  const assigned = await Student.countDocuments({ teacherId: Number(teacherId), isArchived: false });
-  if (assigned > 0) {
-    return { blocked: true };
-  }
+  await Student.updateMany(
+    { teacherId: Number(teacherId), isArchived: false },
+    { $set: { teacherId: null, teacherName: "" } }
+  );
   await TeacherCourseAssignment.deleteMany({ teacherId: Number(teacherId) });
   await User.deleteOne({ id: Number(teacherId), role: "teacher" });
   return { blocked: false };

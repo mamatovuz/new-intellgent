@@ -4682,23 +4682,17 @@ export async function updateTeacherAsync(teacherId, payload) {
 }
 
 export function deleteTeacher(teacherId) {
-  const assigned = db.prepare(`SELECT COUNT(*) as count FROM students WHERE teacher_id = ? AND is_archived = 0`).get(teacherId);
-  if (assigned.count > 0) {
-    return { blocked: true };
-  }
+  db.prepare(`UPDATE students SET teacher_id = NULL WHERE teacher_id = ? AND is_archived = 0`).run(teacherId);
   db.prepare(`DELETE FROM teacher_course_assignments WHERE teacher_id = ?`).run(teacherId);
   db.prepare(`DELETE FROM users WHERE id = ? AND role = 'teacher'`).run(teacherId);
   return { blocked: false };
 }
 
 export async function deleteTeacherAsync(teacherId) {
-  const { rows } = await getSupabasePool().query(
-    `SELECT COUNT(*)::int as count FROM students WHERE teacher_id = $1 AND is_archived = FALSE`,
+  await getSupabasePool().query(
+    `UPDATE students SET teacher_id = NULL WHERE teacher_id = $1 AND is_archived = FALSE`,
     [teacherId]
   );
-  if (Number(rows[0]?.count || 0) > 0) {
-    return { blocked: true };
-  }
   await getSupabasePool().query(`DELETE FROM teacher_course_assignments WHERE teacher_id = $1`, [teacherId]);
   await getSupabasePool().query(`DELETE FROM users WHERE id = $1 AND role = 'teacher'`, [teacherId]);
   return { blocked: false };

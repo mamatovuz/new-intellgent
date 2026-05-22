@@ -7358,6 +7358,16 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 		setBundle(await api.getSettings(token))
 	}
 
+	async function handleRestoreCourse(course) {
+		await api.updateCourse(token, course.id, {
+			title: course.title,
+			monthlyFee: course.monthlyFee,
+			schedule: course.schedule,
+			isActive: true,
+		})
+		setBundle(await api.getSettings(token))
+	}
+
 	async function handleTeacherSubmit(event, form) {
 		event.preventDefault()
 		if (!form.courseIds?.length) {
@@ -7374,11 +7384,7 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 	}
 
 	async function handleDeleteTeacher(teacherId) {
-		const result = await api.deleteTeacher(token, teacherId)
-		if (result.blocked) {
-			await showError("Bu o'qituvchiga hali o'quvchilar biriktirilgan")
-			return
-		}
+		await api.deleteTeacher(token, teacherId)
 		setBundle(await api.getSettings(token))
 	}
 
@@ -7702,9 +7708,13 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 												</button>
 												<button
 													type='button'
-													onClick={() => handleDeleteCourse(course.id)}
+													onClick={() =>
+														course.isActive
+															? handleDeleteCourse(course.id)
+															: handleRestoreCourse(course)
+													}
 												>
-													<Icon name='delete' />
+													<Icon name={course.isActive ? 'delete' : 'restore'} />
 												</button>
 											</div>
 										</td>
@@ -7809,7 +7819,7 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 			{teacherModal ? (
 				<TeacherModal
 					initialData={teacherModal}
-					courses={bundle.courses.filter(course => course.isActive)}
+					courses={bundle.courses.filter(course => course.isActive !== false)}
 					onClose={() => setTeacherModal(null)}
 					onSubmit={handleTeacherSubmit}
 				/>
