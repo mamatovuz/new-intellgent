@@ -75,6 +75,13 @@ function buildInsertQuery(tableName, columns) {
 }
 
 async function resetSequences(pool) {
+  if (config.dbEngine === "mysql") {
+    for (const tableName of ID_TABLES) {
+      await pool.query(`ALTER TABLE ${tableName} AUTO_INCREMENT = 1`);
+    }
+    return;
+  }
+
   for (const tableName of ID_TABLES) {
     await pool.query(
       `
@@ -120,8 +127,16 @@ export async function migrateSqliteDataToSupabase({ truncate = false } = {}) {
 
   try {
     if (truncate) {
-      const tableList = TABLE_ORDER.join(", ");
-      await pool.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
+      if (config.dbEngine === "mysql") {
+        await pool.query("SET FOREIGN_KEY_CHECKS = 0");
+        for (const tableName of [...TABLE_ORDER].reverse()) {
+          await pool.query(`TRUNCATE TABLE ${tableName}`);
+        }
+        await pool.query("SET FOREIGN_KEY_CHECKS = 1");
+      } else {
+        const tableList = TABLE_ORDER.join(", ");
+        await pool.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
+      }
     }
 
     const counts = {};
@@ -139,7 +154,7 @@ export async function migrateSqliteDataToSupabase({ truncate = false } = {}) {
 if (process.argv[1] && process.argv[1].endsWith("supabase-migrate-data.js")) {
   migrateSqliteDataToSupabase({ truncate: true })
     .then(() => {
-      console.log("SQLite ma'lumotlari Supabase Postgres bazasiga ko'chirildi.");
+      console.log(`SQLite ma'lumotlari ${config.dbEngine === "mysql" ? "MySQL" : "Postgres"} bazasiga ko'chirildi.`);
       process.exit(0);
     })
     .catch((error) => {

@@ -14,7 +14,7 @@ async function bootstrap() {
     try {
       await applySupabaseSchema();
       const result = await testSupabaseConnection();
-      console.log(`Postgres ulanish tayyor: ${result.now}`);
+      console.log(`${config.dbEngine === "mysql" ? "MySQL" : "Postgres"} ulanish tayyor: ${result.now}`);
 
       const existingUsers = await getSupabasePool().query(`SELECT COUNT(*)::int as count FROM users`);
       const userCount = Number(existingUsers.rows[0]?.count || 0);
@@ -44,6 +44,8 @@ async function bootstrap() {
   app.listen(config.port, () => {
     console.log(`Intelligent backend ishga tushdi: http://localhost:${config.port}`);
     console.log(`DB provider: ${config.dbProvider}`);
+    console.log(`DB engine: ${config.dbEngine}`);
+    console.log(`DB provider source: ${config.dbProviderSource}`);
   });
 
   startBot();
