@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import ExcelJS from "exceljs";
 import { HorizontalAlign, Jimp, loadFont } from "jimp";
+import sharp from "sharp";
 import {
   SANS_16_BLACK,
   SANS_16_WHITE,
@@ -377,144 +378,61 @@ export async function buildQrCodeAsset(value) {
 }
 
 async function buildReceiptPng(receipt) {
-  const { smallBlack, smallWhite, mediumBlack, mediumWhite, largeWhite } = await getFonts();
-  const qrBuffer = await createQrCodeBuffer(
-    `${config.webUrl}/student/login?phone=${encodeURIComponent(receipt.phone || "")}&password=12345678`,
-    250
-  );
-  const receiptLogoPath = resolveReceiptLogoPath();
-  const qrImage = await Jimp.read(qrBuffer);
-  const logoImage = receiptLogoPath ? await Jimp.read(receiptLogoPath) : null;
-  const paymentCaption = buildPaymentCaption(receipt);
   const paidDate = dayjs(receipt.paidAt);
-  const amountText = formatMoney(receipt.amount);
+  const paidAtText = paidDate.isValid() ? paidDate.format("DD.MM.YYYY, HH:mm") : "-";
+  const amountText = Number(receipt.amount || 0).toLocaleString("ru-RU");
   const methodText = String(receipt.method || "manual").toUpperCase();
-
-  const canvas = await createSolidImage(1280, 853, 0xeef3fbff);
-  const card = await createSolidImage(1228, 775, 0xffffffff);
-  const hero = await createSolidImage(1228, 239, 0x124bcfff);
-  const stripe = await createSolidImage(1228, 18, 0x25c75aff);
-  const logoCard = await createSolidImage(372, 62, 0xffffffff);
-  const amountCard = await createSolidImage(384, 146, 0x25c75aff);
-  const qrCard = await createSolidImage(330, 388, 0xffffffff);
-  const qrTop = await createSolidImage(330, 16, 0x25c75aff);
-  const footer = await createSolidImage(1146, 108, 0xe5efffff);
-  const okBadge = await createSolidImage(64, 64, 0x2454d5ff);
-  const divider = await createSolidImage(2, 346, 0xe5edf8ff);
-  const qrDivider = await createSolidImage(218, 2, 0xe3e9f4ff);
-
-  canvas.composite(card, 26, 26);
-  canvas.composite(hero, 26, 26);
-  canvas.composite(stripe, 26, 243);
-  canvas.composite(logoCard, 84, 144);
-  canvas.composite(amountCard, 840, 79);
-  canvas.composite(qrCard, 889, 294);
-  canvas.composite(qrTop, 889, 294);
-  canvas.composite(footer, 78, 716);
-  canvas.composite(okBadge, 99, 738);
-  canvas.composite(divider, 835, 308);
-  canvas.composite(qrDivider, 942, 635);
-  canvas.composite(qrImage, 930, 334);
-
-  if (logoImage) {
-    logoImage.contain({ w: 102, h: 36 });
-    canvas.composite(logoImage, 98, 156);
-  } else {
-    const cubeLeft = await createSolidImage(18, 18, 0x69a9ffff);
-    const cubeRight = await createSolidImage(18, 18, 0x25c75aff);
-    const cubeBase = await createSolidImage(18, 18, 0x2f66f0ff);
-    canvas.composite(cubeLeft, 102, 164);
-    canvas.composite(cubeRight, 118, 172);
-    canvas.composite(cubeBase, 102, 180);
-  }
-
-  canvas.print({ font: largeWhite, x: 84, y: 58, text: "TO'LOV QABUL QILINDI" });
-  canvas.print({ font: mediumBlack, x: 182, y: 152, text: "ILM NEST", maxWidth: 220 });
-  canvas.print({ font: mediumBlack, x: 340, y: 152, text: "PAY", maxWidth: 72 });
-  canvas.print({ font: smallWhite, x: 84, y: 214, text: "ILM NEST Education | Oylik to'lov cheki" });
-
-  canvas.print({ font: smallWhite, x: 886, y: 98, text: "QABUL QILINGAN SUMMA", maxWidth: 290 });
-  canvas.print({ font: mediumWhite, x: 886, y: 142, text: amountText, maxWidth: 290 });
-
-  const iconCards = [308, 389, 470, 551, 632, 713];
-  for (const y of iconCards) {
-    const iconCard = await createSolidImage(72, 72, 0xedf4ffff);
-    canvas.composite(iconCard, 86, y);
-  }
-
-  const line = await createSolidImage(26, 6, 0x2f66f0ff);
-  const stem = await createSolidImage(6, 26, 0x2f66f0ff);
-  const dot = await createSolidImage(16, 16, 0x2f66f0ff);
-  const drawMarker = (x, y, variant = "plus") => {
-    canvas.composite(line, x + 23, y + 33);
-    if (variant === "plus" || variant === "stem") {
-      canvas.composite(stem, x + 33, y + 23);
-    }
-    if (variant === "dot") {
-      canvas.composite(dot, x + 28, y + 28);
-    }
-  };
-  drawMarker(86, 308, "plus");
-  drawMarker(86, 389, "stem");
-  drawMarker(86, 470, "dot");
-  drawMarker(86, 551, "plus");
-  drawMarker(86, 632, "stem");
-  drawMarker(86, 713, "dot");
-
-  const leftLabels = ["To'lovchi:", "Telefon:", "Kurs:", "Usul:", "Sana:", "Tranzaksiya ID:"];
-  const leftValues = [
-    receipt.fullName,
-    receipt.phone || "-",
-    receipt.courseTitle || "-",
-    methodText,
-    paidDate.format("DD.MM.YYYY"),
-    String(receipt.id)
+  const transactionId = `#${String(receipt.id || "0000").padStart(4, "0")}`;
+  const rows = [
+    ["To'lovchi", receipt.fullName || "-"],
+    ["Telefon", receipt.phone || "-"],
+    ["Kurs nomi", receipt.courseTitle || "-"],
+    ["To'lov turi", methodText],
+    ["Sana va vaqt", paidAtText],
+    ["Tranzaksiya ID", transactionId]
   ];
-  const leftY = [318, 390, 462, 534, 606, 678];
 
-  leftLabels.forEach((label, index) => {
-    const valueX = index === 5 ? 458 : 344;
-    const valueWidth = index === 5 ? 300 : 430;
-    canvas.print({ font: mediumBlack, x: 174, y: leftY[index], text: label, maxWidth: 250 });
-    canvas.print({ font: mediumBlack, x: valueX, y: leftY[index], text: leftValues[index], maxWidth: valueWidth });
-  });
+  const rowSvg = rows
+    .map(([label, value], index) => {
+      const y = 382 + index * 72;
+      const icon = label === "To'lov turi"
+        ? `<path d="M462 ${y - 4}h11v11h-11z" fill="none" stroke="#8fa0bd" stroke-width="2"/><path d="M466 ${y}h11v11h-11z" fill="none" stroke="#8fa0bd" stroke-width="2"/>`
+        : "";
 
-  canvas.print({ font: mediumBlack, x: 548, y: 606, text: "Vaqt:" });
-  canvas.print({ font: mediumBlack, x: 648, y: 606, text: paidDate.format("HH:mm") });
+      return `
+        <line x1="92" y1="${y + 36}" x2="628" y2="${y + 36}" stroke="#eef2f7" stroke-width="1"/>
+        <text x="92" y="${y}" fill="#8fa0bd" font-size="19" font-weight="500">${escapeXml(label)}</text>
+        ${icon}
+        <text x="628" y="${y}" fill="#111827" font-size="20" font-weight="${index === 0 ? "700" : "500"}" text-anchor="end">${escapeXml(String(value))}</text>
+      `;
+    })
+    .join("");
 
-  canvas.print({
-    font: smallBlack,
-    x: 958,
-    y: 602,
-    text: "Kabinetga tez kirish QR",
-    maxWidth: 196
-  });
-  canvas.print({
-    font: smallBlack,
-    x: 947,
-    y: 676,
-    text: "Default parol: 12345678",
-    maxWidth: 220
-  });
+  const svg = `
+    <svg width="720" height="900" viewBox="0 0 720 900" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">
+      <defs>
+        <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0f172a" flood-opacity="0.08"/>
+        </filter>
+      </defs>
+      <rect width="720" height="900" fill="#f6f8fb"/>
+      <rect x="60" y="36" width="600" height="828" rx="20" fill="#ffffff" filter="url(#cardShadow)"/>
 
-  canvas.print({ font: mediumBlack, x: 205, y: 742, text: paymentCaption, maxWidth: 740 });
-  canvas.print({
-    font: smallBlack,
-    x: 205,
-    y: 786,
-    text: "Chek avtomatik yaratildi. Telegram bot va kabinet ma'lumotlari bir-biriga bog'langan.",
-    maxWidth: 820
-  });
+      <circle cx="360" cy="136" r="50" fill="#eefcf3"/>
+      <circle cx="360" cy="136" r="25" fill="none" stroke="#22c55e" stroke-width="6"/>
+      <path d="M348 136l9 9 18-22" fill="none" stroke="#22c55e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 
-  canvas.print({
-    font: mediumWhite,
-    x: 108,
-    y: 752,
-    text: { text: "OK", alignmentX: HorizontalAlign.CENTER },
-    maxWidth: 34
-  });
+      <text x="360" y="230" fill="#64748b" font-size="16" font-weight="800" letter-spacing="4" text-anchor="middle">TO'LOV MUVAFFAQIYATLI</text>
+      <text x="360" y="286" fill="#0f172a" font-size="50" font-weight="900" letter-spacing="1" text-anchor="middle">${escapeXml(amountText)}
+        <tspan fill="#64748b" font-size="24" font-weight="800"> so'm</tspan>
+      </text>
 
-  return canvas.getBuffer("image/png");
+      <line x1="92" y1="340" x2="628" y2="340" stroke="#e8edf4" stroke-width="1"/>
+      ${rowSvg}
+    </svg>
+  `;
+
+  return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 async function buildAlertPng({ title, subtitle, badge, tone = "warning", qrUrl = "" }) {

@@ -471,6 +471,16 @@ function formatMoney(value) {
 	return `${Number(value || 0).toLocaleString('ru-RU')} UZS`
 }
 
+function parseLandingLeadMessage(message = '') {
+	const text = String(message || '')
+	const directionMatch = text.match(/Yo'nalish:\s*([^\n]+)/i)
+	const descriptionMatch = text.match(/Tavsif:\s*([\s\S]*)/i)
+	return {
+		direction: directionMatch?.[1]?.trim() || "Yo'nalish ko'rsatilmagan",
+		description: descriptionMatch?.[1]?.trim() || text.trim() || 'Tavsif yozilmagan',
+	}
+}
+
 function getCourseIconByTitle(title = '') {
 	const normalized = String(title || '').toLowerCase()
 	if (normalized.includes('ingliz') || normalized.includes('nemis') || normalized.includes('rus') || normalized.includes('arab') || normalized.includes('koreys') || normalized.includes('turk')) return 'translate'
@@ -2052,7 +2062,7 @@ function PublicSiteHeader() {
 
 function PublicSiteFooter() {
 	return (
-		<footer className='marketing-footer' id='aloqa'>
+		<footer className='marketing-footer'>
 			<div className='marketing-footer-grid'>
 				<div>
 					<h3>ILM NEST</h3>
@@ -2074,8 +2084,7 @@ function PublicSiteFooter() {
 				</div>
 			</div>
 			<div className='marketing-footer-bottom'>
-				<span className='landing-v2-footer-copy'>© 2026 ILM NEST Ta'lim Markazi. Barcha huquqlar himoyalangan.</span>
-				<span>© 2026 ILM NEST Education CRM</span>
+				<span className='landing-v2-footer-copy'>2026 ILM NEST Ta'lim Markazi. Barcha huquqlar himoyalangan.</span>
 				
 			</div>
 		</footer>
@@ -2088,9 +2097,17 @@ function HomePage() {
 	const [publicCourses, setPublicCourses] = useState([])
 	const [scrollProgress, setScrollProgress] = useState(0)
 	const [heroCursor, setHeroCursor] = useState({ x: 50, y: 50, active: false })
+	const [statsStarted, setStatsStarted] = useState(false)
+	const [animatedStats, setAnimatedStats] = useState({
+		students: 0,
+		courses: 0,
+		quality: 0,
+	})
+	const [selectedCourse, setSelectedCourse] = useState(null)
 	const [contactForm, setContactForm] = useState({
 		fullName: '',
 		phone: '',
+		interest: '',
 		message: '',
 	})
 	const touchStartX = useRef(0)
@@ -2118,15 +2135,78 @@ function HomePage() {
 		return () => window.removeEventListener('scroll', handleScroll)
 	}, [])
 
+	useEffect(() => {
+		const nodes = Array.from(document.querySelectorAll('.landing-reveal'))
+		if (!nodes.length) return undefined
+
+		const observer = new IntersectionObserver(
+			entries => {
+				entries.forEach(entry => {
+					if (!entry.isIntersecting) return
+					entry.target.classList.add('is-visible')
+					if (entry.target.classList.contains('landing-pro-stats')) {
+						setStatsStarted(true)
+					}
+					observer.unobserve(entry.target)
+				})
+			},
+			{ rootMargin: '0px 0px -12% 0px', threshold: 0.12 },
+		)
+
+		nodes.forEach(node => observer.observe(node))
+		return () => observer.disconnect()
+	}, [publicCourses.length])
+
+	useEffect(() => {
+		if (!statsStarted) return undefined
+
+		const target = {
+			students: 500,
+			courses: publicCourses.length || 0,
+			quality: 100,
+		}
+		const duration = 1300
+		const startedAt = performance.now()
+		let frameId = 0
+
+		function easeOutCubic(value) {
+			return 1 - Math.pow(1 - value, 3)
+		}
+
+		function tick(now) {
+			const progress = Math.min(1, (now - startedAt) / duration)
+			const eased = easeOutCubic(progress)
+			setAnimatedStats({
+				students: Math.round(target.students * eased),
+				courses: Math.round(target.courses * eased),
+				quality: Math.round(target.quality * eased),
+			})
+			if (progress < 1) {
+				frameId = requestAnimationFrame(tick)
+			}
+		}
+
+		frameId = requestAnimationFrame(tick)
+		return () => cancelAnimationFrame(frameId)
+	}, [statsStarted, publicCourses.length])
+
 	async function handleContactSubmit(event) {
 		event.preventDefault()
 		try {
-			await api.createContactRequest(contactForm)
+			const selectedInterest =
+				contactForm.interest ||
+				publicCourses[0]?.title ||
+				"Yo'nalish tanlanmagan"
+			await api.createContactRequest({
+				fullName: contactForm.fullName,
+				phone: contactForm.phone,
+				message: `Yo'nalish: ${selectedInterest}\n\nTavsif: ${contactForm.message}`,
+			})
 			await showSuccess(
 				"So'rov qabul qilindi",
 				"Tez orada siz bilan bog'lanamiz",
 			)
-			setContactForm({ fullName: '', phone: '', message: '' })
+			setContactForm({ fullName: '', phone: '', interest: '', message: '' })
 		} catch (err) {
 			await showError(err.message)
 		}
@@ -2141,6 +2221,18 @@ function HomePage() {
 
 	function handleHeroPointerLeave() {
 		setHeroCursor({ x: 50, y: 50, active: false })
+	}
+
+	function handleCourseEnroll(course) {
+		setSelectedCourse(null)
+		setContactForm(current => ({
+			...current,
+			interest: course.title,
+			message: current.message || `${course.title} kursi bo'yicha batafsil ma'lumot olmoqchiman.`,
+		}))
+		window.requestAnimationFrame(() => {
+			document.getElementById('aloqa')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+		})
 	}
 
 	function handleTestimonialTouchStart(event) {
@@ -2165,296 +2257,357 @@ function HomePage() {
 	const intelligentMapOpenUrl =
 		'https://www.google.com/maps/search/?api=1&query=40.7304489,72.7581278'
 
+	const courseOptions = publicCourses
+
 	return (
-		<div className='marketing-page landing-v2'>
+		<div className='marketing-page landing-pro'>
 			<div className='scroll-progress-bar' style={{ width: `${scrollProgress}%` }} />
 			<PublicSiteHeader />
-			<main className='marketing-main landing-v2-main'>
-				<section className='landing-v2-hero' id='haqimizda'>
-					<div className='landing-v2-hero-bg' />
-					<div className='landing-v2-hero-overlay' />
-					<div className='landing-v2-hero-shell'>
-						<div className='landing-v2-hero-content'>
-							<span className='landing-v2-badge'>INTELLEKTUAL KELAJAK SARI</span>
-							<h1>ILM NEST - bilim va natija birlashgan ta'lim markazi</h1>
-							<p>Bizning markazda zamonaviy metodologiyalar va tajribali ustozlar yordamida o'z sohangizning yetuk mutaxassisiga aylaning.</p>
-							<div className='landing-v2-hero-actions'>
-								<a href='#aloqa' className='marketing-primary-btn'>Kursni boshlash</a>
-								<a href='#courses' className='marketing-link-btn'>Batafsil ma'lumot</a>
+			<main className='marketing-main landing-pro-main'>
+				<section className='landing-pro-hero landing-reveal reveal-soft is-visible' id='haqimizda'>
+					<div className='landing-pro-hero-bg'>
+						<img
+							src='https://lh3.googleusercontent.com/aida-public/AB6AXuCPuiqgl9sO_KJ2QlwpiVuMpxvd4KWNJ4pg8A1t1Rct6UFvtQzZCnth_ujk2AxPwaGMj6ctsH5yatdHLG02JDO3ahXimXTY3KmVSxcgAkdgtOT4WzBDU3BQ5tqg_nLpk6DvbZopMH_hSvz6ijSABZjUMnsVdD2R1XsTCR8syt-YXQT78v5OBUj1IEEO5Y8BvX_DbjYY6dXMVO7hblM6gh78fBEMzjTQjIl7JEMbi45BFBkLhiOCUnv28rbg8DhMdvaKEY5hDlzQyS8p'
+							alt=''
+						/>
+					</div>
+					<div className='landing-pro-hero-shell'>
+						<div className='landing-pro-hero-content landing-reveal reveal-left is-visible'>
+							<span className='landing-pro-eyebrow'><span /> O'zbekistondagi etalon ta'lim darajasi</span>
+							<h1><span>Bilim va natija</span>birlashgan markaz</h1>
+							<p>ILM NEST - bu shunchaki o'quv markazi emas. Bu o'quvchining yo'nalishi, davomat, to'lov va natijasini tartibli nazorat qiladigan zamonaviy ta'lim muhiti.</p>
+							<div className='landing-pro-actions'>
+								<a href='#courses' className='marketing-primary-btn'>Kurslarni ko'rish</a>
+								<a href='#aloqa' className='marketing-link-btn'>Bepul maslahat</a>
+							</div>
+							<div className='landing-pro-student-proof'>
+								<div className='landing-pro-avatars'>
+									<span>IN</span><span>MS</span><span>AK</span>
+								</div>
+								<strong>500+</strong>
+								<span>mamnun o'quvchilar va ota-onalar</span>
 							</div>
 						</div>
-						<div className='landing-v2-hero-preview' aria-hidden='true'>
-							<div className='landing-v2-preview-window'>
-								<div className='landing-v2-preview-top'>
-									<div>
-										<span className='card-label'>ILM NEST afzalliklari</span>
-										<strong>Ta'lim va nazorat bir joyda</strong>
-									</div>
-									<span className='landing-v2-preview-chip'>Live</span>
-								</div>
-								<div className='landing-v2-preview-stats'>
-									<div className='landing-v2-preview-stat'>
-										<span>Yo'nalishlar</span>
-										<strong>10+</strong>
-									</div>
-									<div className='landing-v2-preview-stat'>
-										<span>Sinov darsi</span>
-										<strong>Mavjud</strong>
-									</div>
-									<div className='landing-v2-preview-stat'>
-										<span>Nazorat</span>
-										<strong>Telegram</strong>
-									</div>
-								</div>
-								<div className='landing-v2-preview-feature-grid'>
-									<div className='landing-v2-preview-feature-card'>
-										<strong>Chet tillari: </strong>
-										<span>Ingliz, nemis, rus, arab, koreys va turk tili</span>
-									</div>
-									<div className='landing-v2-preview-feature-card'>
-										<strong>Aniq fanlar: </strong>
-										<span>Matematika, kimyo, biologiya, fizika va tarix</span>
-									</div>
-									<div className='landing-v2-preview-feature-card'>
-										<strong>Natijaga yo'naltirilgan: </strong>
-										<span>Sinov darsi, davomat nazorati va oylik monitoring</span>
-									</div>
-								</div>
-								<div className='landing-v2-preview-note'>
-									<strong>Har oy eng yaxshi o'quvchilar uchun rag'bat mavjud</strong>
-									<span>Individual yondashuv, kuchli ustozlar va tartibli o'quv jarayoni bilan natijaga olib boramiz.</span>
+						<div className='landing-pro-hero-media landing-reveal reveal-right is-visible'>
+							<div className='landing-pro-hero-photo'>
+								<img
+									src='https://lh3.googleusercontent.com/aida-public/AB6AXuCPuiqgl9sO_KJ2QlwpiVuMpxvd4KWNJ4pg8A1t1Rct6UFvtQzZCnth_ujk2AxPwaGMj6ctsH5yatdHLG02JDO3ahXimXTY3KmVSxcgAkdgtOT4WzBDU3BQ5tqg_nLpk6DvbZopMH_hSvz6ijSABZjUMnsVdD2R1XsTCR8syt-YXQT78v5OBUj1IEEO5Y8BvX_DbjYY6dXMVO7hblM6gh78fBEMzjTQjIl7JEMbi45BFBkLhiOCUnv28rbg8DhMdvaKEY5hDlzQyS8p'
+									alt="ILM NEST zamonaviy ta'lim muhiti"
+								/>
+							</div>
+							<div className='landing-pro-floating-result'>
+								<Icon name='verified' />
+								<div>
+									<strong>98%</strong>
+									<span>o'quvchilar birinchi oydayoq o'sishni sezadi</span>
 								</div>
 							</div>
 						</div>
 					</div>
 				</section>
 
-				<section className='landing-v2-stats' id='stats'>
-					<div className='landing-v2-stats-grid'>
-						<div className='landing-v2-stat-item'>
-							<strong>500+</strong>
-							<span>Muvaffaqiyatli bitiruvchilar</span>
-						</div>
-						<div className='landing-v2-stat-item'>
-							<strong>25+</strong>
-							<span>Tajribali mentorlar</span>
-						</div>
-						<div className='landing-v2-stat-item'>
-							<strong>100%</strong>
-							<span>Zamonaviy jihozlar</span>
+				<section className='landing-pro-stats landing-reveal reveal-soft' id='stats'>
+					<div className='landing-reveal reveal-up' style={{ '--reveal-delay': '0ms' }}>
+						<Icon name='groups' />
+						<strong>{animatedStats.students}+</strong>
+						<span>O'quvchi tajribasi</span>
+					</div>
+					<div className='landing-reveal reveal-up' style={{ '--reveal-delay': '90ms' }}>
+						<Icon name='school' />
+						<strong>{animatedStats.courses}</strong>
+						<span>Faol yo'nalish</span>
+					</div>
+					<div className='landing-reveal reveal-up' style={{ '--reveal-delay': '180ms' }}>
+						<Icon name='workspace_premium' />
+						<strong>{animatedStats.quality}%</strong>
+						<span>Sifat nazorati</span>
+					</div>
+				</section>
+
+				<section className='landing-pro-about' id='about'>
+					<div className='landing-pro-about-media landing-reveal reveal-left'>
+						<img
+							src='https://lh3.googleusercontent.com/aida-public/AB6AXuACq0itED3lbvGy5uTsAmHHPVeSyc4iAjycpDDoWdfec_d0cXHrCjT0xn9BVzrcESfNr2Y1L0fRzVMitk_uHAR3E9GmdPPcFngh8N3VmTxeB_BpVbRUcEBBsdV_rspIrFg1_Ga4yeE3Wfc4DqvMmdPDcFX4RBmzk-4HLGO-WLu1kKjAe5iiuXn4tCfFwx6XG8n5tS1CVEEBDuCQVGnUN4H8qtv0Dre13-VMH3GzEHqn-7aLx95uKleOK0rg-J6ZvRsTC2H6UAtEBkj0'
+							alt="ILM NEST o'quvchilari"
+						/>
+					</div>
+					<div className='landing-pro-about-copy landing-reveal reveal-right'>
+						<h2>Nega aynan bizni tanlashingiz kerak?</h2>
+						<p>ILM NEST kuchli ustozlar, tartibli reception nazorati va tushunarli o'quv jarayonini birlashtiradi. Har bir o'quvchi qaysi bosqichda ekani aniq ko'rinadi.</p>
+						<div className='landing-pro-about-list'>
+							<article className='landing-reveal reveal-up' style={{ '--reveal-delay': '0ms' }}>
+								<Icon name='verified' />
+								<div>
+									<h3>Eksklyuziv metodologiya</h3>
+									<p>Har bir yo'nalish uchun bosqichma-bosqich reja va aniq nazorat.</p>
+								</div>
+							</article>
+							<article className='landing-reveal reveal-up' style={{ '--reveal-delay': '90ms' }}>
+								<Icon name='rocket_launch' />
+								<div>
+									<h3>Natijaga yo'naltirilgan jarayon</h3>
+									<p>Davomat, to'lov va o'sish ko'rsatkichlari bir tizimda ko'rinadi.</p>
+								</div>
+							</article>
+							<article className='landing-reveal reveal-up' style={{ '--reveal-delay': '180ms' }}>
+								<Icon name='support_agent' />
+								<div>
+									<h3>Reception orqali tezkor aloqa</h3>
+									<p>Yangi so'rovlar reception paneliga tushadi va tezda ko'rib chiqiladi.</p>
+								</div>
+							</article>
 						</div>
 					</div>
 				</section>
 
-				<section className='landing-v2-about'>
-					<div className='landing-v2-about-grid'>
-						<div className='landing-v2-about-media'>
-							<div className='landing-v2-about-accent' />
-							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuACq0itED3lbvGy5uTsAmHHPVeSyc4iAjycpDDoWdfec_d0cXHrCjT0xn9BVzrcESfNr2Y1L0fRzVMitk_uHAR3E9GmdPPcFngh8N3VmTxeB_BpVbRUcEBBsdV_rspIrFg1_Ga4yeE3Wfc4DqvMmdPDcFX4RBmzk-4HLGO-WLu1kKjAe5iiuXn4tCfFwx6XG8n5tS1CVEEBDuCQVGnUN4H8qtv0Dre13-VMH3GzEHqn-7aLx95uKleOK0rg-J6ZvRsTC2H6UAtEBkj0' alt='Students collaborating' />
-						</div>
-						<div className='landing-v2-about-copy'>
-							<h2>Markazimiz haqida</h2>
-							<p>"ILM NEST" ta'lim markazi zamonaviy yondashuv, kuchli ustozlar va amaliy ko'nikmalarni birlashtirgan ta'lim muhiti sifatida ishlaydi.</p>
-							<p>Bizning maqsadimiz o'quvchilarga nafaqat nazariy bilim, balki real natija beradigan ko'nikmalarni ulashishdir. Har bir o'quvchi uchun individual yondashuv muhim.</p>
-							<ul className='landing-v2-checks'>
-								<li><Icon name='check_circle' className='filled-icon' /><span>Sifatli ta'lim kafolati</span></li>
-								<li><Icon name='check_circle' className='filled-icon' /><span>Xalqaro sertifikatlar</span></li>
-								<li><Icon name='check_circle' className='filled-icon' /><span>Karyera markazi ko'magi</span></li>
-							</ul>
-						</div>
+				<section className='landing-pro-band'>
+					<div className='landing-pro-section-head landing-reveal reveal-up'>
+						<span>Afzalliklar</span>
+						<h2>Nima uchun ILM NEST?</h2>
+					</div>
+					<div className='landing-pro-feature-grid'>
+						{[
+							['verified', "Tartibli ta'lim", "Dars jarayoni, davomat va to'lovlar bitta tizim orqali nazorat qilinadi."],
+							['school', 'Kuchli ustozlar', "Har bir yo'nalishda o'quvchiga tushunarli, bosqichma-bosqich yondashuv beriladi."],
+							['monitoring', "Natija ko'rinadi", "Oylik holat, qarzdorlik, jadval va bildirishnomalar ochiq ko'rinadi."],
+						].map((item, index) => (
+							<article className='landing-pro-feature landing-reveal reveal-up' style={{ '--reveal-delay': `${index * 90}ms` }} key={item[1]}>
+								<Icon name={item[0]} />
+								<h3>{item[1]}</h3>
+								<p>{item[2]}</p>
+							</article>
+						))}
 					</div>
 				</section>
 
-				<section className='landing-v2-courses' id='courses'>
-					<div className='landing-v2-section-head'>
-						<h2>Bizning Kurslarimiz</h2>
-						
+				<section className='landing-pro-courses' id='courses'>
+					<div className='landing-pro-section-head landing-reveal reveal-up'>
+						<span>Yo'nalishlar</span>
+						<h2>Sizga mos yo'nalishni tanlang</h2>
 					</div>
-					<div className='landing-v2-course-grid'>
-						{publicCourses.length ? publicCourses.map((course, index) => {
-							const title = course.title
-							const description = course.schedule || "Director panelida kiritilgan real kurs"
-							const price = formatMoney(course.monthlyFee)
-							return (
-								<article key={`${title}-${index}`} className='landing-v2-course-card glass-card'>
-									<div className='landing-v2-course-icon'>
-										<Icon name={getCourseIconByTitle(title)} />
-									</div>
-									<h3>{title}</h3>
-									<p>{description}</p>
-									<div className='landing-v2-course-price'>
-										<span>Narxi:</span>
-										<strong>{price}</strong>
-									</div>
-								</article>
-							)
-						}) : (
-							<div className='landing-v2-course-empty glass-card'>
-								<strong>Hozircha kurs qo'shilmagan</strong>
-								
+					<div className='landing-pro-course-grid'>
+						{courseOptions.length ? courseOptions.map((course, index) => (
+							<article
+								key={`${course.id || course.title}-${index}`}
+								className='landing-pro-course landing-reveal reveal-zoom'
+								style={{ '--reveal-delay': `${Math.min(index, 5) * 80}ms` }}
+								role='button'
+								tabIndex={0}
+								onClick={() => setSelectedCourse(course)}
+								onKeyDown={event => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault()
+										setSelectedCourse(course)
+									}
+								}}
+							>
+								<div className='landing-pro-course-icon'><Icon name={getCourseIconByTitle(course.title)} /></div>
+								<h3>{course.title}</h3>
+								<p>{course.schedule || "Jadval va guruh ma'lumotlari reception orqali aniqlashtiriladi."}</p>
+								<div className='landing-pro-course-bottom'>
+									<span>Oylik to'lov</span>
+									<strong>{formatMoney(course.monthlyFee)}</strong>
+								</div>
+								<div className='landing-pro-course-actions'>
+									<button type='button' onClick={event => { event.stopPropagation(); setSelectedCourse(course) }}>Batafsil</button>
+									<button type='button' onClick={event => { event.stopPropagation(); handleCourseEnroll(course) }}>Yozilish</button>
+								</div>
+							</article>
+						)) : (
+							<div className='landing-pro-course-empty landing-reveal reveal-up'>
+								<Icon name='school' />
+								<h3>Hozircha kurs qo'shilmagan</h3>
+								<p>Director panelida kurs yaratilsa, shu yerda nomi va narxi bilan avtomatik chiqadi.</p>
 							</div>
 						)}
 					</div>
 				</section>
 
-				<section className='landing-v2-gallery'>
-					<h2>Bizning bino va sharoitlar</h2>
-					<div className='landing-v2-gallery-grid'>
-						<div className='landing-v2-gallery-item large'>
-							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuCiC-qOhjEzbEq1qzmZoEZ241r7ffUOnPfaxs8gHQREv6eGSUfWUi1TQi3tSZ_gfY5ysceQ-6T6t_vUMUsBM4MmvjCdPvi0e0USzhUXUAT1wQqWxDEzJZ71b2WhPBqYZRXDt-LCiCeQEeUIt2X4bgv18kDtrjT-k1lr7Uo5S0tTv2G8NGmeyXXM9_xu_cI6ND6MiPaVgquL-vLilMwQ9AOHRVPqWaomg8K0UZigiJ9shiBztwFpGEWMtshO675r83AB9ye4nWuIZV4z' alt='Modern lobby' />
+				<section className='landing-pro-gallery'>
+					<div className='landing-pro-section-head center landing-reveal reveal-up'>
+						<span>Atmosfera</span>
+						<h2>Bizning bino va sharoitlar</h2>
+					</div>
+					<div className='landing-pro-gallery-grid'>
+						<div className='landing-pro-gallery-item large landing-reveal reveal-left'>
+							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuCiC-qOhjEzbEq1qzmZoEZ241r7ffUOnPfaxs8gHQREv6eGSUfWUi1TQi3tSZ_gfY5ysceQ-6T6t_vUMUsBM4MmvjCdPvi0e0USzhUXUAT1wQqWxDEzJZ71b2WhPBqYZRXDt-LCiCeQEeUIt2X4bgv18kDtrjT-k1lr7Uo5S0tTv2G8NGmeyXXM9_xu_cI6ND6MiPaVgquL-vLilMwQ9AOHRVPqWaomg8K0UZigiJ9shiBztwFpGEWMtshO675r83AB9ye4nWuIZV4z' alt='ILM NEST lobby' />
 						</div>
-						<div className='landing-v2-gallery-item'>
-							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuCR_IT3CGj4L4UYS2VReFHlrAfYIfV_m5nSlcoT4LM4OzBYNVCx5lpbpLAA1j23Twks7vqUe7KF9rjvjH60wr5xbDUb5uj9YPje_hiBo78rJ4bj4nlGW-DvP0CLbJtL9reqn7y8KLqg13df_UtaE-o656EsvDlJr5wrHNvgK40FYQ5gXlDVR6Vm3SeK7chdaQlMyVRmINcDXuylPw2TbZupMPv4Rhek1wbfabrZTpbBMvNG1NNinBGjdWpZIGSCwnIIHsMrlEId6hsY' alt='Classroom' />
+						<div className='landing-pro-gallery-item landing-reveal reveal-right' style={{ '--reveal-delay': '110ms' }}>
+							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuCR_IT3CGj4L4UYS2VReFHlrAfYIfV_m5nSlcoT4LM4OzBYNVCx5lpbpLAA1j23Twks7vqUe7KF9rjvjH60wr5xbDUb5uj9YPje_hiBo78rJ4bj4nlGW-DvP0CLbJtL9reqn7y8KLqg13df_UtaE-o656EsvDlJr5wrHNvgK40FYQ5gXlDVR6Vm3SeK7chdaQlMyVRmINcDXuylPw2TbZupMPv4Rhek1wbfabrZTpbBMvNG1NNinBGjdWpZIGSCwnIIHsMrlEId6hsY' alt='ILM NEST classroom' />
 						</div>
-						<div className='landing-v2-gallery-item'>
-							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuAHouUBwdeoellSwwblpjuSp63DUTEkT1I8S9kWqHKZbqkkKgxwHKJheZBm_1QuruOSjLPmXTTZ04KqAqxzUsqRDBpXIGIAN1Sba4g5o6yHpVzdYLrrf2W9Df78VDk4s1v3_bYcEagZ0bOBDeNL46fkrQkZ8ESF0_wBiSS5U17PepmTE59phIy4yxgjnqJBQH5sQ4Ei8loWtnz0Tq5aoL2yqt9Dxec2aSJq_T5rt_4pky_wrrD26HFZMfqhZyCN7ZqQ4a7abKtM7vx-' alt='Student lounge' />
-						</div>
-						<div className='landing-v2-gallery-item wide'>
-							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuD0J7emyoE02hQ3SZosD8olTO1uMLvZBNtOt1x2ULM2wgYignBRLpQrKdBTloNxobQLS5ld3NioUCpKnsgPM72Ck1Zs9DAPWaOfihIqJszLBb1y_MtH2TWoTPjJM30cDURbMQGTCD_9GuIcOKpBzVOrJgkshKGKPBk0P2dprDtX0gM2tM43a7pdnoB_77iXUNs9afbHguisGC8eZuK28rEXOaGZ8vL-rLb_yQ5B6bWjt0bWF5TUBIZ1HJcZe0IaXVfvSNwOQ5D6Z4q6' alt='Meeting room' />
+						<div className='landing-pro-gallery-item landing-reveal reveal-right' style={{ '--reveal-delay': '190ms' }}>
+							<img src='https://lh3.googleusercontent.com/aida-public/AB6AXuD0J7emyoE02hQ3SZosD8olTO1uMLvZBNtOt1x2ULM2wgYignBRLpQrKdBTloNxobQLS5ld3NioUCpKnsgPM72Ck1Zs9DAPWaOfihIqJszLBb1y_MtH2TWoTPjJM30cDURbMQGTCD_9GuIcOKpBzVOrJgkshKGKPBk0P2dprDtX0gM2tM43a7pdnoB_77iXUNs9afbHguisGC8eZuK28rEXOaGZ8vL-rLb_yQ5B6bWjt0bWF5TUBIZ1HJcZe0IaXVfvSNwOQ5D6Z4q6' alt='ILM NEST study room' />
 						</div>
 					</div>
 				</section>
 
-				<section className='landing-v2-location' id='location'>
-					<div className='landing-v2-location-grid'>
-						<div className='landing-v2-location-copy'>
-							<h2>Manzilimiz</h2>
-							<div className='landing-v2-location-list'>
-								<div className='landing-v2-location-item'>
-									<Icon name='location_on' />
-									<div>
-										<h4>Andijon viloyati</h4>
-										<p>Qo'rg'ontepa hokimiyati ro'parasida, Saxovat Farm yonida, 2-qavat</p>
-									</div>
+				<section className='landing-pro-process'>
+					<div className='landing-pro-section-head landing-reveal reveal-up'>
+						<span>Jarayon</span>
+						<h2>O'qishga kirish sodda</h2>
+					</div>
+					<div className='landing-pro-process-grid'>
+						{[
+							['01', "Yo'nalishni tanlang", "Qaysi kurs kerakligini belgilang va qisqa ma'lumot qoldiring."],
+							['02', "Reception bog'lanadi", "Administrator vaqt, guruh va ustoz bo'yicha aniqlashtiradi."],
+							['03', 'Dars boshlanadi', "O'quvchi tizimga qo'shiladi, davomat va to'lov nazorati yuradi."],
+						].map((item, index) => (
+							<div className='landing-pro-step landing-reveal reveal-up' style={{ '--reveal-delay': `${index * 95}ms` }} key={item[0]}>
+								<span>{item[0]}</span>
+								<h3>{item[1]}</h3>
+								<p>{item[2]}</p>
+							</div>
+						))}
+					</div>
+				</section>
+
+				<section className='landing-pro-location' id='location'>
+					<div className='landing-pro-location-copy landing-reveal reveal-left'>
+						<span>Manzil</span>
+						<h2>ILM NEST bilan bog'laning</h2>
+						<p>Andijon viloyati, Qo'rg'ontepa. Reception sizga mos yo'nalish, guruh va dars vaqtini tushuntirib beradi.</p>
+						<div className='landing-pro-contact-links'>
+							<a href='tel:+998958006500'><Icon name='call' /> +998 95 800 65 00</a>
+							<a href='https://t.me/intelligent_edu_uz' target='_blank' rel='noreferrer'><Icon name='send' /> Telegram</a>
+							<a href={intelligentMapOpenUrl} target='_blank' rel='noreferrer'><Icon name='map' /> Google Maps</a>
+						</div>
+					</div>
+					<div className='landing-pro-map landing-reveal reveal-right'>
+						<iframe title='ILM NEST location map' src={intelligentMapEmbedUrl} loading='lazy' referrerPolicy='no-referrer-when-downgrade' />
+					</div>
+				</section>
+
+				<section className='landing-pro-cta'>
+					<div className='landing-pro-cta-card landing-reveal reveal-zoom'>
+						<div className='landing-pro-cta-copy'>
+							<span className='landing-pro-cta-kicker'>Cheklovli qabul</span>
+							<h2>Kelajakni bugundan boshlang</h2>
+							<p>Birinchi sinov darsi bo'yicha ma'lumot oling va o'zingizga mos yo'nalishni reception bilan tanlang.</p>
+							<div className='landing-pro-cta-points'>
+								<span><b>Real kurs narxlari</b></span>
+								<span><b>Reception tezkor aloqasi</b></span>
+							</div>
+						</div>
+						<div className='landing-pro-cta-panel'>
+							<div className='landing-pro-cta-panel-top'>
+								<Icon name='support_agent' />
+								<div>
+									<strong>Reception bilan bog'lanish</strong>
+									<span>1-2 daqiqa ichida so'rov yuboring</span>
 								</div>
-								<div className='landing-v2-location-item'>
+							</div>
+							<div className='landing-pro-cta-actions'>
+								<a href='#aloqa' className='landing-pro-cta-primary'>
+									<span>Ro'yxatdan o'tish</span>
+									<Icon name='arrow_forward' />
+								</a>
+								<a href='tel:+998958006500' className='landing-pro-cta-secondary'>
 									<Icon name='call' />
-									<div>
-										<h4>Telefon raqam</h4>
-										<p>+998 95 800 65 00</p>
-									</div>
-								</div>
-								<div className='landing-v2-location-item'>
-									<Icon name='alternate_email' />
-									<div>
-										<h4>Ijtimoiy tarmoqlar</h4>
-										<p>Instagram: @intelligent_uzedu</p>
-										<p>Telegram: @intelligent_edu_uz</p>
-									</div>
-								</div>
-							</div>
-							<div className='landing-v2-social-row'>
-								<a href='https://t.me/intelligent_edu_uz' target='_blank' rel='noreferrer'><Icon name='send' /></a>
-								<a href='https://instagram.com/intelligent_uzedu' target='_blank' rel='noreferrer'><Icon name='photo_camera' /></a>
-								<a href={intelligentMapOpenUrl} target='_blank' rel='noreferrer'><Icon name='map' /></a>
+									<span>+998 95 800 65 00</span>
+								</a>
 							</div>
 						</div>
-						<div className='landing-v2-map-card'>
-							<iframe
-								title='Intelligent location map'
-								src={intelligentMapEmbedUrl}
-								loading='lazy'
-								referrerPolicy='no-referrer-when-downgrade'
+					</div>
+				</section>
+
+				<section className='landing-pro-contact' id='aloqa'>
+					<div className='landing-pro-contact-copy landing-reveal reveal-left'>
+						<span>So'rov qoldirish</span>
+						<h2>Reception siz bilan bog'lanadi</h2>
+						<p>Formani yuborganingizdan keyin murojaat reception paneliga `Yangi` holatda tushadi. Ko'rilgandan keyin admin uni `Ko'rildi` qilib belgilaydi.</p>
+					</div>
+					<form className='landing-pro-contact-form landing-reveal reveal-right' onSubmit={handleContactSubmit}>
+						<label>
+							<span>Ism familiya</span>
+							<input
+								type='text'
+								name='fullName'
+								placeholder='Mamatov Ozodbek'
+								autoComplete='name'
+								required
+								value={contactForm.fullName}
+								onChange={event => setContactForm({ ...contactForm, fullName: event.target.value })}
 							/>
-							
-							<a className='landing-v2-map-link' href={intelligentMapOpenUrl} target='_blank' rel='noreferrer'>
-								Google Mapsda ochish
-							</a>
-						</div>
-					</div>
-				</section>
-
-				<section className='landing-v2-cta'>
-					<div className='landing-v2-cta-card'>
-						<div className='landing-v2-cta-orb one' />
-						<div className='landing-v2-cta-orb two' />
-						<div className='landing-v2-cta-content'>
-							<h2>Bilimingizni keyingi bosqichga olib chiqing</h2>
-							<p>Bugun ro'yxatdan o'ting va birinchi darsga qatnashish bo'yicha ma'lumot oling.</p>
-							<a href='#aloqa' className='landing-v2-cta-btn'>Hozirroq bog'lanish</a>
-						</div>
-					</div>
-				</section>
-
-				<section className='landing-v2-contact' id='aloqa'>
-					<div className='landing-v2-contact-grid'>
-						<div className='landing-v2-contact-copy'>
-							<h2>Bog'lanish</h2>
-							<p>F.I.SH, telefon raqamingiz va xabaringizni yozing. So'rovingiz reception paneliga tushadi va siz bilan tez orada bog'laniladi.</p>
-							<div className='landing-v2-contact-meta'>
-								<a className='landing-v2-contact-meta-card' href='tel:+998958006500'>
-									<span className='landing-v2-contact-icon'><Icon name='call' /></span>
-									<div>
-										<strong>Telefon</strong>
-										<span>+998 95 800 65 00</span>
-									</div>
-								</a>
-								<a
-									className='landing-v2-contact-meta-card'
-									href='https://instagram.com/intelligent_uzedu'
-									target='_blank'
-									rel='noreferrer'
-								>
-									<span className='landing-v2-contact-icon'><Icon name='photo_camera' /></span>
-									<div>
-										<strong>Instagram</strong>
-										<span>@intelligent_uzedu</span>
-									</div>
-								</a>
-								<a
-									className='landing-v2-contact-meta-card'
-									href='https://t.me/intelligent_edu_uz'
-									target='_blank'
-									rel='noreferrer'
-								>
-									<span className='landing-v2-contact-icon'><Icon name='send' /></span>
-									<div>
-										<strong>Telegram</strong>
-										<span>@intelligent_edu_uz</span>
-									</div>
-								</a>
-							</div>
-						</div>
-						<form className='landing-v2-contact-form' onSubmit={handleContactSubmit}>
-							<label className='landing-v2-contact-field'>
-								<span>F.I.SH</span>
-								<input
-									type='text'
-									name='fullName'
-									placeholder='F.I.SH'
-									autoComplete='name'
-									required
-									value={contactForm.fullName}
-									onChange={event => setContactForm({ ...contactForm, fullName: event.target.value })}
-								/>
-							</label>
-							<label className='landing-v2-contact-field'>
-								<span>Telefon raqami</span>
-								<input
-									type='tel'
-									name='phone'
-									placeholder='+998 95 800 65 00'
-									autoComplete='tel'
-									required
-									value={contactForm.phone}
-									onChange={event => setContactForm({ ...contactForm, phone: formatPhoneInput(event.target.value) })}
-								/>
-							</label>
-							<label className='landing-v2-contact-field'>
-								<span>Xabar</span>
-								<textarea
-									name='message'
-									placeholder="Xabaringizni yozing"
-									required
-									value={contactForm.message}
-									onChange={event => setContactForm({ ...contactForm, message: event.target.value })}
-								/>
-							</label>
-							<button type='submit' className='marketing-primary-btn'>Yuborish</button>
-						</form>
-					</div>
+						</label>
+						<label>
+							<span>Telefon raqami</span>
+							<input
+								type='tel'
+								name='phone'
+								placeholder='+998 95 800 65 00'
+								autoComplete='tel'
+								required
+								value={contactForm.phone}
+								onChange={event => setContactForm({ ...contactForm, phone: formatPhoneInput(event.target.value) })}
+							/>
+						</label>
+						<label>
+							<span>Qiziqayotgan yo'nalish</span>
+							<select
+								name='interest'
+								required
+								value={contactForm.interest}
+								onChange={event => setContactForm({ ...contactForm, interest: event.target.value })}
+							>
+								<option value=''>Yo'nalishni tanlang</option>
+								{courseOptions.map(course => (
+									<option key={course.id || course.title} value={course.title}>{course.title}</option>
+								))}
+							</select>
+						</label>
+						<label>
+							<span>Batafsil tavsif</span>
+							<textarea
+								name='message'
+								placeholder="Qaysi vaqtda o'qimoqchisiz, darajangiz qanday yoki savolingizni yozing"
+								required
+								value={contactForm.message}
+								onChange={event => setContactForm({ ...contactForm, message: event.target.value })}
+							/>
+						</label>
+						<button type='submit' className='marketing-primary-btn'>Yuborish</button>
+					</form>
 				</section>
 			</main>
+			{selectedCourse ? (
+				<div className='landing-course-modal-backdrop' role='presentation' onClick={() => setSelectedCourse(null)}>
+					<div
+						className='landing-course-modal'
+						role='dialog'
+						aria-modal='true'
+						aria-labelledby='landing-course-modal-title'
+						onClick={event => event.stopPropagation()}
+					>
+						<button type='button' className='landing-course-modal-close' onClick={() => setSelectedCourse(null)} aria-label='Yopish'>
+							<Icon name='close' />
+						</button>
+						<div className='landing-course-modal-icon'>
+							<Icon name={getCourseIconByTitle(selectedCourse.title)} />
+						</div>
+						<span className='landing-course-modal-kicker'>Kurs haqida</span>
+						<h2 id='landing-course-modal-title'>{selectedCourse.title}</h2>
+						<p>{selectedCourse.description || selectedCourse.schedule || "Reception bu kurs bo'yicha jadval, guruh va dars boshlanish vaqtini tushuntirib beradi."}</p>
+						<div className='landing-course-modal-grid'>
+							<div>
+								<span>Oylik to'lov</span>
+								<strong>{formatMoney(selectedCourse.monthlyFee)}</strong>
+							</div>
+							<div>
+								<span>Jadval</span>
+								<strong>{selectedCourse.schedule || 'Reception orqali'}</strong>
+							</div>
+							<div>
+								<span>Ustoz</span>
+								<strong>{selectedCourse.teacherName || selectedCourse.teacher || 'Biriktirilmagan'}</strong>
+							</div>
+						</div>
+						<div className='landing-course-modal-actions'>
+							<button type='button' className='marketing-link-btn' onClick={() => setSelectedCourse(null)}>Yopish</button>
+							<button type='button' className='marketing-primary-btn' onClick={() => handleCourseEnroll(selectedCourse)}>Shu kursga yozilish</button>
+						</div>
+					</div>
+				</div>
+			) : null}
 			<PublicSiteFooter />
 		</div>
 	)
@@ -5673,45 +5826,52 @@ function ReceptionContactRequestsPage({ token }) {
 				title="Bog'lanish"
 				subtitle="Asosiy sahifadagi murojaatlar reception paneliga tushadi"
 			/>
-			<section className='card table-card'>
+			<section className='contact-requests-panel'>
 				{items.length ? (
-					<div className='table-shell responsive-cards'>
-						<table>
-							<thead>
-								<tr>
-									<th>F.I.Sh</th>
-									<th>Telefon</th>
-									<th>Xabar</th>
-									<th>Holat</th>
-									<th>Sana</th>
-									<th>Amal</th>
-								</tr>
-							</thead>
-							<tbody>
-								{items.map(item => (
-									<tr key={item.id}>
-										<td data-label='F.I.Sh'>{item.fullName}</td>
-										<td data-label='Telefon'>{item.phone}</td>
-										<td data-label='Xabar'>{item.message}</td>
-										<td data-label='Holat'>
-											<Badge tone={item.status === 'new' ? 'warning' : 'success'}>
-												{item.status === 'new' ? 'Yangi' : "Ko'rildi"}
-											</Badge>
-										</td>
-										<td data-label='Sana'>{item.createdAt}</td>
-										<td data-label='Amal'>
-											{item.status === 'new' ? (
-												<button type='button' className='page-btn' onClick={() => handleRead(item.id)}>
-													Ko'rildi
-												</button>
-											) : (
-												<span className='muted-label'>Tayyor</span>
-											)}
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+					<div className='contact-request-grid'>
+						{items.map(item => {
+							const lead = parseLandingLeadMessage(item.message)
+							return (
+								<article key={item.id} className={`contact-request-card ${item.status === 'new' ? 'new' : 'read'}`}>
+									<div className='contact-request-head'>
+										<div className='contact-request-avatar'>
+											{String(item.fullName || '?').slice(0, 2).toUpperCase()}
+										</div>
+										<div>
+											<strong>{item.fullName}</strong>
+											<span>{item.phone}</span>
+										</div>
+										<Badge tone={item.status === 'new' ? 'warning' : 'success'}>
+											{item.status === 'new' ? 'Yangi' : "Ko'rildi"}
+										</Badge>
+									</div>
+									<div className='contact-request-meta'>
+										<div>
+											<span>Yo'nalish</span>
+											<strong>{lead.direction}</strong>
+										</div>
+										<div>
+											<span>Sana</span>
+											<strong>{item.createdAt}</strong>
+										</div>
+									</div>
+									<div className='contact-request-message'>
+										<span>Tavsif</span>
+										<p>{lead.description}</p>
+									</div>
+									<div className='contact-request-actions'>
+										<a href={`tel:${item.phone}`} className='page-btn secondary'>Qo'ng'iroq qilish</a>
+										{item.status === 'new' ? (
+											<button type='button' className='page-btn' onClick={() => handleRead(item.id)}>
+												Ko'rildi
+											</button>
+										) : (
+											<span className='muted-label'>Murojaat ko'rilgan</span>
+										)}
+									</div>
+								</article>
+							)
+						})}
 					</div>
 				) : (
 					<EmptyStateNotice message="Habar yo'q." />
