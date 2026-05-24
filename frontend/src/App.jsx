@@ -14,6 +14,395 @@ import {
 import Swal from 'sweetalert2'
 import { api, resolveAssetUrl } from './api'
 
+const LANGUAGE_STORAGE_KEY = 'ilmnest-language'
+
+const LANGUAGE_OPTIONS = [
+	{ value: 'uz', label: "O'zbek", short: 'UZ' },
+	{ value: 'ru', label: 'Русский', short: 'RU' },
+	{ value: 'en', label: 'English', short: 'EN' },
+	{ value: 'ar', label: 'العربية', short: 'AR' },
+]
+
+const TRANSLATIONS = {
+	ru: {
+		"Ta'lim markazi": 'Учебный центр',
+		'Biz haqimizda': 'О нас',
+		Kurslar: 'Курсы',
+		Narxlar: 'Цены',
+		Manzil: 'Адрес',
+		Afzalliklar: 'Преимущества',
+		Kirish: 'Войти',
+		'Admin kirish': 'Вход администратора',
+		"Bog'lanish": 'Связаться',
+		"Bog'laning": 'Свяжитесь',
+		"Kurslarni ko'rish": 'Посмотреть курсы',
+		"Batafsil ma'lumot": 'Подробнее',
+		"O'zbekistondagi etalon ta'lim darajasi": 'Эталонный уровень образования в Узбекистане',
+		'Bilim va natija': 'Знания и результат',
+		'birlashgan markaz': 'единый центр',
+		"ILM NEST - bu shunchaki o'quv markazi emas. Bu o'quvchining yo'nalishi, davomat, to'lov va natijasini tartibli nazorat qiladigan zamonaviy ta'lim muhiti.": 'ILM NEST — это не просто учебный центр. Это современная образовательная среда, где направление, посещаемость, оплата и результат ученика находятся под понятным контролем.',
+		"mamnun o'quvchilar va ota-onalar": 'довольные ученики и родители',
+		"o'quvchilar birinchi oydayoq o'sishni sezadi": 'ученики замечают рост уже в первый месяц',
+		'Nega aynan bizni tanlashingiz kerak?': 'Почему выбирают нас?',
+		"ILM NEST kuchli ustozlar, tartibli reception nazorati va tushunarli o'quv jarayonini birlashtiradi. Har bir o'quvchi qaysi bosqichda ekani aniq ko'rinadi.": 'ILM NEST объединяет сильных преподавателей, порядок в приемной и понятный учебный процесс. Всегда видно, на каком этапе находится ученик.',
+		'Eksklyuziv metodologiya': 'Эксклюзивная методология',
+		"Har bir yo'nalish uchun bosqichma-bosqich reja va aniq nazorat.": 'Пошаговый план и четкий контроль для каждого направления.',
+		"Natijaga yo'naltirilgan dars jarayoni": 'Учебный процесс, ориентированный на результат',
+		'Reception orqali tezkor aloqa': 'Быстрая связь через приемную',
+		'Nima uchun ILM NEST?': 'Почему ILM NEST?',
+		"Tartibli ta'lim": 'Системное обучение',
+		"Dars jarayoni, davomat va to'lovlar bitta tizim orqali nazorat qilinadi.": 'Уроки, посещаемость и оплаты контролируются в одной системе.',
+		'Kuchli ustozlar': 'Сильные преподаватели',
+		"Har bir yo'nalishda o'quvchiga tushunarli, bosqichma-bosqich yondashuv beriladi.": 'В каждом направлении ученик получает понятный пошаговый подход.',
+		"Natija ko'rinadi": 'Результат виден',
+		"Oylik holat, qarzdorlik, jadval va bildirishnomalar ochiq ko'rinadi.": 'Месячный статус, задолженность, расписание и уведомления видны открыто.',
+		"Yo'nalishlar": 'Направления',
+		"Sizga mos yo'nalishni tanlang": 'Выберите подходящее направление',
+		'Chet tillari': 'Иностранные языки',
+		'Ingliz, nemis, rus va arab tili': 'Английский, немецкий, русский и арабский',
+		'Aniq fanlar': 'Точные науки',
+		'Matematika, kimyo va biologiya': 'Математика, химия и биология',
+		Dasturlash: 'Программирование',
+		"Frontend va backend yo'nalishlari": 'Frontend и backend направления',
+		'Ona tili va adabiyot': 'Родной язык и литература',
+		'Nazariya va test strategiyasi': 'Теория и стратегия тестов',
+		'Oylik toʻlov': 'Ежемесячная оплата',
+		'Oylik to‘lov': 'Ежемесячная оплата',
+		'Reception orqali': 'Через приемную',
+		Jarayon: 'Процесс',
+		"O'qishga kirish sodda": 'Поступить просто',
+		"Yo'nalishni tanlang": 'Выберите направление',
+		"Qaysi kurs kerakligini belgilang va qisqa ma'lumot qoldiring.": 'Выберите нужный курс и оставьте короткую информацию.',
+		"Reception bog'lanadi": 'Приемная свяжется',
+		"Administrator vaqt, guruh va ustoz bo'yicha aniqlashtiradi.": 'Администратор уточнит время, группу и преподавателя.',
+		'Dars boshlanadi': 'Уроки начинаются',
+		"O'quvchi tizimga qo'shiladi, davomat va to'lov nazorati yuradi.": 'Ученик добавляется в систему, посещаемость и оплаты контролируются.',
+		"Bog'lanish uchun ma'lumot qoldiring": 'Оставьте данные для связи',
+		'Ism familiya': 'Имя и фамилия',
+		"Qiziqayotgan yo'nalish": 'Интересующее направление',
+		Tavsif: 'Описание',
+		Yuborish: 'Отправить',
+		'Dasturchilar': 'Разработчики',
+		'Dasturchilar jamoasi': 'Команда разработчиков',
+		'Asosiy mutaxassis': 'Основные специалисты',
+		Dashboard: 'Панель',
+		Davomat: 'Посещаемость',
+		"To'lovlar": 'Оплаты',
+		Jadval: 'Расписание',
+		Bildirishnomalar: 'Уведомления',
+		Profil: 'Профиль',
+		Sozlamalar: 'Настройки',
+		"Bosh sahifa": 'Главная',
+		"O'quvchilar": 'Ученики',
+		Guruhlarim: 'Мои группы',
+		Statistika: 'Статистика',
+		'Student Panel': 'Панель ученика',
+		'Reception Panel': 'Панель приемной',
+		'Education CRM': 'Образовательная CRM',
+		"Yangi bildirishnoma yo'q": 'Новых уведомлений нет',
+		Chiqish: 'Выйти',
+		'Tilni tanlash': 'Выбор языка',
+		'Til sozlamasi': 'Настройка языка',
+		'Sayt tili': 'Язык сайта',
+		"Tanlangan til brauzerda saqlanadi va barcha panel sahifalarida qo'llanadi.": 'Выбранный язык сохраняется в браузере и применяется на всех панелях.',
+	},
+	en: {
+		"Ta'lim markazi": 'Education center',
+		'Biz haqimizda': 'About us',
+		Kurslar: 'Courses',
+		Narxlar: 'Pricing',
+		Manzil: 'Location',
+		Afzalliklar: 'Advantages',
+		Kirish: 'Sign in',
+		'Admin kirish': 'Admin login',
+		"Bog'lanish": 'Contact',
+		"Bog'laning": 'Contact us',
+		"Kurslarni ko'rish": 'View courses',
+		"Batafsil ma'lumot": 'Learn more',
+		"O'zbekistondagi etalon ta'lim darajasi": 'A benchmark education level in Uzbekistan',
+		'Bilim va natija': 'Knowledge and results',
+		'birlashgan markaz': 'in one center',
+		"ILM NEST - bu shunchaki o'quv markazi emas. Bu o'quvchining yo'nalishi, davomat, to'lov va natijasini tartibli nazorat qiladigan zamonaviy ta'lim muhiti.": 'ILM NEST is not just an education center. It is a modern learning environment where direction, attendance, payments and results are clearly managed.',
+		"mamnun o'quvchilar va ota-onalar": 'happy students and parents',
+		"o'quvchilar birinchi oydayoq o'sishni sezadi": 'students feel progress in the first month',
+		'Nega aynan bizni tanlashingiz kerak?': 'Why choose us?',
+		"ILM NEST kuchli ustozlar, tartibli reception nazorati va tushunarli o'quv jarayonini birlashtiradi. Har bir o'quvchi qaysi bosqichda ekani aniq ko'rinadi.": 'ILM NEST combines strong teachers, organized reception control and a clear learning process. Every student stage is visible.',
+		'Eksklyuziv metodologiya': 'Exclusive methodology',
+		"Har bir yo'nalish uchun bosqichma-bosqich reja va aniq nazorat.": 'A step-by-step plan and clear control for every direction.',
+		"Natijaga yo'naltirilgan dars jarayoni": 'Result-focused learning process',
+		'Reception orqali tezkor aloqa': 'Fast communication through reception',
+		'Nima uchun ILM NEST?': 'Why ILM NEST?',
+		"Tartibli ta'lim": 'Organized education',
+		"Dars jarayoni, davomat va to'lovlar bitta tizim orqali nazorat qilinadi.": 'Lessons, attendance and payments are managed in one system.',
+		'Kuchli ustozlar': 'Strong teachers',
+		"Har bir yo'nalishda o'quvchiga tushunarli, bosqichma-bosqich yondashuv beriladi.": 'Every direction gives students a clear step-by-step approach.',
+		"Natija ko'rinadi": 'Results are visible',
+		"Oylik holat, qarzdorlik, jadval va bildirishnomalar ochiq ko'rinadi.": 'Monthly status, debts, schedule and notifications are visible.',
+		"Yo'nalishlar": 'Directions',
+		"Sizga mos yo'nalishni tanlang": 'Choose the right direction',
+		'Chet tillari': 'Foreign languages',
+		'Ingliz, nemis, rus va arab tili': 'English, German, Russian and Arabic',
+		'Aniq fanlar': 'Exact sciences',
+		'Matematika, kimyo va biologiya': 'Math, chemistry and biology',
+		Dasturlash: 'Programming',
+		"Frontend va backend yo'nalishlari": 'Frontend and backend directions',
+		'Ona tili va adabiyot': 'Native language and literature',
+		'Nazariya va test strategiyasi': 'Theory and test strategy',
+		'Oylik toʻlov': 'Monthly fee',
+		'Oylik to‘lov': 'Monthly fee',
+		'Reception orqali': 'Through reception',
+		Jarayon: 'Process',
+		"O'qishga kirish sodda": 'Starting is simple',
+		"Yo'nalishni tanlang": 'Choose a direction',
+		"Qaysi kurs kerakligini belgilang va qisqa ma'lumot qoldiring.": 'Select the course you need and leave a short message.',
+		"Reception bog'lanadi": 'Reception contacts you',
+		"Administrator vaqt, guruh va ustoz bo'yicha aniqlashtiradi.": 'The administrator clarifies time, group and teacher.',
+		'Dars boshlanadi': 'Lessons begin',
+		"O'quvchi tizimga qo'shiladi, davomat va to'lov nazorati yuradi.": 'The student is added to the system, attendance and payments are tracked.',
+		"Bog'lanish uchun ma'lumot qoldiring": 'Leave your contact details',
+		'Ism familiya': 'Full name',
+		"Qiziqayotgan yo'nalish": 'Interested direction',
+		Tavsif: 'Description',
+		Yuborish: 'Send',
+		'Dasturchilar': 'Developers',
+		'Dasturchilar jamoasi': 'Developer team',
+		'Asosiy mutaxassis': 'Core specialists',
+		Dashboard: 'Dashboard',
+		Davomat: 'Attendance',
+		"To'lovlar": 'Payments',
+		Jadval: 'Schedule',
+		Bildirishnomalar: 'Notifications',
+		Profil: 'Profile',
+		Sozlamalar: 'Settings',
+		"Bosh sahifa": 'Home',
+		"O'quvchilar": 'Students',
+		Guruhlarim: 'My groups',
+		Statistika: 'Statistics',
+		'Student Panel': 'Student Panel',
+		'Reception Panel': 'Reception Panel',
+		'Education CRM': 'Education CRM',
+		"Yangi bildirishnoma yo'q": 'No new notifications',
+		Chiqish: 'Logout',
+		'Tilni tanlash': 'Choose language',
+		'Til sozlamasi': 'Language setting',
+		'Sayt tili': 'Site language',
+		"Tanlangan til brauzerda saqlanadi va barcha panel sahifalarida qo'llanadi.": 'The selected language is saved in the browser and used across all panels.',
+	},
+	ar: {
+		"Ta'lim markazi": 'مركز تعليمي',
+		'Biz haqimizda': 'من نحن',
+		Kurslar: 'الدورات',
+		Narxlar: 'الأسعار',
+		Manzil: 'العنوان',
+		Afzalliklar: 'المزايا',
+		Kirish: 'الدخول',
+		'Admin kirish': 'دخول المدير',
+		"Bog'lanish": 'تواصل',
+		"Bog'laning": 'تواصل معنا',
+		"Kurslarni ko'rish": 'عرض الدورات',
+		"Batafsil ma'lumot": 'المزيد',
+		"O'zbekistondagi etalon ta'lim darajasi": 'مستوى تعليمي نموذجي في أوزبكستان',
+		'Bilim va natija': 'المعرفة والنتيجة',
+		'birlashgan markaz': 'في مركز واحد',
+		"ILM NEST - bu shunchaki o'quv markazi emas. Bu o'quvchining yo'nalishi, davomat, to'lov va natijasini tartibli nazorat qiladigan zamonaviy ta'lim muhiti.": 'ILM NEST ليس مجرد مركز تعليمي، بل بيئة حديثة تتابع المسار والحضور والدفع والنتائج بوضوح.',
+		"mamnun o'quvchilar va ota-onalar": 'طلاب وأولياء أمور راضون',
+		"o'quvchilar birinchi oydayoq o'sishni sezadi": 'يشعر الطلاب بالتطور من الشهر الأول',
+		'Nega aynan bizni tanlashingiz kerak?': 'لماذا تختاروننا؟',
+		"ILM NEST kuchli ustozlar, tartibli reception nazorati va tushunarli o'quv jarayonini birlashtiradi. Har bir o'quvchi qaysi bosqichda ekani aniq ko'rinadi.": 'يجمع ILM NEST بين معلمين أقوياء وتنظيم واضح وعملية تعليم مفهومة، مع متابعة مرحلة كل طالب.',
+		'Eksklyuziv metodologiya': 'منهجية خاصة',
+		"Har bir yo'nalish uchun bosqichma-bosqich reja va aniq nazorat.": 'خطة خطوة بخطوة ورقابة واضحة لكل مسار.',
+		"Natijaga yo'naltirilgan dars jarayoni": 'دروس موجهة نحو النتيجة',
+		'Reception orqali tezkor aloqa': 'تواصل سريع عبر الاستقبال',
+		'Nima uchun ILM NEST?': 'لماذا ILM NEST؟',
+		"Tartibli ta'lim": 'تعليم منظم',
+		"Dars jarayoni, davomat va to'lovlar bitta tizim orqali nazorat qilinadi.": 'تتم متابعة الدروس والحضور والمدفوعات في نظام واحد.',
+		'Kuchli ustozlar': 'معلمون أقوياء',
+		"Har bir yo'nalishda o'quvchiga tushunarli, bosqichma-bosqich yondashuv beriladi.": 'في كل مسار يحصل الطالب على نهج واضح خطوة بخطوة.',
+		"Natija ko'rinadi": 'النتيجة واضحة',
+		"Oylik holat, qarzdorlik, jadval va bildirishnomalar ochiq ko'rinadi.": 'الحالة الشهرية والديون والجدول والتنبيهات ظاهرة بوضوح.',
+		"Yo'nalishlar": 'المسارات',
+		"Sizga mos yo'nalishni tanlang": 'اختر المسار المناسب',
+		'Chet tillari': 'اللغات الأجنبية',
+		'Ingliz, nemis, rus va arab tili': 'الإنجليزية والألمانية والروسية والعربية',
+		'Aniq fanlar': 'العلوم الدقيقة',
+		'Matematika, kimyo va biologiya': 'الرياضيات والكيمياء والأحياء',
+		Dasturlash: 'البرمجة',
+		"Frontend va backend yo'nalishlari": 'مسارات الواجهة الأمامية والخلفية',
+		'Ona tili va adabiyot': 'اللغة الأم والأدب',
+		'Nazariya va test strategiyasi': 'النظرية واستراتيجية الاختبار',
+		'Oylik toʻlov': 'الرسوم الشهرية',
+		'Oylik to‘lov': 'الرسوم الشهرية',
+		'Reception orqali': 'عبر الاستقبال',
+		Jarayon: 'العملية',
+		"O'qishga kirish sodda": 'البدء بسيط',
+		"Yo'nalishni tanlang": 'اختر المسار',
+		"Qaysi kurs kerakligini belgilang va qisqa ma'lumot qoldiring.": 'حدد الدورة المطلوبة واترك رسالة قصيرة.',
+		"Reception bog'lanadi": 'سيتواصل الاستقبال',
+		"Administrator vaqt, guruh va ustoz bo'yicha aniqlashtiradi.": 'يوضح المسؤول الوقت والمجموعة والمعلم.',
+		'Dars boshlanadi': 'تبدأ الدروس',
+		"O'quvchi tizimga qo'shiladi, davomat va to'lov nazorati yuradi.": 'يضاف الطالب إلى النظام وتتم متابعة الحضور والمدفوعات.',
+		"Bog'lanish uchun ma'lumot qoldiring": 'اترك بيانات التواصل',
+		'Ism familiya': 'الاسم الكامل',
+		"Qiziqayotgan yo'nalish": 'المسار المهتم به',
+		Tavsif: 'الوصف',
+		Yuborish: 'إرسال',
+		'Dasturchilar': 'المطورون',
+		'Dasturchilar jamoasi': 'فريق المطورين',
+		'Asosiy mutaxassis': 'المختصون الأساسيون',
+		Dashboard: 'لوحة التحكم',
+		Davomat: 'الحضور',
+		"To'lovlar": 'المدفوعات',
+		Jadval: 'الجدول',
+		Bildirishnomalar: 'الإشعارات',
+		Profil: 'الملف الشخصي',
+		Sozlamalar: 'الإعدادات',
+		"Bosh sahifa": 'الرئيسية',
+		"O'quvchilar": 'الطلاب',
+		Guruhlarim: 'مجموعاتي',
+		Statistika: 'الإحصائيات',
+		'Student Panel': 'لوحة الطالب',
+		'Reception Panel': 'لوحة الاستقبال',
+		'Education CRM': 'نظام التعليم',
+		"Yangi bildirishnoma yo'q": 'لا توجد إشعارات جديدة',
+		Chiqish: 'خروج',
+		'Tilni tanlash': 'اختيار اللغة',
+		'Til sozlamasi': 'إعداد اللغة',
+		'Sayt tili': 'لغة الموقع',
+		"Tanlangan til brauzerda saqlanadi va barcha panel sahifalarida qo'llanadi.": 'يتم حفظ اللغة المختارة في المتصفح وتطبيقها على كل اللوحات.',
+	},
+}
+
+const translationOriginals = new WeakMap()
+const reverseTranslations = Object.values(TRANSLATIONS).reduce((acc, dictionary) => {
+	Object.entries(dictionary).forEach(([source, value]) => {
+		acc[value] = source
+	})
+	return acc
+}, {})
+
+function getInitialLanguage() {
+	if (typeof window === 'undefined') return 'uz'
+	const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+	return LANGUAGE_OPTIONS.some(item => item.value === saved) ? saved : 'uz'
+}
+
+function normalizeTranslationSource(value) {
+	return reverseTranslations[value] || value
+}
+
+function translateTextValue(value, language) {
+	if (language === 'uz') return normalizeTranslationSource(value)
+	const trimmed = value.trim()
+	if (!trimmed) return value
+	const source = normalizeTranslationSource(trimmed)
+	const translated = TRANSLATIONS[language]?.[source]
+	if (!translated) return value
+	return value.replace(trimmed, translated)
+}
+
+function applyLanguageToDom(language) {
+	if (typeof document === 'undefined') return
+	document.documentElement.lang = language
+	document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
+	document.body?.classList.toggle('is-rtl', language === 'ar')
+
+	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+		acceptNode(node) {
+			const parent = node.parentElement
+			if (!parent) return NodeFilter.FILTER_REJECT
+			if (['SCRIPT', 'STYLE', 'TEXTAREA'].includes(parent.tagName)) return NodeFilter.FILTER_REJECT
+			if (parent.closest('[data-no-translate]')) return NodeFilter.FILTER_REJECT
+			return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+		},
+	})
+	const nodes = []
+	while (walker.nextNode()) nodes.push(walker.currentNode)
+	nodes.forEach(node => {
+		const original = translationOriginals.get(node) || normalizeTranslationSource(node.nodeValue)
+		translationOriginals.set(node, original)
+		const translated = translateTextValue(original, language)
+		if (node.nodeValue !== translated) {
+			node.nodeValue = translated
+		}
+	})
+
+	document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(element => {
+		const original =
+			element.dataset.i18nPlaceholderOriginal ||
+			normalizeTranslationSource(element.getAttribute('placeholder') || '')
+		const translated = translateTextValue(original, language)
+		element.dataset.i18nPlaceholderOriginal = original
+		if (element.getAttribute('placeholder') !== translated) {
+			element.setAttribute('placeholder', translated)
+		}
+	})
+}
+
+function setAppLanguage(language) {
+	if (typeof window === 'undefined') return
+	window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+	window.dispatchEvent(new CustomEvent('ilmnest-language-change', { detail: language }))
+}
+
+function useAppLanguage() {
+	const [language, setLanguage] = useState(getInitialLanguage)
+
+	useEffect(() => {
+		function handleChange(event) {
+			setLanguage(event.detail || getInitialLanguage())
+		}
+		window.addEventListener('ilmnest-language-change', handleChange)
+		return () => window.removeEventListener('ilmnest-language-change', handleChange)
+	}, [])
+
+	return [language, setAppLanguage]
+}
+
+function LanguageRuntime() {
+	const [language] = useAppLanguage()
+
+	useEffect(() => {
+		document.documentElement.lang = language
+		document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
+		document.body.dataset.language = language
+		applyLanguageToDom(language)
+		const observer = new MutationObserver(() => {
+			window.requestAnimationFrame(() => applyLanguageToDom(language))
+		})
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+			characterData: true,
+		})
+		return () => observer.disconnect()
+	}, [language])
+
+	return null
+}
+
+function LanguageSelector({ compact = false }) {
+	const [language, changeLanguage] = useAppLanguage()
+	const selectorLabel = {
+		uz: 'Tilni tanlash',
+		ru: 'Выбор языка',
+		en: 'Choose language',
+		ar: 'اختيار اللغة',
+	}[language] || 'Tilni tanlash'
+
+	return (
+		<label className={`language-selector ${compact ? 'compact' : ''}`} data-no-translate>
+			<span>{compact ? LANGUAGE_OPTIONS.find(item => item.value === language)?.short : selectorLabel}</span>
+			<select value={language} onChange={event => changeLanguage(event.target.value)}>
+				{LANGUAGE_OPTIONS.map(option => (
+					<option key={option.value} value={option.value}>
+						{compact ? option.short : option.label}
+					</option>
+				))}
+			</select>
+		</label>
+	)
+}
+
 const ROLE_DEFAULT_PATH = {
 	student: '/student/dashboard',
 	director: '/director/dashboard',
@@ -1603,6 +1992,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 					</form>
 
 					<div className='topbar-user'>
+						<LanguageSelector compact />
 						<button
 							type='button'
 							className='topbar-icon'
@@ -1710,6 +2100,13 @@ function ProfileSettingsCard({
 	return (
 		<section className='card settings-card'>
 			<h3>{title}</h3>
+			<div className='language-setting-card'>
+				<div>
+					<strong>Til sozlamasi</strong>
+					<p>Tanlangan til brauzerda saqlanadi va barcha panel sahifalarida qo'llanadi.</p>
+				</div>
+				<LanguageSelector />
+			</div>
 			<form className='modal-form' onSubmit={handleSubmit}>
 				<div className='field-grid'>
 					<div>
@@ -2030,11 +2427,12 @@ function PublicSiteHeader() {
 					</div>
 				</nav>
 				<div className='marketing-actions'>
+					<LanguageSelector compact />
 					<Link to='/student/login' className='marketing-header-link'>Kirish</Link>
-					<Link to='/admins' className='marketing-header-link marketing-header-admin'>Admin kirish</Link>
-					<a href='#aloqa' className='marketing-header-cta'>
+					<Link to='/admins' className='marketing-header-link marketing-header-cta'>Admin kirish</Link>
+					{/* <a href='#aloqa' className=''>
 							<strong>Bog'lanish</strong>
-					</a>
+					</a> */}
 				</div>
 				<button
 					type='button'
@@ -2052,6 +2450,7 @@ function PublicSiteHeader() {
 						</a>
 					))}
 					<a href='#aloqa' onClick={() => setMenuOpen(false)}>Bog'lanish</a>
+					<LanguageSelector />
 					<Link to='/student/login' onClick={() => setMenuOpen(false)}>Kirish</Link>
 					<Link to='/admins' onClick={() => setMenuOpen(false)}>Admin kirish</Link>
 				</div>
@@ -2282,7 +2681,9 @@ function HomePage() {
 							</div>
 							<div className='landing-pro-student-proof'>
 								<div className='landing-pro-avatars'>
-									<span>IN</span><span>MS</span><span>AK</span>
+									<img src='https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=120&h=120&q=80' alt='' />
+									<img src='https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2&w=120&h=120&q=80' alt='' />
+									<img src='https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=facearea&facepad=2&w=120&h=120&q=80' alt='' />
 								</div>
 								<strong>500+</strong>
 								<span>mamnun o'quvchilar va ota-onalar</span>
@@ -2296,7 +2697,7 @@ function HomePage() {
 								/>
 							</div>
 							<div className='landing-pro-floating-result'>
-								<Icon name='verified' />
+								<span className='landing-pro-result-check' aria-hidden='true' />
 								<div>
 									<strong>98%</strong>
 									<span>o'quvchilar birinchi oydayoq o'sishni sezadi</span>
@@ -2306,7 +2707,7 @@ function HomePage() {
 					</div>
 				</section>
 
-				<section className='landing-pro-stats landing-reveal reveal-soft' id='stats'>
+				<section className='landing-pro-stats landing-reveal reveal-soft' id='stats' data-no-translate>
 					<div className='landing-reveal reveal-up' style={{ '--reveal-delay': '0ms' }}>
 						<Icon name='groups' />
 						<strong>{animatedStats.students}+</strong>
@@ -8225,46 +8626,62 @@ function AppInner() {
 	}
 
 	if (autoLoginLoading) {
-		return <div className='loading-screen'>Kabinetga kirilmoqda...</div>
+		return (
+			<>
+				<LanguageRuntime />
+				<div className='loading-screen'>Kabinetga kirilmoqda...</div>
+			</>
+		)
 	}
 
 	if (!auth) {
 		return (
+			<>
+				<LanguageRuntime />
+				<Routes>
+					<Route path='/' element={<HomePage />} />
+					<Route path='/dasturchilar' element={<DevelopersPage />} />
+					<Route path='/dasturchilar/:slug' element={<DeveloperDetailPage />} />
+					<Route path='/dasturchilar/login' element={<DeveloperPortalPage />} />
+					<Route path='/student/login' element={<StudentLoginPage onLogin={handleLogin} />} />
+					<Route path='/register' element={<StudentRegisterPage />} />
+					<Route path='/admins' element={<AdminLoginPage onLogin={handleLogin} />} />
+					<Route path='*' element={<Navigate to='/' replace />} />
+				</Routes>
+			</>
+		)
+	}
+
+	if (!meta) {
+		return (
+			<>
+				<LanguageRuntime />
+				<div className='loading-screen'>Yuklanmoqda...</div>
+			</>
+		)
+	}
+
+	return (
+		<>
+			<LanguageRuntime />
 			<Routes>
 				<Route path='/' element={<HomePage />} />
 				<Route path='/dasturchilar' element={<DevelopersPage />} />
 				<Route path='/dasturchilar/:slug' element={<DeveloperDetailPage />} />
 				<Route path='/dasturchilar/login' element={<DeveloperPortalPage />} />
-				<Route path='/student/login' element={<StudentLoginPage onLogin={handleLogin} />} />
-				<Route path='/register' element={<StudentRegisterPage />} />
-				<Route path='/admins' element={<AdminLoginPage onLogin={handleLogin} />} />
-				<Route path='*' element={<Navigate to='/' replace />} />
+				<Route
+					path='/*'
+					element={
+						<ProtectedApp
+							auth={auth}
+							meta={meta}
+							onLogout={handleLogout}
+							onProfileUpdated={handleProfileUpdated}
+						/>
+					}
+				/>
 			</Routes>
-		)
-	}
-
-	if (!meta) {
-		return <div className='loading-screen'>Yuklanmoqda...</div>
-	}
-
-	return (
-		<Routes>
-			<Route path='/' element={<HomePage />} />
-			<Route path='/dasturchilar' element={<DevelopersPage />} />
-			<Route path='/dasturchilar/:slug' element={<DeveloperDetailPage />} />
-			<Route path='/dasturchilar/login' element={<DeveloperPortalPage />} />
-			<Route
-				path='/*'
-				element={
-					<ProtectedApp
-						auth={auth}
-						meta={meta}
-						onLogout={handleLogout}
-						onProfileUpdated={handleProfileUpdated}
-					/>
-				}
-			/>
-		</Routes>
+		</>
 	)
 }
 
