@@ -5,6 +5,8 @@ const port = Number(process.env.PORT || 5173);
 const allowedHosts = [
   "localhost",
   "127.0.0.1",
+  "ilm-nest.uz",
+  "www.ilm-nest.uz",
   ".railway.app"
 ];
 
