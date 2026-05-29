@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const API_URL = (import.meta.env.VITE_API_URL || "https://ilmnest-backend.up.railway.app/api").replace(/\/$/, "");
 const API_ROOT = API_URL.replace(/\/api$/, "");
 
 export function resolveAssetUrl(value) {
