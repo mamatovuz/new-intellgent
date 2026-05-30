@@ -9022,7 +9022,8 @@ th {
   backdrop-filter: blur(8px);
 }
 
-.revenue-line-overlay {
+.revenue-line-overlay,
+.revenue-line-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -9032,7 +9033,14 @@ th {
   overflow: visible;
 }
 
-.revenue-line-overlay polyline {
+.revenue-line-canvas {
+  position: relative;
+  display: block;
+  pointer-events: none;
+}
+
+.revenue-line-overlay polyline,
+.revenue-line-canvas polyline {
   fill: none;
   stroke: #2563eb;
   stroke-width: 4;
@@ -9041,7 +9049,8 @@ th {
   filter: drop-shadow(0 8px 14px rgba(37, 99, 235, 0.24));
 }
 
-.revenue-line-overlay circle {
+.revenue-line-overlay circle,
+.revenue-line-canvas circle {
   fill: #ffffff;
   stroke: #2563eb;
   stroke-width: 3;

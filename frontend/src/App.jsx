@@ -7621,16 +7621,16 @@ function DirectorDashboardPage({ token }) {
 						) : null}
 						{chartData.length ? (
 							<svg
-								className='revenue-line-overlay'
+								className='revenue-line-canvas'
 								viewBox='0 0 100 100'
 								preserveAspectRatio='none'
 								style={{
-									position: 'absolute',
-									inset: 0,
+									position: 'relative',
 									width: '100%',
 									height: '100%',
 									display: 'block',
 									overflow: 'visible',
+									zIndex: 2,
 								}}
 							>
 								<polyline
