@@ -418,6 +418,7 @@ const NAV_ITEMS = {
 		{ to: '/student/schedule', label: 'Jadval', icon: 'calendar_month' },
 		{ to: '/student/notifications', label: 'Bildirishnomalar', icon: 'notifications' },
 		{ to: '/student/profile', label: 'Profil', icon: 'person' },
+		{ to: '/student/settings', label: 'Sozlamalar', icon: 'settings' },
 	],
 	director: [
 		{ to: '/director/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -4826,6 +4827,56 @@ function StudentProfilePage({ token }) {
 	)
 }
 
+function StudentSettingsPage({ token }) {
+	const [form, setForm] = useState({ password: '' })
+
+	async function handleSubmit(event) {
+		event.preventDefault()
+		try {
+			await api.updateStudentPassword(token, form)
+			setForm({ password: '' })
+			await showSuccess('Yangilandi', 'Parol muvaffaqiyatli yangilandi')
+		} catch (err) {
+			await showError(err.message)
+		}
+	}
+
+	return (
+		<>
+			<PageHeader
+				title='Sozlamalar'
+				subtitle='Til va kabinet sozlamalarini boshqarish'
+			/>
+			<section className='card settings-card'>
+				<h3>Kabinet sozlamalari</h3>
+				<div className='language-setting-card'>
+					<div>
+						<strong>Til sozlamasi</strong>
+						<p>Tanlangan til brauzerda saqlanadi va student kabinetida qo'llanadi.</p>
+					</div>
+					<LanguageSelector />
+				</div>
+				<form className='modal-form' onSubmit={handleSubmit}>
+					<div className='field-grid'>
+						<div>
+							<label>Yangi parol</label>
+							<input
+								type='password'
+								value={form.password}
+								onChange={event => setForm({ password: event.target.value })}
+							/>
+						</div>
+					</div>
+					<div className='modal-actions'>
+						<span />
+						<ActionButton type='submit' icon='save'>Parolni saqlash</ActionButton>
+					</div>
+				</form>
+			</section>
+		</>
+	)
+}
+
 function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 	const initialSchedule = parseScheduleString(initialData.schedule || '')
 	const [form, setForm] = useState({
@@ -6934,8 +6985,9 @@ function TeacherAttendancePage({ token }) {
 
 	const currentGroup = groups.find(group => group.key === selectedGroup) ||
 		groups[0] || { members: [], label: '' }
+	const currentMembers = Array.isArray(currentGroup.members) ? currentGroup.members : []
 	const currentSchedule =
-		currentGroup.members[0]?.schedule || 'Jadval kiritilmagan'
+		currentMembers[0]?.schedule || 'Jadval kiritilmagan'
 
 	return (
 		<>
@@ -6998,9 +7050,9 @@ function TeacherAttendancePage({ token }) {
 			<section className='card attendance-card'>
 				<div className='card-head-row'>
 					<h3>{currentGroup.label || "Davomat ko'rinishi"}</h3>
-					<span>{currentGroup.members.length} o'quvchi ro'yxatda</span>
+					<span>{currentMembers.length} o'quvchi ro'yxatda</span>
 				</div>
-				{currentGroup.members.length ? (
+				{currentMembers.length ? (
 					<div className='table-shell responsive-cards'>
 						<table>
 							<thead>
@@ -7011,7 +7063,7 @@ function TeacherAttendancePage({ token }) {
 								</tr>
 							</thead>
 							<tbody>
-								{currentGroup.members.map((student, index) => {
+								{currentMembers.map((student, index) => {
 									const current = historyMap[student.id] || 'present'
 									const meta = getAttendanceStatusMeta(current)
 									return (
@@ -7346,6 +7398,17 @@ function DirectorDashboardPage({ token }) {
 				})
 				.join(' ')
 		: ''
+	const chartPointMeta = chartData.map((item, index) => {
+		const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
+		const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 100
+		return {
+			id: `${item.period || item.label}-${index}`,
+			x,
+			y: Math.max(6, y),
+			label: formatTrendTooltipLabel(item.label || item.period),
+			value: Number(item.revenue || 0),
+		}
+	})
 	const chartRangeCaption = formatDateRangeCaption(dateRange.from, dateRange.to)
 	const growthLabel = previousRevenue > 0 ? "O'SISH SUR'ATI" : 'HOLAT'
 
@@ -7467,7 +7530,7 @@ function DirectorDashboardPage({ token }) {
 				</div>
 				<div className='chart-meta-strip'>
 					<span className='chart-range-badge'>{chartRangeCaption}</span>
-					<p>Ko'k ustunlar tushumni, chiziq esa davrlar orasidagi o'sish yo'nalishini ko'rsatadi.</p>
+					<p>Ko'k chiziq davrlar bo'yicha real tushum o'zgarishini ko'rsatadi.</p>
 				</div>
 				<div className='chart-filter-row'>
 					<label>
@@ -7530,48 +7593,54 @@ function DirectorDashboardPage({ token }) {
 							preserveAspectRatio='none'
 						>
 							<polyline points={chartPoints} />
-							{chartData.map((item, index) => {
-								const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
-								const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 100
-								return <circle key={item.period || index} cx={x} cy={Math.max(6, y)} r='2.8' />
-							})}
+							{chartPointMeta.map(point => (
+								<circle key={point.id} cx={point.x} cy={point.y} r='2.8' />
+							))}
 						</svg>
 					) : null}
 					{chartData.length ? (
-						<div className='revenue-chart'>
-							{chartData.map((item, index) => (
-								<div
-									key={`${item.period || item.label}-${index}`}
-									className='revenue-column'
-									onMouseEnter={event => {
+						<>
+							<div className='revenue-line-hotspots'>
+								{chartPointMeta.map(point => (
+									<button
+										key={point.id}
+										type='button'
+										className='revenue-line-hotspot'
+										style={{ left: `${point.x}%`, top: `${point.y}%` }}
+										onMouseEnter={event => {
 										const rect = event.currentTarget.getBoundingClientRect()
-										const parentRect = event.currentTarget.parentElement.getBoundingClientRect()
+										const parentRect = event.currentTarget.closest('.revenue-chart-wrap').getBoundingClientRect()
 										setHoveredPoint({
-											label: formatTrendTooltipLabel(item.label || item.period),
-											value: item.revenue,
+											label: point.label,
+											value: point.value,
 											left: rect.left - parentRect.left + rect.width / 2,
 											top: rect.top - parentRect.top - 12,
 										})
 									}}
-									onMouseLeave={() => setHoveredPoint(null)}
-								>
-									<div className='revenue-bar-value' title={formatMoney(item.revenue)}>
-										{formatCompactMoney(item.revenue)}
-									</div>
-									<div
-										className={
-											index === chartData.length - 1
-												? 'revenue-bar active'
-												: 'revenue-bar'
-										}
-										style={{
-											height: `${Math.max((item.revenue / maxRevenue) * 240, 36)}px`,
+										onMouseLeave={() => setHoveredPoint(null)}
+										onFocus={event => {
+											const rect = event.currentTarget.getBoundingClientRect()
+											const parentRect = event.currentTarget.closest('.revenue-chart-wrap').getBoundingClientRect()
+											setHoveredPoint({
+												label: point.label,
+												value: point.value,
+												left: rect.left - parentRect.left + rect.width / 2,
+												top: rect.top - parentRect.top - 12,
+											})
 										}}
+										onBlur={() => setHoveredPoint(null)}
+										aria-label={`${point.label}: ${formatMoney(point.value)}`}
 									/>
-									<span>{formatShortTrendLabel(item.label || item.period)}</span>
-								</div>
-							))}
-						</div>
+								))}
+							</div>
+							<div className='revenue-chart-labels'>
+								{chartData.map((item, index) => (
+									<span key={`${item.period || item.label}-${index}`}>
+										{formatShortTrendLabel(item.label || item.period)}
+									</span>
+								))}
+							</div>
+						</>
 					) : (
 						<div className='revenue-chart-empty'>
 							Tanlangan davr bo'yicha tushum topilmadi.
@@ -8637,6 +8706,10 @@ function ProtectedApp({ auth, meta, onLogout, onProfileUpdated }) {
 				<Route
 					path='/student/profile'
 					element={<StudentProfilePage token={auth.token} />}
+				/>
+				<Route
+					path='/student/settings'
+					element={<StudentSettingsPage token={auth.token} />}
 				/>
 
 				<Route
