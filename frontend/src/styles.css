@@ -2570,7 +2570,7 @@ tbody tr:hover {
   flex-wrap: wrap;
   align-items: end;
   gap: 12px;
-  margin: 18px 0 4px;
+  margin: 18px 0 10px;
 }
 
 .chart-filter-row > * {
@@ -2599,19 +2599,47 @@ tbody tr:hover {
   position: relative;
   min-width: 0;
   overflow: hidden;
-  margin-top: 16px;
-  padding: 18px 16px 16px;
-  border: 1px solid #dbe5f3;
-  border-radius: 20px;
+  margin-top: 20px;
+  padding: 34px 32px 76px 92px;
+  border: 1px solid rgba(151, 171, 211, 0.42);
+  border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(245, 249, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%),
+    radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.1), transparent 28%),
+    radial-gradient(circle at 92% 12%, rgba(20, 184, 166, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(248, 251, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%),
     repeating-linear-gradient(
       to top,
-      rgba(153, 173, 214, 0.12) 0,
-      rgba(153, 173, 214, 0.12) 1px,
+      rgba(116, 139, 180, 0.14) 0,
+      rgba(116, 139, 180, 0.14) 1px,
       transparent 1px,
       transparent 64px
     );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.revenue-chart-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 20px 22px 58px 80px;
+  border-radius: 18px;
+  background-image:
+    linear-gradient(to right, rgba(139, 160, 198, 0.11) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(139, 160, 198, 0.12) 1px, transparent 1px);
+  background-size: 12.5% 100%, 100% 25%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.revenue-chart-wrap::after {
+  content: "";
+  position: absolute;
+  left: 92px;
+  right: 32px;
+  bottom: 76px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(13, 44, 102, 0.22), rgba(13, 44, 102, 0.06));
+  pointer-events: none;
+  z-index: 1;
 }
 
 .chart-tooltip {
@@ -2626,7 +2654,7 @@ tbody tr:hover {
   gap: 4px;
   box-shadow: 0 16px 28px rgba(15, 32, 74, 0.26);
   pointer-events: none;
-  z-index: 3;
+  z-index: 8;
 }
 
 .chart-tooltip strong {
@@ -8957,49 +8985,72 @@ th {
 .segmented-switch {
   display: flex;
   gap: 8px;
-  padding: 6px;
-  background: #eef3f9;
-  border-radius: 10px;
+  padding: 5px;
+  background: transparent;
+  border-radius: 14px;
 }
 
 .segmented-switch button {
-  height: 34px;
-  padding: 0 18px;
-  border-radius: 8px;
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 12px;
   color: #60718e;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .segmented-switch button.active {
   background: white;
   color: var(--navy);
-  box-shadow: 0 6px 16px rgba(19, 51, 133, 0.08);
+  box-shadow: 0 10px 24px rgba(19, 51, 133, 0.12);
 }
 
 .chart-head-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(207, 218, 235, 0.92);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(239, 244, 251, 0.96), rgba(248, 251, 255, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 28px rgba(16, 43, 91, 0.08);
 }
 
 .chart-fullscreen-btn {
-  width: 46px;
-  height: 46px;
-  border: 1px solid #d7e1f1;
-  border-radius: 14px;
-  background: #fff;
+  height: 42px;
+  min-width: 112px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
   color: var(--navy);
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(19, 51, 133, 0.08);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  box-shadow: 0 10px 22px rgba(19, 51, 133, 0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
-.chart-fullscreen-btn:hover {
+.chart-fullscreen-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.chart-fullscreen-btn span {
+  line-height: 1;
+}
+
+.chart-fullscreen-btn:hover,
+.chart-fullscreen-btn.active {
   transform: translateY(-1px);
-  border-color: #b8c9e5;
-  box-shadow: 0 14px 26px rgba(19, 51, 133, 0.12);
+  background: var(--navy);
+  border-color: rgba(0, 35, 111, 0.18);
+  color: white;
+  box-shadow: 0 16px 30px rgba(0, 35, 111, 0.18);
 }
 
 .chart-card-fullscreen {
@@ -9029,7 +9080,7 @@ th {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   overflow: visible;
 }
 
@@ -9042,18 +9093,19 @@ th {
 .revenue-line-overlay polyline,
 .revenue-line-canvas polyline {
   fill: none;
-  stroke: #2563eb;
-  stroke-width: 4;
+  stroke: #0b63f6;
+  stroke-width: 5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 8px 14px rgba(37, 99, 235, 0.24));
+  filter: drop-shadow(0 12px 18px rgba(37, 99, 235, 0.24));
 }
 
 .revenue-line-overlay circle,
 .revenue-line-canvas circle {
   fill: #ffffff;
-  stroke: #2563eb;
+  stroke: #0b63f6;
   stroke-width: 3;
+  filter: drop-shadow(0 7px 12px rgba(37, 99, 235, 0.24));
 }
 
 .revenue-line-hotspots {
@@ -9064,8 +9116,8 @@ th {
 
 .revenue-line-hotspot {
   position: absolute;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -9076,17 +9128,20 @@ th {
 .revenue-line-hotspot::after {
   content: "";
   position: absolute;
-  inset: 6px;
+  inset: 8px;
   border-radius: inherit;
-  background: #2563eb;
-  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.14);
-  opacity: 0.35;
-  transition: opacity 0.16s ease;
+  background: #0b63f6;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 7px rgba(37, 99, 235, 0.13), 0 12px 20px rgba(37, 99, 235, 0.2);
+  opacity: 0.92;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
 
 .revenue-line-hotspot:hover::after,
 .revenue-line-hotspot:focus-visible::after {
   opacity: 1;
+  transform: scale(1.18);
+  box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.16), 0 16px 26px rgba(37, 99, 235, 0.24);
 }
 
 .revenue-chart-labels {
@@ -9104,9 +9159,9 @@ th {
 .revenue-chart-labels span {
   min-width: 0;
   flex: 1;
-  color: #8a9aba;
-  font-weight: 700;
-  font-size: 12px;
+  color: #415475;
+  font-weight: 800;
+  font-size: 13px;
   text-align: center;
   line-height: 1.3;
   word-break: break-word;
@@ -9117,6 +9172,7 @@ th {
   min-height: 280px;
   height: 280px;
   width: 100%;
+  z-index: 2;
 }
 
 .chart-card-fullscreen .revenue-chart-wrap {
@@ -9127,6 +9183,55 @@ th {
 .chart-card-fullscreen .revenue-line-stage {
   min-height: 520px;
   height: 520px;
+}
+
+.revenue-chart-section .revenue-chart-wrap {
+  min-height: 460px;
+  padding: 34px 32px 76px 92px;
+  border: 1px solid rgba(151, 171, 211, 0.42);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.1), transparent 28%),
+    radial-gradient(circle at 92% 12%, rgba(20, 184, 166, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(248, 251, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 18px 40px rgba(16, 43, 91, 0.06);
+}
+
+.revenue-chart-section .chart-y-axis {
+  top: 34px;
+  left: 24px;
+  bottom: 76px;
+  width: 52px;
+  z-index: 2;
+}
+
+.revenue-chart-section .chart-y-axis span {
+  color: #7283a0;
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.revenue-chart-section .chart-grid-lines {
+  z-index: 1;
+}
+
+.revenue-chart-section .chart-grid-lines span {
+  background: linear-gradient(90deg, rgba(123, 144, 185, 0.04), rgba(123, 144, 185, 0.24), rgba(123, 144, 185, 0.04));
+}
+
+.revenue-chart-section .chart-tooltip {
+  z-index: 9;
+}
+
+.revenue-chart-section .revenue-chart-empty {
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #7283a0;
+  font-weight: 700;
 }
 
 .revenue-chart {
@@ -10534,6 +10639,36 @@ th {
     left: 0;
     right: 0;
     bottom: -30px;
+  }
+
+  .chart-head-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .segmented-switch {
+    flex: 1 1 260px;
+  }
+
+  .segmented-switch button {
+    flex: 1;
+    padding: 0 10px;
+  }
+
+  .chart-fullscreen-btn {
+    flex: 1 1 120px;
+  }
+
+  .revenue-chart-section .revenue-chart-wrap {
+    padding: 28px 16px 58px 60px;
+    min-height: 380px;
+  }
+
+  .revenue-chart-section .chart-y-axis {
+    left: 12px;
+    width: 40px;
+    bottom: 58px;
   }
 
   .mini-trend-chart {

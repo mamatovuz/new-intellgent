@@ -7505,7 +7505,7 @@ function DirectorDashboardPage({ token }) {
 				/>
 			</div>
 
-			<section className={isRevenueFullscreen ? 'card chart-card chart-card-fullscreen' : 'card chart-card'}>
+			<section className={isRevenueFullscreen ? 'card chart-card chart-card-fullscreen revenue-chart-section' : 'card chart-card revenue-chart-section'}>
 				<div className='card-head-row'>
 					<div>
 						<h3>Tushumlar dinamikasi</h3>
@@ -7537,11 +7537,12 @@ function DirectorDashboardPage({ token }) {
 						</div>
 						<button
 							type='button'
-							className='chart-fullscreen-btn'
+							className={isRevenueFullscreen ? 'chart-fullscreen-btn active' : 'chart-fullscreen-btn'}
 							onClick={() => setIsRevenueFullscreen(value => !value)}
 							title={isRevenueFullscreen ? 'To‘liq ekrandan chiqish' : 'To‘liq ekranda ko‘rish'}
 						>
 							<Icon name={isRevenueFullscreen ? 'fullscreen_exit' : 'fullscreen'} />
+							<span>{isRevenueFullscreen ? 'Chiqish' : "To'liq"}</span>
 						</button>
 					</div>
 				</div>
@@ -7580,11 +7581,10 @@ function DirectorDashboardPage({ token }) {
 				</div>
 
 				<div
-					className='revenue-chart-wrap'
+					className={isRevenueFullscreen ? 'revenue-chart-wrap is-fullscreen' : 'revenue-chart-wrap'}
 					style={{
-						minHeight: isRevenueFullscreen ? '620px' : '420px',
-						height: isRevenueFullscreen ? 'calc(100vh - 290px)' : '420px',
-						padding: '32px 24px 72px 82px',
+						minHeight: isRevenueFullscreen ? '620px' : '460px',
+						height: isRevenueFullscreen ? 'calc(100vh - 290px)' : '460px',
 					}}
 				>
 					<div className='chart-y-axis'>
@@ -7596,8 +7596,8 @@ function DirectorDashboardPage({ token }) {
 						className='revenue-line-stage'
 						style={{
 							position: 'relative',
-							height: isRevenueFullscreen ? 'calc(100vh - 395px)' : '316px',
-							minHeight: isRevenueFullscreen ? '420px' : '316px',
+							height: isRevenueFullscreen ? 'calc(100vh - 405px)' : '340px',
+							minHeight: isRevenueFullscreen ? '430px' : '340px',
 							width: '100%',
 						}}
 					>
@@ -7633,11 +7633,18 @@ function DirectorDashboardPage({ token }) {
 									zIndex: 2,
 								}}
 							>
+								<defs>
+									<linearGradient id='revenueLineGradient' x1='0%' y1='0%' x2='100%' y2='0%'>
+										<stop offset='0%' stopColor='#1d4ed8' />
+										<stop offset='52%' stopColor='#2563eb' />
+										<stop offset='100%' stopColor='#0ea5e9' />
+									</linearGradient>
+								</defs>
 								<polyline
 									points={chartPoints}
 									vectorEffect='non-scaling-stroke'
 									fill='none'
-									stroke='#2563eb'
+									stroke='url(#revenueLineGradient)'
 									strokeWidth='5'
 									strokeLinecap='round'
 									strokeLinejoin='round'
