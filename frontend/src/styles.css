@@ -9035,16 +9035,16 @@ th {
 .revenue-line-overlay polyline {
   fill: none;
   stroke: #2563eb;
-  stroke-width: 3.2;
+  stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 6px 10px rgba(37, 99, 235, 0.18));
+  filter: drop-shadow(0 8px 14px rgba(37, 99, 235, 0.24));
 }
 
 .revenue-line-overlay circle {
   fill: #ffffff;
   stroke: #2563eb;
-  stroke-width: 2.4;
+  stroke-width: 3;
 }
 
 .revenue-line-hotspots {
@@ -9067,11 +9067,11 @@ th {
 .revenue-line-hotspot::after {
   content: "";
   position: absolute;
-  inset: 8px;
+  inset: 6px;
   border-radius: inherit;
   background: #2563eb;
-  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.14);
-  opacity: 0;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.14);
+  opacity: 0.35;
   transition: opacity 0.16s ease;
 }
 

@@ -7393,24 +7393,25 @@ function DirectorDashboardPage({ token }) {
 	const chartPoints = chartData.length
 		? chartData.length === 1
 			? (() => {
-					const y = Math.max(10, 100 - (Number(chartData[0]?.revenue || 0) / maxRevenue) * 78 - 8)
-					return `0,${y} 100,${y}`
+					return `0,50 100,50`
 				})()
 			: chartData
 				.map((item, index) => {
 					const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
-					const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 78 - 8
-					return `${x},${Math.max(10, y)}`
+					const ratio = Number(item.revenue || 0) / maxRevenue
+					const y = 84 - ratio * 64
+					return `${x},${Math.max(18, Math.min(84, y))}`
 				})
 				.join(' ')
 		: ''
 	const chartPointMeta = chartData.map((item, index) => {
 		const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
-		const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 78 - 8
+		const ratio = Number(item.revenue || 0) / maxRevenue
+		const y = chartData.length === 1 ? 50 : 84 - ratio * 64
 		return {
 			id: `${item.period || item.label}-${index}`,
 			x,
-			y: Math.max(10, y),
+			y: Math.max(18, Math.min(84, y)),
 			label: formatTrendTooltipLabel(item.label || item.period),
 			value: Number(item.revenue || 0),
 		}
@@ -7578,13 +7579,28 @@ function DirectorDashboardPage({ token }) {
 					</button>
 				</div>
 
-				<div className='revenue-chart-wrap'>
+				<div
+					className='revenue-chart-wrap'
+					style={{
+						minHeight: isRevenueFullscreen ? '620px' : '420px',
+						height: isRevenueFullscreen ? 'calc(100vh - 290px)' : '420px',
+						padding: '32px 24px 72px 82px',
+					}}
+				>
 					<div className='chart-y-axis'>
 						{revenueAxisTicks.map((tick, index) => (
 							<span key={`${tick}-${index}`}>{formatCompactMoney(Math.round(tick))}</span>
 						))}
 					</div>
-					<div className='revenue-line-stage'>
+					<div
+						className='revenue-line-stage'
+						style={{
+							position: 'relative',
+							height: isRevenueFullscreen ? 'calc(100vh - 395px)' : '316px',
+							minHeight: isRevenueFullscreen ? '420px' : '316px',
+							width: '100%',
+						}}
+					>
 						<div className='chart-grid-lines'>
 							<span />
 							<span />
@@ -7608,15 +7624,57 @@ function DirectorDashboardPage({ token }) {
 								className='revenue-line-overlay'
 								viewBox='0 0 100 100'
 								preserveAspectRatio='none'
+								style={{
+									position: 'absolute',
+									inset: 0,
+									width: '100%',
+									height: '100%',
+									display: 'block',
+									overflow: 'visible',
+								}}
 							>
-								<polyline points={chartPoints} />
+								<polyline
+									points={chartPoints}
+									vectorEffect='non-scaling-stroke'
+									fill='none'
+									stroke='#2563eb'
+									strokeWidth='5'
+									strokeLinecap='round'
+									strokeLinejoin='round'
+								/>
 								{chartPointMeta.map(point => (
-									<circle key={point.id} cx={point.x} cy={point.y} r='2.8' />
+									<circle
+										key={point.id}
+										cx={point.x}
+										cy={point.y}
+										r='4.2'
+										vectorEffect='non-scaling-stroke'
+										fill='#ffffff'
+										stroke='#2563eb'
+										strokeWidth='3'
+									/>
 								))}
 							</svg>
 						) : null}
 						{chartData.length ? (
 							<>
+							{chartData.length === 1 && chartPointMeta[0] ? (
+								<div
+									aria-hidden='true'
+									style={{
+										position: 'absolute',
+										left: 0,
+										right: 0,
+										top: `${chartPointMeta[0].y}%`,
+										height: 5,
+										background: '#2563eb',
+										borderRadius: 999,
+										boxShadow: '0 10px 22px rgba(37, 99, 235, 0.24)',
+										transform: 'translateY(-50%)',
+										zIndex: 3,
+									}}
+								/>
+							) : null}
 							<div className='revenue-line-hotspots'>
 								{chartPointMeta.map(point => (
 									<button
