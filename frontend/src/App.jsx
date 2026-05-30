@@ -5299,6 +5299,12 @@ function PaymentCollectionWorkspace({
 	}, [groupSearch, groupedStudents, lockedGroupKey])
 
 	useEffect(() => {
+		if (initialStudentId) {
+			setSelectedStudentId(Number(initialStudentId))
+		}
+	}, [initialStudentId])
+
+	useEffect(() => {
 		if (!groupedStudents.length) {
 			setSelectedGroupKey('')
 			return
@@ -6034,28 +6040,39 @@ function ReceptionStudentsPage({ token, meta }) {
 }
 
 function ReceptionDashboardPage({ token }) {
-	const { students } = useReceptionData(token, { search: '', status: '' })
+	const [students, setStudents] = useState([])
 	const [payments] = usePaymentsData(token)
 	const [contactRequests, setContactRequests] = useState([])
 	const navigate = useNavigate()
 
-	const active = students.filter(student => student.status === 'active').length
-	const debtors = students.filter(student => student.status === 'debtor').length
-	const trial = students.filter(student => student.status === 'trial').length
+	const visibleStudents = useMemo(
+		() => students.filter(student => !student.isArchived && student.status !== 'archived'),
+		[students],
+	)
+	const active = visibleStudents.filter(student => student.status === 'active').length
+	const debtors = visibleStudents.filter(student => student.status === 'debtor').length
+	const trial = visibleStudents.filter(student => student.status === 'trial').length
 	const totalPaymentsToday = useMemo(() => {
-		const today = new Date().toISOString().slice(0, 10)
+		const today = new Date().toLocaleDateString('sv-SE')
 		return payments
-			.filter(payment => String(payment.createdAt || '').slice(0, 10) === today)
+			.filter(payment => {
+				const rawDate = payment.createdAt || payment.paidAt || payment.date
+				const parsed = new Date(rawDate)
+				const paymentDate = Number.isNaN(parsed.getTime())
+					? String(rawDate || '').slice(0, 10)
+					: parsed.toLocaleDateString('sv-SE')
+				return paymentDate === today
+			})
 			.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
 	}, [payments])
 	const todayGroups = useMemo(() => {
 		const dayKeyMap = ['yak', 'du', 'se', 'chor', 'pay', 'juma', 'shan']
 		const todayKey = dayKeyMap[new Date().getDay()]
-		return groupStudentsForAttendance(students)
+		return groupStudentsForAttendance(visibleStudents)
 			.filter(group => parseScheduleString(group.members[0]?.schedule || '').days.includes(todayKey))
 			.sort((a, b) => getScheduleSortKey(a.members[0]?.schedule) - getScheduleSortKey(b.members[0]?.schedule))
 			.slice(0, 4)
-	}, [students])
+	}, [visibleStudents])
 	const recentActivities = useMemo(() => {
 		const paymentItems = payments.slice(0, 4).map(payment => ({
 			id: `payment-${payment.id}`,
@@ -6081,14 +6098,18 @@ function ReceptionDashboardPage({ token }) {
 	)
 	const debtorsList = useMemo(
 		() =>
-			students
+			visibleStudents
 				.filter(student => student.status === 'debtor')
 				.sort((a, b) => Number(a.balance || 0) - Number(b.balance || 0))
 				.slice(0, 5),
-		[students]
+		[visibleStudents]
 	)
 
 	useEffect(() => {
+		api
+			.getReceptionStudents(token, { includeArchived: true })
+			.then(setStudents)
+			.catch(() => setStudents([]))
 		api.getReceptionContactRequests(token).then(setContactRequests).catch(() => setContactRequests([]))
 	}, [token])
 
@@ -6101,7 +6122,7 @@ function ReceptionDashboardPage({ token }) {
 			<div className='three-column-grid'>
 				<StatCard
 					label='Jami studentlar'
-					value={`${students.length} ta`}
+					value={`${visibleStudents.length} ta`}
 					note={`${active} ta faol`}
 					icon='group'
 				/>
@@ -6190,6 +6211,35 @@ function ReceptionPaymentsPage({ token, meta }) {
 		() => buildReceptionTracks(students, meta),
 		[students, meta],
 	)
+
+	useEffect(() => {
+		const studentIdFromUrl = searchParams.get('studentId')
+		if (!studentIdFromUrl || !groupedStudents.length) return
+
+		const matchedGroup = groupedStudents.find(group =>
+			(group.members || []).some(student => Number(student.id) === Number(studentIdFromUrl)),
+		)
+		const matchedStudent = matchedGroup?.members?.find(
+			student => Number(student.id) === Number(studentIdFromUrl),
+		)
+
+		if (!matchedGroup || !matchedStudent) return
+		if (Number(paymentStudentModal?.studentId) === Number(matchedStudent.id)) return
+
+		setPaymentGroupModal(null)
+		setPaymentStudentSearch('')
+		setPaymentStudentModal({
+			groupKey: matchedGroup.key,
+			courseTitle: matchedGroup.courseTitle,
+			teacherName: matchedGroup.teacherName,
+			schedule: matchedGroup.schedule,
+			studentId: matchedStudent.id,
+			studentName: matchedStudent.fullName,
+			studentStatus: matchedStudent.status,
+			studyMonth: getStudyMonthLabel(matchedStudent),
+			phone: matchedStudent.phone,
+		})
+	}, [groupedStudents, paymentStudentModal?.studentId, searchParams])
 
 	async function handlePaymentSaved() {
 		const nextPayments = await api.getAllPayments(token)

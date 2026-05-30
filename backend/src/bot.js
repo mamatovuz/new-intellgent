@@ -95,9 +95,13 @@ function buildWebAppKeyboard(url) {
 }
 
 function buildPhoneRequestKeyboard() {
-  return Markup.keyboard([
-    [Markup.button.contactRequest("\u{1F4F1} Telefon raqamni yuborish")]
-  ]).resize().oneTime();
+  return Markup.removeKeyboard();
+}
+
+function buildCabinetInlineKeyboard(url) {
+  return Markup.inlineKeyboard([
+    [Markup.button.webApp("\u{1F310} Kabinetga kirish", url)]
+  ]);
 }
 
 function buildQuickInlineKeyboard() {
@@ -211,7 +215,7 @@ async function sendStudentWelcome(ctx, student) {
 async function sendCourseInfo(ctx) {
   const student = await getStudentByTelegramIdUniversal(ctx.from.id);
   if (!student) {
-    await safeReply(ctx, "\u{1F4F1} Avval telefon raqamingizni yuborib akkauntni bog'lang.");
+    await safeReply(ctx, "\u{1F4F1} Avval telefon raqamingizni qo'lda yozib akkauntni bog'lang.\n\nMasalan: +998932303410", buildPhoneRequestKeyboard());
     return;
   }
 
@@ -224,7 +228,7 @@ async function sendCourseInfo(ctx) {
 async function sendBalanceInfo(ctx) {
   const student = await getStudentByTelegramIdUniversal(ctx.from.id);
   if (!student) {
-    await safeReply(ctx, "\u{1F4F1} Akkaunt bog'lanmagan. Telefon raqamingizni yuboring.");
+    await safeReply(ctx, "\u{1F4F1} Akkaunt bog'lanmagan. Telefon raqamingizni yozing.\n\nMasalan: +998932303410", buildPhoneRequestKeyboard());
     return;
   }
 
@@ -238,7 +242,7 @@ async function sendBalanceInfo(ctx) {
 async function sendPaymentInfo(ctx) {
   const student = await getStudentByTelegramIdUniversal(ctx.from.id);
   if (!student) {
-    await safeReply(ctx, "\u{1F4F1} Akkaunt bog'lanmagan. Telefon raqamingizni yuboring.");
+    await safeReply(ctx, "\u{1F4F1} Akkaunt bog'lanmagan. Telefon raqamingizni yozing.\n\nMasalan: +998932303410", buildPhoneRequestKeyboard());
     return;
   }
 
@@ -289,9 +293,9 @@ async function sendCabinetLink(ctx) {
   }
   await safeReply(
     ctx,
-    `\u{1F510} Kabinet havolasi\n\nQuyidagi havola orqali student kabinetga kirishingiz mumkin:\n${accessLink}`
+    "\u{1F510} Kabinet tayyor\n\nPastdagi tugma orqali student kabinetni Telegram ichida oching.",
+    buildCabinetInlineKeyboard(accessLink)
   );
-  await safeReply(ctx, "\u{1F310} Web App tugmasi ham pastda turibdi.", buildWebAppKeyboard(accessLink));
 }
 
 export function startBot() {
@@ -318,7 +322,7 @@ export function startBot() {
 
     await safeReply(
       ctx,
-      "Assalomu alaykum.\n\nTelefon raqamingizni kiriting.",
+      "Assalomu alaykum.\n\nKabinetga ulanish uchun telefon raqamingizni qo'lda kiriting.\nMasalan: +998932303410",
       buildPhoneRequestKeyboard()
     );
   }));
@@ -345,8 +349,8 @@ export function startBot() {
     );
   }));
 
-  bot.hears(/^\+998\d{9}$/, wrapBotHandler(async (ctx) => {
-    const phone = ctx.message.text.trim();
+  bot.hears(/^\+?\s*998[\s-]*\d{2}[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}$/, wrapBotHandler(async (ctx) => {
+    const phone = `+${ctx.message.text.replace(/\D/g, "")}`;
     const data = await createTelegramLinkCodeUniversal(phone);
 
     if (!data) {
@@ -551,15 +555,22 @@ export async function sendStudentPaymentNotification(receipt) {
     return;
   }
 
+  const accessLink = await getStudentAccessLinkByUserIdUniversal(student.userId);
+  const extra = {
+    caption: `${receipt.receiptCaption}\n\n\u{1F464} ${receipt.fullName}\n\u{1F4B5} ${Number(receipt.amount).toLocaleString("ru-RU")} so'm\n\u{1F552} ${receipt.paidAt}`
+  };
+
+  if (accessLink) {
+    Object.assign(extra, buildCabinetInlineKeyboard(accessLink));
+  }
+
   await bot.telegram.sendPhoto(
     student.telegramId,
     {
       source: receipt.receiptImageBuffer,
       filename: "tolov-cheki.png"
     },
-    {
-      caption: `${receipt.receiptCaption}\n\n\u{1F464} ${receipt.fullName}\n\u{1F4B5} ${Number(receipt.amount).toLocaleString("ru-RU")} so'm\n\u{1F552} ${receipt.paidAt}`
-    }
+    extra
   ).catch(() => null);
 }
 
