@@ -292,6 +292,11 @@ async function sendCabinetLink(ctx) {
     );
     return;
   }
+
+  await safeReply(
+    ctx,
+    `\u{1F510} Kabinet havolasi\n\nAgar tugma ochilmasa, mana shu link orqali kiring:\n${accessLink}`
+  );
   await safeReply(
     ctx,
     "\u{1F510} Kabinet tayyor\n\nPastdagi tugma orqali student kabinetni Telegram ichida oching.",
@@ -393,7 +398,7 @@ export function startBot() {
   bot.hears("\u{1F4D8} Kursim", sendCourseInfo);
   bot.hears("\u{1F4B3} Balansim", sendBalanceInfo);
   bot.hears("\u{1F9FE} To'lovim", sendPaymentInfo);
-  bot.hears("\u{1F510} Kabinet havolasi", sendCabinetLink);
+  bot.hears(/kabinet/i, wrapBotHandler(sendCabinetLink));
 
   bot.action("menu:home", wrapBotHandler(async (ctx) => {
     await ctx.answerCbQuery().catch(() => null);
@@ -549,11 +554,13 @@ export function startBot() {
 
 export async function sendStudentPaymentNotification(receipt) {
   if (!bot) {
+    console.warn("Telegram chek yuborilmadi: bot ishga tushmagan");
     return;
   }
 
   const student = await getStudentByIdUniversal(receipt.studentId);
   if (!student?.telegramId) {
+    console.warn(`Telegram chek yuborilmadi: student ${receipt.studentId} telegramga ulanmagan`);
     return;
   }
 
@@ -566,14 +573,25 @@ export async function sendStudentPaymentNotification(receipt) {
     Object.assign(extra, buildCabinetInlineKeyboard(accessLink));
   }
 
-  await bot.telegram.sendPhoto(
-    student.telegramId,
-    {
-      source: receipt.receiptImageBuffer,
-      filename: "tolov-cheki.png"
-    },
-    extra
-  ).catch(() => null);
+  try {
+    await bot.telegram.sendPhoto(
+      student.telegramId,
+      {
+        source: receipt.receiptImageBuffer,
+        filename: "tolov-cheki.png"
+      },
+      extra
+    );
+  } catch (error) {
+    console.error("Telegram chek rasmini yuborishda xatolik:", error?.message || error);
+    await bot.telegram.sendMessage(
+      student.telegramId,
+      `${extra.caption}\n\n\u{1F9FE} Chek yaratildi, lekin rasm yuborishda xatolik bo'ldi. Kabinetdan to'lov tarixini ko'rishingiz mumkin.`,
+      accessLink ? buildCabinetInlineKeyboard(accessLink) : undefined
+    ).catch((messageError) => {
+      console.error("Telegram chek matnini yuborishda xatolik:", messageError?.message || messageError);
+    });
+  }
 }
 
 export async function sendBotBroadcast(recipients = [], title, message) {
