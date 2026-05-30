@@ -7,6 +7,7 @@ const rawMongoUri = String(process.env.MONGODB_URI || "").trim();
 const rawPostgresUrl = String(process.env.POSTGRES_URL || "").trim();
 const rawMysqlUrl = String(process.env.MYSQL_URL || "").trim();
 const rawDbProvider = String(process.env.DB_PROVIDER || "").trim().toLowerCase();
+const rawWebUrl = String(process.env.WEB_URL || "").trim();
 
 function detectProviderFromUrl(value = "") {
   const url = String(value || "").trim().toLowerCase();
@@ -54,10 +55,18 @@ const databaseConfig = resolveDatabaseConfig();
 const dbEngine = databaseConfig.provider;
 const dbProvider = dbEngine === "mysql" ? "postgres" : dbEngine;
 
+function resolveWebUrl(value = "") {
+  const fallback = "https://www.ilm-nest.uz";
+  const url = String(value || "").trim().replace(/\/+$/, "");
+  if (!url) return fallback;
+  if (/^https?:\/\/(www\.)?ilm-nest\.uz$/i.test(url)) return fallback;
+  return url;
+}
+
 export const config = {
   port: Number(process.env.PORT || 4000),
   jwtSecret: process.env.JWT_SECRET || "change_me",
-  webUrl: process.env.WEB_URL || "http://localhost:5173",
+  webUrl: resolveWebUrl(rawWebUrl),
   dbProvider,
   dbEngine,
   dbProviderSource: databaseConfig.source,

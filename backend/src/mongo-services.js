@@ -597,13 +597,6 @@ export async function importStudentsBatchMongo(rows, actorUserId = null) {
     });
   }
 
-  await createNotificationMongo({
-    targetRole: "director",
-    type: "students_imported",
-    title: "Eski o'quvchilar import qilindi",
-    message: `${created.length} ta o'quvchi import qilindi`
-  });
-
   return {
     createdCount: created.length,
     created
@@ -641,6 +634,9 @@ export async function listNotificationsMongo({ userId = null, role = null, unrea
   const query = {};
   if (unreadOnly) {
     query.status = "unread";
+  }
+  if (role === "director") {
+    query.type = { $nin: ["student_imported", "students_imported"] };
   }
   if (role) {
     query.$or = [{ targetRole: role }, { targetUserId: Number(userId) }];
@@ -1060,12 +1056,14 @@ export async function addStudentMongo(payload, actorUserId = null) {
         : `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`
   );
 
-  await createNotificationMongo({
-    targetRole: "director",
-    type: payload.imported ? "student_imported" : "student_created",
-    title: payload.imported ? "Eski o'quvchi import qilindi" : "Yangi o'quvchi qo'shildi",
-    message: `${payload.fullName} ro'yxatga qo'shildi`
-  });
+  if (!payload.skipDirectorNotification && !payload.imported) {
+    await createNotificationMongo({
+      targetRole: "director",
+      type: "student_created",
+      title: "Yangi o'quvchi qo'shildi",
+      message: `${payload.fullName} ro'yxatga qo'shildi`
+    });
+  }
 
   return {
     studentId,
@@ -1264,9 +1262,13 @@ export async function upsertAttendanceBatchMongo({ lessonDate, entries = [], act
     const student = await Student.findOne({ id: studentId }).lean();
     if (!student) continue;
     const normalizedStatus = ["present", "absent", "excused", "late"].includes(entry.status) ? entry.status : "present";
+    const existing = await Attendance.findOne({ studentId, lessonDate: new Date(nextLessonDate) }).select("id").lean();
     await Attendance.updateOne(
       { studentId, lessonDate: new Date(nextLessonDate) },
       {
+        $setOnInsert: {
+          id: existing?.id || await getNextSequence("attendance")
+        },
         $set: {
           teacherId: Number(student.teacherId || actorUserId || 0),
           status: normalizedStatus,
@@ -1522,6 +1524,24 @@ export async function markNotificationReadMongo(notificationId, userId = null) {
     { $set: { status: "read", readAt: new Date() } }
   );
   return true;
+}
+
+export async function markAllNotificationsReadMongo({ userId = null, role = null } = {}) {
+  const query = {
+    status: { $ne: "read" },
+    $or: [
+      ...(role ? [{ targetRole: role }] : []),
+      ...(userId ? [{ targetUserId: Number(userId) }] : []),
+      { targetRole: null, targetUserId: null }
+    ]
+  };
+  const result = await Notification.updateMany(query, {
+    $set: {
+      status: "read",
+      readAt: new Date()
+    }
+  });
+  return Number(result.modifiedCount || 0);
 }
 
 export async function getSettingsBundleMongo() {

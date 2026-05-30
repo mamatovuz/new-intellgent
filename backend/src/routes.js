@@ -81,6 +81,8 @@ import {
   listTeachersAsync,
   markContactRequestRead,
   markContactRequestReadAsync,
+  markAllNotificationsRead,
+  markAllNotificationsReadAsync,
   markNotificationReadAsync,
   markNotificationRead,
   previewStudentImport,
@@ -155,6 +157,7 @@ import {
   listStudentsMongo,
   listTeachersMongo,
   markContactRequestReadMongo,
+  markAllNotificationsReadMongo,
   markNotificationReadMongo,
   loginStudentByAccessTokenMongo,
   previewStudentImportMongo,
@@ -1302,6 +1305,21 @@ router.get("/notifications", authenticate, (req, res) => {
   };
   handleNotifications().catch((error) => {
     res.status(500).json({ message: error.message || "Bildirishnomalar olinmadi" });
+  });
+});
+
+router.post("/notifications/read-all", authenticate, (req, res) => {
+  const handleAllNotificationsRead = async () => {
+    const changed =
+      config.dbProvider === "mongodb"
+        ? await markAllNotificationsReadMongo({ userId: req.user.id, role: req.user.role })
+        : config.dbProvider === "postgres"
+          ? await markAllNotificationsReadAsync({ userId: req.user.id, role: req.user.role })
+          : markAllNotificationsRead({ userId: req.user.id, role: req.user.role });
+    res.json({ message: "Bildirishnomalar o'qildi", changed });
+  };
+  handleAllNotificationsRead().catch((error) => {
+    res.status(500).json({ message: error.message || "Bildirishnomalar yangilanmadi" });
   });
 });
 

@@ -258,6 +258,9 @@ export async function ensureMongoSeed() {
   const now = dayjs();
   const passwordHash = bcrypt.hashSync("12345678", 10);
 
+  await Attendance.deleteMany({ id: null });
+  await Attendance.syncIndexes().catch(() => null);
+
   await Promise.all([
     seedDeveloperProfiles(now, passwordHash),
     ensureDefaultUsers(passwordHash, now)

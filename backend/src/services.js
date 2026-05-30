@@ -357,6 +357,56 @@ async function createSolidImage(width, height, color) {
   return new Jimp({ width, height, color });
 }
 
+async function createCircleImage(size, color) {
+  const image = await createSolidImage(size, size, 0x00000000);
+  const radius = size / 2;
+  const center = radius - 0.5;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const dx = x - center;
+      const dy = y - center;
+      if (dx * dx + dy * dy <= radius * radius) {
+        image.setPixelColor(color, x, y);
+      }
+    }
+  }
+  return image;
+}
+
+function drawThickLine(image, x0, y0, x1, y1, color, thickness = 4) {
+  const dx = Math.abs(x1 - x0);
+  const sx = x0 < x1 ? 1 : -1;
+  const dy = -Math.abs(y1 - y0);
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  let x = x0;
+  let y = y0;
+
+  while (true) {
+    for (let offsetY = -thickness; offsetY <= thickness; offsetY += 1) {
+      for (let offsetX = -thickness; offsetX <= thickness; offsetX += 1) {
+        if (offsetX * offsetX + offsetY * offsetY > thickness * thickness) continue;
+        const px = x + offsetX;
+        const py = y + offsetY;
+        if (px >= 0 && py >= 0 && px < image.bitmap.width && py < image.bitmap.height) {
+          image.setPixelColor(color, px, py);
+        }
+      }
+    }
+
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+}
+
 async function createQrCodeBuffer(value, width = 280) {
   return QRCode.toBuffer(value, {
     type: "png",
@@ -378,61 +428,66 @@ export async function buildQrCodeAsset(value) {
 }
 
 async function buildReceiptPng(receipt) {
+  const { smallBlack, largeBlack } = await getFonts();
   const paidDate = dayjs(receipt.paidAt);
-  const paidAtText = paidDate.isValid() ? paidDate.format("DD.MM.YYYY, HH:mm") : "-";
+  const paidAtText = paidDate.isValid() ? paidDate.format("DD.MM.YYYY HH:mm") : "-";
   const amountText = Number(receipt.amount || 0).toLocaleString("ru-RU");
   const methodText = String(receipt.method || "manual").toUpperCase();
   const transactionId = `#${String(receipt.id || "0000").padStart(4, "0")}`;
   const rows = [
-    ["To'lovchi", receipt.fullName || "-"],
+    ["F.I.Sh", receipt.fullName || "-"],
     ["Telefon", receipt.phone || "-"],
-    ["Kurs nomi", receipt.courseTitle || "-"],
-    ["To'lov turi", methodText],
-    ["Sana va vaqt", paidAtText],
-    ["Tranzaksiya ID", transactionId]
+    ["Kurs", receipt.courseTitle || "-"],
+    ["Tolov turi", methodText],
+    ["Sana", paidAtText],
+    ["ID", transactionId]
   ];
 
-  const rowSvg = rows
-    .map(([label, value], index) => {
-      const y = 382 + index * 72;
-      const icon = label === "To'lov turi"
-        ? `<path d="M462 ${y - 4}h11v11h-11z" fill="none" stroke="#8fa0bd" stroke-width="2"/><path d="M466 ${y}h11v11h-11z" fill="none" stroke="#8fa0bd" stroke-width="2"/>`
-        : "";
+  const image = await createSolidImage(720, 900, 0xf6f8fbff);
+  const card = await createSolidImage(600, 820, 0xffffffff);
+  const headerLine = await createSolidImage(536, 2, 0xe8edf4ff);
+  const successHalo = await createCircleImage(96, 0xeefcf3ff);
+  const successCircle = await createCircleImage(58, 0x22c55eff);
+  const successInner = await createCircleImage(46, 0xeefcf3ff);
 
-      return `
-        <line x1="92" y1="${y + 36}" x2="628" y2="${y + 36}" stroke="#eef2f7" stroke-width="1"/>
-        <text x="92" y="${y}" fill="#8fa0bd" font-size="19" font-weight="500">${escapeXml(label)}</text>
-        ${icon}
-        <text x="628" y="${y}" fill="#111827" font-size="20" font-weight="${index === 0 ? "700" : "500"}" text-anchor="end">${escapeXml(String(value))}</text>
-      `;
-    })
-    .join("");
+  image.composite(card, 60, 40);
+  image.composite(successHalo, 312, 86);
+  image.composite(successCircle, 331, 105);
+  image.composite(successInner, 337, 111);
+  drawThickLine(image, 350, 133, 358, 143, 0x22c55eff, 4);
+  drawThickLine(image, 358, 143, 375, 123, 0x22c55eff, 4);
+  image.print({
+    font: smallBlack,
+    x: 0,
+    y: 220,
+    text: { text: "TO'LOV MUVAFFAQIYATLI", alignmentX: HorizontalAlign.CENTER },
+    maxWidth: 720
+  });
+  image.print({
+    font: largeBlack,
+    x: 0,
+    y: 262,
+    text: { text: `${amountText} UZS`, alignmentX: HorizontalAlign.CENTER },
+    maxWidth: 720
+  });
+  image.composite(headerLine, 92, 342);
 
-  const svg = `
-    <svg width="720" height="900" viewBox="0 0 720 900" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">
-      <defs>
-        <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0f172a" flood-opacity="0.08"/>
-        </filter>
-      </defs>
-      <rect width="720" height="900" fill="#f6f8fb"/>
-      <rect x="60" y="36" width="600" height="828" rx="20" fill="#ffffff" filter="url(#cardShadow)"/>
+  for (const [index, [label, value]] of rows.entries()) {
+    const y = 382 + index * 72;
+    image.print({ font: smallBlack, x: 92, y, text: String(label), maxWidth: 165 });
+    image.print({ font: smallBlack, x: 292, y, text: String(value), maxWidth: 330 });
+    image.composite(await createSolidImage(536, 1, 0xeef2f7ff), 92, y + 44);
+  }
 
-      <circle cx="360" cy="136" r="50" fill="#eefcf3"/>
-      <circle cx="360" cy="136" r="25" fill="none" stroke="#22c55e" stroke-width="6"/>
-      <path d="M348 136l9 9 18-22" fill="none" stroke="#22c55e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  image.print({
+    font: smallBlack,
+    x: 0,
+    y: 824,
+    text: { text: "ILM NEST CRM orqali avtomatik yaratildi", alignmentX: HorizontalAlign.CENTER },
+    maxWidth: 720
+  });
 
-      <text x="360" y="230" fill="#64748b" font-size="16" font-weight="800" letter-spacing="4" text-anchor="middle">TO'LOV MUVAFFAQIYATLI</text>
-      <text x="360" y="286" fill="#0f172a" font-size="50" font-weight="900" letter-spacing="1" text-anchor="middle">${escapeXml(amountText)}
-        <tspan fill="#64748b" font-size="24" font-weight="800"> so'm</tspan>
-      </text>
-
-      <line x1="92" y1="340" x2="628" y2="340" stroke="#e8edf4" stroke-width="1"/>
-      ${rowSvg}
-    </svg>
-  `;
-
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  return image.getBuffer("image/png");
 }
 
 async function buildAlertPng({ title, subtitle, badge, tone = "warning", qrUrl = "" }) {
@@ -1614,11 +1669,11 @@ export function addStudent(payload, actorUserId = null) {
         ? `${payload.fullName} tizimga faol student sifatida qo'shildi`
         : `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`
   );
-  if (!payload.skipDirectorNotification) {
+  if (!payload.skipDirectorNotification && !payload.imported) {
     createNotification({
       targetRole: "director",
-      type: payload.imported ? "student_imported" : "student_created",
-      title: payload.imported ? "Eski o'quvchi import qilindi" : "Yangi o'quvchi qo'shildi",
+      type: "student_created",
+      title: "Yangi o'quvchi qo'shildi",
       message: `${payload.fullName} ro'yxatga qo'shildi`
     });
   }
@@ -1834,11 +1889,11 @@ export async function addStudentAsync(payload, actorUserId = null) {
         : `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`
   );
 
-  if (!payload.skipDirectorNotification) {
+  if (!payload.skipDirectorNotification && !payload.imported) {
     await createNotificationAsync({
       targetRole: "director",
-      type: payload.imported ? "student_imported" : "student_created",
-      title: payload.imported ? "Eski o'quvchi import qilindi" : "Yangi o'quvchi qo'shildi",
+      type: "student_created",
+      title: "Yangi o'quvchi qo'shildi",
       message: `${payload.fullName} ro'yxatga qo'shildi`
     });
   }
@@ -3401,6 +3456,9 @@ export function listNotifications({ userId = null, role = null, unreadOnly = fal
     query += ` AND (target_role = ? OR target_role IS NULL)`;
     values.push(role);
   }
+  if (role === "director") {
+    query += ` AND type NOT IN ('student_imported', 'students_imported')`;
+  }
   if (unreadOnly) {
     query += ` AND status = 'unread'`;
   }
@@ -3418,6 +3476,30 @@ export function markNotificationRead(notificationId, userId = null) {
   }
   db.prepare(`UPDATE notifications SET status = 'read', read_at = ? WHERE id = ?`).run(dayjs().format("YYYY-MM-DD HH:mm:ss"), notificationId);
   return true;
+}
+
+export function markAllNotificationsRead({ userId = null, role = null } = {}) {
+  const conditions = [`status != 'read'`];
+  const values = [];
+  const visibility = [];
+
+  if (role) {
+    visibility.push(`target_role = ?`);
+    values.push(role);
+  }
+  if (userId) {
+    visibility.push(`target_user_id = ?`);
+    values.push(userId);
+  }
+  visibility.push(`(target_role IS NULL AND target_user_id IS NULL)`);
+  conditions.push(`(${visibility.join(" OR ")})`);
+
+  const result = db.prepare(`
+    UPDATE notifications
+    SET status = 'read', read_at = ?
+    WHERE ${conditions.join(" AND ")}
+  `).run(dayjs().format("YYYY-MM-DD HH:mm:ss"), ...values);
+  return Number(result.changes || 0);
 }
 
 export async function markNotificationReadAsync(notificationId, userId = null) {
@@ -3449,6 +3531,37 @@ export async function markNotificationReadAsync(notificationId, userId = null) {
     [dayjs().format("YYYY-MM-DD HH:mm:ss"), notificationId]
   );
   return true;
+}
+
+export async function markAllNotificationsReadAsync({ userId = null, role = null } = {}) {
+  const conditions = [`status != 'read'`];
+  const values = [];
+  const visibility = [];
+  let paramIndex = 1;
+
+  if (role) {
+    visibility.push(`target_role = $${paramIndex}`);
+    values.push(role);
+    paramIndex += 1;
+  }
+  if (userId) {
+    visibility.push(`target_user_id = $${paramIndex}`);
+    values.push(userId);
+    paramIndex += 1;
+  }
+  visibility.push(`(target_role IS NULL AND target_user_id IS NULL)`);
+  conditions.push(`(${visibility.join(" OR ")})`);
+  values.push(dayjs().format("YYYY-MM-DD HH:mm:ss"));
+
+  const { rowCount } = await getSupabasePool().query(
+    `
+      UPDATE notifications
+      SET status = 'read', read_at = $${paramIndex}
+      WHERE ${conditions.join(" AND ")}
+    `,
+    values
+  );
+  return Number(rowCount || 0);
 }
 
 export function getFinanceSummary() {
@@ -4347,6 +4460,9 @@ export async function listNotificationsAsync({ userId = null, role = null, unrea
     values.push(role);
     clauses.push(`(target_role = $${values.length} OR target_role IS NULL)`);
   }
+  if (role === "director") {
+    clauses.push(`type NOT IN ('student_imported', 'students_imported')`);
+  }
   if (unreadOnly) {
     clauses.push(`status = 'unread'`);
   }
@@ -4946,13 +5062,6 @@ export async function importStudentsBatch(rows, actorUserId = null) {
       studentId: result.studentId,
       fullName: item.fullName
     });
-  });
-
-  createNotification({
-    targetRole: "director",
-    type: "students_imported",
-    title: "Eski o'quvchilar import qilindi",
-    message: `${created.length} ta o'quvchi import qilindi`
   });
 
   return {

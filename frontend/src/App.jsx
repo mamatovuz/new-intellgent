@@ -1074,6 +1074,8 @@ function TrendLineChart({
 	valueKey = 'value',
 	labelKey = 'label',
 	formatValue = value => value,
+	formatAxis = null,
+	formatTooltip = null,
 	emptyText = "Ma'lumot topilmadi",
 }) {
 	const [hoveredPoint, setHoveredPoint] = useState(null)
@@ -1106,12 +1108,14 @@ function TrendLineChart({
 		}
 	})
 	const areaPoints = `0,100 ${points} 100,100`
+	const axisFormatter = formatAxis || formatValue
+	const tooltipFormatter = formatTooltip || formatValue
 	return (
 		<div className='trend-line-chart'>
 			<div className='trend-line-shell'>
 				<div className='trend-line-axis'>
 					{axisTicks.map((tick, index) => (
-						<span key={`${tick}-${index}`}>{formatCompactMoney(Math.round(tick))}</span>
+						<span key={`${tick}-${index}`}>{axisFormatter(Math.round(tick))}</span>
 					))}
 				</div>
 				<div className='trend-line-plot'>
@@ -1130,7 +1134,7 @@ function TrendLineChart({
 							}}
 						>
 							<strong>{formatTrendTooltipLabel(hoveredPoint.label)}</strong>
-							<span>{formatMoney(hoveredPoint.value)}</span>
+							<span>{tooltipFormatter(hoveredPoint.value)}</span>
 						</div>
 					) : null}
 					<svg viewBox='0 0 100 100' preserveAspectRatio='none' className='trend-line-canvas'>
@@ -1187,7 +1191,7 @@ function TrendLineChart({
 									})
 								}}
 								onBlur={() => setHoveredPoint(null)}
-								aria-label={`${formatTrendTooltipLabel(point.label)} - ${formatMoney(point.value)}`}
+								aria-label={`${formatTrendTooltipLabel(point.label)} - ${tooltipFormatter(point.value)}`}
 							/>
 						))}
 					</div>
@@ -1910,6 +1914,11 @@ function RoleLayout({ user, onLogout, children, token }) {
 		)
 	}
 
+	async function handleReadAllNotifications() {
+		await api.readAllNotifications(token)
+		setNotifications(items => items.map(item => ({ ...item, status: 'read' })))
+	}
+
 	function handleGlobalSearch(event) {
 		event.preventDefault()
 		const query = searchValue.trim()
@@ -1992,7 +2001,6 @@ function RoleLayout({ user, onLogout, children, token }) {
 					</form>
 
 					<div className='topbar-user'>
-						<LanguageSelector compact />
 						<button
 							type='button'
 							className='topbar-icon'
@@ -2008,7 +2016,19 @@ function RoleLayout({ user, onLogout, children, token }) {
 							<div className='notifications-popover'>
 								<div className='notifications-head'>
 									<strong>Bildirishnomalar</strong>
-									{unreadNotificationsCount ? <Badge tone='danger'>{unreadNotificationsCount} ta yangi</Badge> : null}
+									<div className='notifications-head-actions'>
+										{unreadNotificationsCount ? <Badge tone='danger'>{unreadNotificationsCount} ta yangi</Badge> : null}
+										{unreadNotificationsCount ? (
+											<button
+												type='button'
+												className='notification-read-all-btn'
+												title="Hammasini o'qildi deb belgilash"
+												onClick={handleReadAllNotifications}
+											>
+												<Icon name='done_all' />
+											</button>
+										) : null}
+									</div>
 								</div>
 								<div className='notifications-list'>
 									{notifications.length ? (
@@ -5539,12 +5559,37 @@ function ReceptionStudentsPage({ token, meta }) {
 	})
 	const [studentModal, setStudentModal] = useState(null)
 	const [historyModal, setHistoryModal] = useState(null)
+	const displayedStudents = useMemo(() => {
+		const query = search.trim().toLowerCase()
+		return students.filter(student => {
+			const statusMatches = !status || student.status === status
+			const searchableText = [
+				student.fullName,
+				student.phone,
+				student.courseTitle,
+				student.teacherName,
+				student.status,
+			]
+				.filter(Boolean)
+				.join(' ')
+				.toLowerCase()
+			const searchMatches = !query || searchableText.includes(query)
+			return statusMatches && searchMatches
+		})
+	}, [students, search, status])
 
 	useEffect(() => {
 		const searchFromUrl = searchParams.get('search') || ''
 		setSearch(searchFromUrl)
 		reload({ search: searchFromUrl, status, includeArchived })
 	}, [searchParams])
+
+	useEffect(() => {
+		const timer = window.setTimeout(() => {
+			reload({ search, status, includeArchived })
+		}, 250)
+		return () => window.clearTimeout(timer)
+	}, [search, status, includeArchived])
 
 	const emptyForm = {
 		fullName: '',
@@ -5718,9 +5763,9 @@ function ReceptionStudentsPage({ token, meta }) {
 						<span className='card-label'>Ro'yxat</span>
 						<h3>O'quvchilar bazasi</h3>
 					</div>
-					<Badge tone='default'>{students.length} ta</Badge>
+					<Badge tone='default'>{displayedStudents.length} ta</Badge>
 				</div>
-				{students.length ? (
+				{displayedStudents.length ? (
 					<div className='table-shell responsive-cards'>
 						<table>
 							<thead>
@@ -5734,7 +5779,7 @@ function ReceptionStudentsPage({ token, meta }) {
 								</tr>
 							</thead>
 							<tbody>
-								{students.map((student, index) => (
+								{displayedStudents.map((student, index) => (
 								<tr key={student.id}>
 									<td data-label="Kurs va O'qituvchi">
 											<div className='student-identity'>
@@ -6312,8 +6357,8 @@ function AttendancePresenceToggle({ checked, onChange, disabled = false }) {
 				{checked ? <Icon name='check' /> : null}
 			</span>
 			<span className='attendance-check-copy'>
-				<strong>{checked ? 'Keldi' : 'Kelmadi'}</strong>
-				<small>{checked ? 'Davomat belgilangan' : "Belgi qo'yilmagan"}</small>
+				<strong>{checked ? 'Keldi' : 'Belgilash'}</strong>
+				<small>{checked ? 'Davomat belgilandi' : "Kelgan bo'lsa belgilang"}</small>
 			</span>
 		</label>
 	)
@@ -6377,7 +6422,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 				lessonDate,
 				entries: (currentGroup?.members || []).map(student => ({
 					studentId: student.id,
-					status: attendanceMap[student.id] || historyMap[student.id] || 'present',
+					status: attendanceMap[student.id] || historyMap[student.id] || 'absent',
 				})),
 			})
 			const fresh = await api.getAttendanceHistory(token, { range: 'day', lessonDate })
@@ -6464,7 +6509,6 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 								const statusValue =
 									attendanceMap[student.id] || historyMap[student.id] || 'absent'
 								const isPresent = statusValue === 'present'
-								const meta = getAttendanceStatusMeta(statusValue)
 								return (
 									<article key={student.id} className='attendance-student-row'>
 										<div className='attendance-student-row-main'>
@@ -6516,8 +6560,132 @@ function ReceptionAttendancePage({ token, meta }) {
 function StudentImportSection({ token }) {
 	const [selectedFile, setSelectedFile] = useState(null)
 	const [preview, setPreview] = useState(null)
+	const [settingsBundle, setSettingsBundle] = useState(null)
 	const [loading, setLoading] = useState(false)
 	const [importing, setImporting] = useState(false)
+
+	useEffect(() => {
+		api.getSettings(token).then(setSettingsBundle).catch(() => setSettingsBundle(null))
+	}, [token])
+
+	const courses = settingsBundle?.courses || []
+	const teachers = settingsBundle?.teachers || []
+
+	useEffect(() => {
+		if (!preview || !settingsBundle) return
+		updatePreviewRows(rows => rows)
+	}, [settingsBundle])
+
+	function getTeachersForCourse(courseId) {
+		const normalizedCourseId = Number(courseId)
+		if (!normalizedCourseId) return teachers
+		const assigned = teachers.filter(teacher =>
+			(teacher.courseIds || []).map(Number).includes(normalizedCourseId)
+		)
+		return assigned.length ? assigned : teachers
+	}
+
+	function buildPreviewSummary(rows = []) {
+		return {
+			totalRows: rows.length,
+			readyRows: rows.filter(row => row.ready).length,
+			errorRows: rows.filter(row => row.errors?.length).length,
+			warningRows: rows.filter(row => row.warnings?.length).length,
+		}
+	}
+
+	function validateImportRow(row) {
+		const errors = []
+		const warnings = [...(row.warnings || [])].filter(item =>
+			![
+				'Kurs topilmadi',
+				"O'qituvchi topilmadi",
+				"Tanlangan o'qituvchi bu kursga biriktirilmagan",
+				'Kurs nomi kiritilmagan',
+				"O'qituvchi kiritilmagan",
+			].includes(item)
+		)
+		const baseErrors = [...(row.errors || [])].filter(item =>
+			![
+				'Kurs topilmadi',
+				"O'qituvchi topilmadi",
+				"Tanlangan o'qituvchi bu kursga biriktirilmagan",
+				'Kurs nomi kiritilmagan',
+				"O'qituvchi kiritilmagan",
+			].includes(item)
+		)
+		errors.push(...baseErrors)
+
+		const courseId = Number(row.courseId)
+		const teacherId = Number(row.teacherId)
+		const course = courses.find(item => Number(item.id) === courseId)
+		const teacher = teachers.find(item => Number(item.id) === teacherId)
+
+		if (!courseId || !course) errors.push('Kurs tanlanmagan')
+		if (!teacherId || !teacher) errors.push("O'qituvchi tanlanmagan")
+		if (course && teacher && !(teacher.courseIds || []).map(Number).includes(courseId)) {
+			errors.push("Tanlangan o'qituvchi bu kursga biriktirilmagan")
+		}
+
+		return {
+			...row,
+			courseId: course?.id || row.courseId || null,
+			courseTitle: course?.title || row.courseTitle || '',
+			teacherId: teacher?.id || row.teacherId || null,
+			teacherName: teacher?.fullName || row.teacherName || '',
+			schedule: row.schedule || course?.schedule || '',
+			errors,
+			warnings,
+			ready: errors.length === 0,
+		}
+	}
+
+	function updatePreviewRows(updater) {
+		setPreview(current => {
+			if (!current) return current
+			const rows = updater(current.rows || []).map(validateImportRow)
+			return {
+				...current,
+				rows,
+				summary: buildPreviewSummary(rows),
+			}
+		})
+	}
+
+	function handlePreviewCourseChange(rowNumber, courseId) {
+		const selectedCourse = courses.find(course => Number(course.id) === Number(courseId))
+		const availableTeachers = getTeachersForCourse(courseId)
+		const firstTeacher = availableTeachers[0]
+		updatePreviewRows(rows =>
+			rows.map(row =>
+				row.rowNumber === rowNumber
+					? {
+							...row,
+							courseId: selectedCourse?.id || null,
+							courseTitle: selectedCourse?.title || '',
+							schedule: row.schedule || selectedCourse?.schedule || '',
+							teacherId: firstTeacher?.id || null,
+							teacherName: firstTeacher?.fullName || '',
+						}
+					: row,
+			),
+		)
+	}
+
+	function handlePreviewTeacherChange(rowNumber, teacherId) {
+		const selectedTeacher = teachers.find(teacher => Number(teacher.id) === Number(teacherId))
+		updatePreviewRows(rows =>
+			rows.map(row =>
+				row.rowNumber === rowNumber
+					? {
+							...row,
+							teacherId: selectedTeacher?.id || null,
+							teacherName: selectedTeacher?.fullName || '',
+						}
+					: row,
+			),
+		)
+	}
 
 	async function handlePreview() {
 		if (!selectedFile) {
@@ -6531,7 +6699,8 @@ function StudentImportSection({ token }) {
 				fileName: selectedFile.name,
 				fileDataBase64,
 			})
-			setPreview(result)
+			const rows = (result.rows || []).map(validateImportRow)
+			setPreview({ ...result, rows, summary: buildPreviewSummary(rows) })
 		} catch (error) {
 			await showError(error.message)
 		} finally {
@@ -6635,8 +6804,34 @@ function StudentImportSection({ token }) {
 													<span>{row.phone || '-'}</span>
 												</div>
 											</td>
-											<td data-label='Kurs'>{row.courseTitle || '-'}</td>
-											<td data-label="O'qituvchi">{row.teacherName || '-'}</td>
+											<td data-label='Kurs'>
+												<select
+													className='compact-select'
+													value={row.courseId || ''}
+													onChange={event => handlePreviewCourseChange(row.rowNumber, event.target.value)}
+												>
+													<option value=''>Kurs tanlang</option>
+													{courses.map(course => (
+														<option key={course.id} value={course.id}>
+															{course.title}
+														</option>
+													))}
+												</select>
+											</td>
+											<td data-label="O'qituvchi">
+												<select
+													className='compact-select'
+													value={row.teacherId || ''}
+													onChange={event => handlePreviewTeacherChange(row.rowNumber, event.target.value)}
+												>
+													<option value=''>Teacher tanlang</option>
+													{getTeachersForCourse(row.courseId).map(teacher => (
+														<option key={teacher.id} value={teacher.id}>
+															{teacher.fullName}
+														</option>
+													))}
+												</select>
+											</td>
 											<td data-label='Holat'>
 												<Badge tone={row.ready ? 'success' : 'danger'}>
 													{row.ready ? 'Tayyor' : 'Xato'}
@@ -6767,7 +6962,7 @@ function TeacherAttendancePage({ token }) {
 							{students.length
 								? Math.round(
 										students.reduce(
-											(sum, student) => sum + student.attendancePercent,
+											(sum, student) => sum + Number(student.attendancePercent || 0),
 											0,
 										) / students.length,
 									)
@@ -6858,7 +7053,7 @@ function TeacherGroupsPage({ token }) {
 					const avg = group.members.length
 						? Math.round(
 								group.members.reduce(
-									(sum, item) => sum + item.attendancePercent,
+									(sum, item) => sum + Number(item.attendancePercent || 0),
 									0,
 								) / group.members.length,
 							)
@@ -6929,7 +7124,7 @@ function TeacherDashboardPage({ token }) {
 				/>
 				<StatCard
 					label='Davomat'
-					value={`${students.length ? Math.round(students.reduce((sum, item) => sum + item.attendancePercent, 0) / students.length) : 0}%`}
+					value={`${students.length ? Math.round(students.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) / students.length) : 0}%`}
 					note="Joriy ko'rsatkich"
 					icon='event_available'
 				/>
@@ -6989,7 +7184,7 @@ function TeacherStatisticsPage({ token }) {
 									<tr key={student.id}>
 										<td data-label='Student'>{student.fullName}</td>
 										<td data-label='Kurs'>{student.courseTitle}</td>
-										<td data-label='Davomat' className='amount-cell'>{student.attendancePercent}%</td>
+										<td data-label='Davomat' className='amount-cell'>{Number(student.attendancePercent || 0)}%</td>
 									</tr>
 								))}
 							</tbody>
@@ -7812,7 +8007,7 @@ function DirectorStatisticsPage({ token }) {
 							items={data.admissionsTrend.map(item => ({ label: item.period, value: item.count }))}
 							valueKey='value'
 							labelKey='label'
-							formatValue={value => `${value} ta`}
+							formatValue={value => `${Math.round(Number(value || 0))} ta`}
 							emptyText="Qabul trendi hali shakllanmagan"
 						/>
 					</div>
@@ -7839,8 +8034,8 @@ function DirectorStatisticsPage({ token }) {
 										<td data-label='Faol'>{teacher.activeStudentsCount} ta</td>
 										<td data-label='Sinov'>{teacher.trialStudentsCount} ta</td>
 										<td data-label='Qarzdor'>{teacher.debtorsCount} ta</td>
-										<td data-label='Davomat' className={teacher.attendancePercent >= 80 ? 'success-text' : 'warning-text'}>
-											{teacher.attendancePercent}%
+										<td data-label='Davomat' className={Number(teacher.attendancePercent || 0) >= 80 ? 'success-text' : 'warning-text'}>
+											{Number(teacher.attendancePercent || 0)}%
 										</td>
 										<td data-label='Tushum' className='amount-cell'>{formatMoney(teacher.revenue)}</td>
 									</tr>

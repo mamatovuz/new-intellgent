@@ -276,6 +276,11 @@ export const api = {
       method: "POST",
       token
     }),
+  readAllNotifications: (token) =>
+    request("/notifications/read-all", {
+      method: "POST",
+      token
+    }),
   broadcastNotifications: (token, payload) =>
     request("/notifications/broadcast", {
       method: "POST",
