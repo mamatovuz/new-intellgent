@@ -100,7 +100,8 @@ function buildPhoneRequestKeyboard() {
 
 function buildCabinetInlineKeyboard(url) {
   return Markup.inlineKeyboard([
-    [Markup.button.webApp("\u{1F310} Kabinetga kirish", url)]
+    [Markup.button.webApp("\u{1F310} Kabinetga kirish", url)],
+    [Markup.button.url("\u{1F517} Agar ochilmasa, brauzerda ochish", url)]
   ]);
 }
 
@@ -279,7 +280,7 @@ async function sendPaymentInfo(ctx) {
 async function sendCabinetLink(ctx) {
   const student = await getStudentByTelegramIdUniversal(ctx.from.id);
   if (!student) {
-    await safeReply(ctx, "\u{1F4F1} Akkaunt bog'lanmagan. Telefon raqamingizni yuboring.");
+    await safeReply(ctx, "\u{1F4F1} Akkaunt bog'lanmagan. Telefon raqamingizni yozing.\n\nMasalan: +998932303410", buildPhoneRequestKeyboard());
     return;
   }
 
@@ -296,6 +297,7 @@ async function sendCabinetLink(ctx) {
     "\u{1F510} Kabinet tayyor\n\nPastdagi tugma orqali student kabinetni Telegram ichida oching.",
     buildCabinetInlineKeyboard(accessLink)
   );
+  await safeReply(ctx, "\u{1F310} Mini App tugmasi menyuda ham turibdi.", buildWebAppKeyboard(accessLink));
 }
 
 export function startBot() {

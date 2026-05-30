@@ -5183,7 +5183,7 @@ function buildReceptionTracks(students = [], meta = {}) {
 			const current = tracks.get(existingKey)
 			const mergedMembers = new Map()
 			;[...(current.members || []), ...normalizedMembers].forEach(student => {
-				if (student?.id) mergedMembers.set(Number(student.id), student)
+				if (student?.id) mergedMembers.set(String(student.id), student)
 			})
 			tracks.set(existingKey, {
 				...current,
@@ -5257,6 +5257,11 @@ function buildReceptionTracks(students = [], meta = {}) {
 		})
 }
 
+function isSameRecordId(left, right) {
+	if (left === null || left === undefined || right === null || right === undefined) return false
+	return String(left) === String(right)
+}
+
 function PaymentCollectionWorkspace({
 	token,
 	students,
@@ -5275,7 +5280,7 @@ function PaymentCollectionWorkspace({
 	const [studentSearch, setStudentSearch] = useState('')
 	const [selectedGroupKey, setSelectedGroupKey] = useState(lockedGroupKey || '')
 	const [selectedStudentId, setSelectedStudentId] = useState(
-		initialStudentId ? Number(initialStudentId) : null,
+		initialStudentId || null,
 	)
 	const [paymentForm, setPaymentForm] = useState({
 		amount: '',
@@ -5300,7 +5305,7 @@ function PaymentCollectionWorkspace({
 
 	useEffect(() => {
 		if (initialStudentId) {
-			setSelectedStudentId(Number(initialStudentId))
+			setSelectedStudentId(initialStudentId)
 		}
 	}, [initialStudentId])
 
@@ -5312,11 +5317,11 @@ function PaymentCollectionWorkspace({
 
 		if (initialStudentId) {
 			const matched = groupedStudents.find(group =>
-				group.members.some(student => Number(student.id) === Number(initialStudentId)),
+				group.members.some(student => isSameRecordId(student.id, initialStudentId)),
 			)
 			if (matched) {
 				setSelectedGroupKey(matched.key)
-				setSelectedStudentId(Number(initialStudentId))
+				setSelectedStudentId(initialStudentId)
 				return
 			}
 		}
@@ -5362,7 +5367,7 @@ function PaymentCollectionWorkspace({
 		}
 
 		const hasCurrent = currentGroup.members.some(
-			student => Number(student.id) === Number(selectedStudentId),
+			student => isSameRecordId(student.id, selectedStudentId),
 		)
 		if (!hasCurrent) {
 			setSelectedStudentId(currentGroup.members[0].id)
@@ -5370,7 +5375,7 @@ function PaymentCollectionWorkspace({
 	}, [currentGroup, selectedStudentId])
 
 	const selectedStudent =
-		currentGroup?.members.find(student => Number(student.id) === Number(selectedStudentId)) ||
+		currentGroup?.members.find(student => isSameRecordId(student.id, selectedStudentId)) ||
 		visibleMembers[0] ||
 		null
 
@@ -6217,14 +6222,14 @@ function ReceptionPaymentsPage({ token, meta }) {
 		if (!studentIdFromUrl || !groupedStudents.length) return
 
 		const matchedGroup = groupedStudents.find(group =>
-			(group.members || []).some(student => Number(student.id) === Number(studentIdFromUrl)),
+			(group.members || []).some(student => isSameRecordId(student.id, studentIdFromUrl)),
 		)
 		const matchedStudent = matchedGroup?.members?.find(
-			student => Number(student.id) === Number(studentIdFromUrl),
+			student => isSameRecordId(student.id, studentIdFromUrl),
 		)
 
 		if (!matchedGroup || !matchedStudent) return
-		if (Number(paymentStudentModal?.studentId) === Number(matchedStudent.id)) return
+		if (isSameRecordId(paymentStudentModal?.studentId, matchedStudent.id)) return
 
 		setPaymentGroupModal(null)
 		setPaymentStudentSearch('')
