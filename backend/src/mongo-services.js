@@ -23,6 +23,24 @@ import {
   getNextSequence
 } from "./mongo-models.js";
 
+function buildPaymentCaption(receipt) {
+  const monthLabel = [
+    "Yanvar",
+    "Fevral",
+    "Mart",
+    "Aprel",
+    "May",
+    "Iyun",
+    "Iyul",
+    "Avgust",
+    "Sentabr",
+    "Oktabr",
+    "Noyabr",
+    "Dekabr"
+  ][dayjs(receipt.paidAt).month()] || "To'lov";
+  return `${monthLabel} oylik to'lovi to'ladi`;
+}
+
 function mapCourse(course) {
   return {
     id: course.id,
@@ -965,21 +983,40 @@ export async function listStudentsMongo(filters = {}) {
   const userIds = [...new Set(students.map((item) => item.userId))];
   const courseIds = [...new Set(students.map((item) => item.courseId).filter(Boolean))];
   const teacherIds = [...new Set(students.map((item) => item.teacherId).filter(Boolean))];
-  const [users, courses, teachers] = await Promise.all([
+  const studentIds = students.map((item) => Number(item.id)).filter(Boolean);
+  const [users, courses, teachers, presentLessons] = await Promise.all([
     User.find({ id: { $in: userIds } }).lean(),
     Course.find({ id: { $in: courseIds } }).lean(),
-    User.find({ id: { $in: teacherIds } }).lean()
+    User.find({ id: { $in: teacherIds } }).lean(),
+    Attendance.find({ studentId: { $in: studentIds }, status: "present" })
+      .select("studentId lessonDate")
+      .lean()
   ]);
   const userMap = new Map(users.map((item) => [item.id, item]));
   const courseMap = new Map(courses.map((item) => [item.id, item]));
   const teacherMap = new Map(teachers.map((item) => [item.id, item]));
+  const enrolledAtMap = new Map(
+    students.map((student) => [
+      Number(student.id),
+      new Date(student.enrolledAt || dayjs().format("YYYY-MM-DD")).getTime()
+    ])
+  );
+  const trialProgressMap = new Map();
+  for (const lesson of presentLessons) {
+    const studentId = Number(lesson.studentId);
+    const lessonTime = new Date(lesson.lessonDate).getTime();
+    const enrolledTime = enrolledAtMap.get(studentId) || 0;
+    if (lessonTime >= enrolledTime) {
+      trialProgressMap.set(studentId, (trialProgressMap.get(studentId) || 0) + 1);
+    }
+  }
 
   const result = [];
   for (const student of students) {
     const user = userMap.get(student.userId);
     const course = courseMap.get(student.courseId);
     const teacher = teacherMap.get(student.teacherId);
-    const trialProgress = await getTrialProgressMongo(student.id, student.enrolledAt);
+    const trialProgress = trialProgressMap.get(Number(student.id)) || 0;
     const mapped = mapStudentRowMongo(student, user, course, teacher, trialProgress);
     if (search) {
       const haystack = [mapped.fullName, mapped.phone, mapped.courseTitle, mapped.teacherName].join(" ").toLowerCase();
@@ -995,6 +1032,34 @@ export async function addStudentMongo(payload, actorUserId = null) {
     throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
   }
   const now = new Date();
+  const normalizedPhone = normalizePhone(payload.phone);
+  if (!payload.imported) {
+    const duplicateWindowStart = new Date(Date.now() - 45_000);
+    const recentUsers = await User.find({
+      role: "student",
+      phone: normalizedPhone,
+      createdAt: { $gte: duplicateWindowStart }
+    }).select("id").lean();
+    if (recentUsers.length) {
+      const recentUserIds = recentUsers.map((item) => Number(item.id));
+      const existingStudent = await Student.findOne({
+        userId: { $in: recentUserIds },
+        courseId: Number(payload.courseId),
+        teacherId: Number(payload.teacherId),
+        isArchived: { $ne: true }
+      }).sort({ createdAt: -1 }).lean();
+      if (existingStudent) {
+        const auth = await ensureStudentAuthMongo(existingStudent.id, normalizedPhone, bcrypt.hashSync("12345678", 10));
+        return {
+          studentId: existingStudent.id,
+          phone: normalizedPhone,
+          defaultPassword: "12345678",
+          accessToken: auth.accessToken,
+          loginUrl: `${config.webUrl}/student/login?access=${auth.accessToken}`
+        };
+      }
+    }
+  }
   const enrolledDate = payload.enrolledAt ? new Date(payload.enrolledAt) : new Date();
   const billingStartDate = normalizeBillingStartDate(payload.billingStartDate);
   const initialBalance = Number(payload.balance || 0);
@@ -1009,7 +1074,7 @@ export async function addStudentMongo(payload, actorUserId = null) {
   await User.create({
     id: userId,
     fullName: payload.fullName,
-    phone: normalizePhone(payload.phone),
+    phone: normalizedPhone,
     role: "student",
     monthlySalary: 0,
     createdAt: now
@@ -1067,7 +1132,7 @@ export async function addStudentMongo(payload, actorUserId = null) {
 
   return {
     studentId,
-    phone: normalizePhone(payload.phone),
+    phone: normalizedPhone,
     defaultPassword: "12345678",
     accessToken: auth.accessToken,
     loginUrl: `${config.webUrl}/student/login?access=${auth.accessToken}`
@@ -1153,6 +1218,35 @@ export async function recordPaymentMongo(studentId, amount, method, status = "pa
   if (normalizedAmount <= 0) throw new Error("To'lov summasini kiriting");
   if (monthlyFee > 0 && normalizedAmount < monthlyFee && !normalizedReason) {
     throw new Error(`Minimal to'lov ${monthlyFee.toLocaleString("ru-RU")} UZS. Kamroq summa uchun sabab yozing.`);
+  }
+  if (!externalId) {
+    const duplicateWindowStart = new Date(Date.now() - 45_000);
+    const existingPayment = await Payment.findOne({
+      studentId: Number(studentId),
+      amount: normalizedAmount,
+      method,
+      status,
+      receivedByUserId: actorUserId ? Number(actorUserId) : null,
+      createdAt: { $gte: duplicateWindowStart }
+    }).sort({ createdAt: -1 }).lean();
+    if (existingPayment) {
+      const receipt = {
+        id: existingPayment.id,
+        studentId: Number(studentId),
+        fullName: user?.fullName || "Student",
+        phone: user?.phone || "",
+        courseTitle: course?.title || "",
+        amount: Number(existingPayment.amount || normalizedAmount),
+        method: existingPayment.method || method,
+        paidAt: dayjs(existingPayment.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+        reason: existingPayment.reason || null
+      };
+      return {
+        ...receipt,
+        duplicate: true,
+        receiptCaption: buildPaymentCaption(receipt)
+      };
+    }
   }
   const id = await getNextSequence("payments");
   const now = new Date();

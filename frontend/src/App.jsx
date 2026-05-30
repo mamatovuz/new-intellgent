@@ -1492,12 +1492,14 @@ function ActionButton({
 	onClick,
 	type = 'button',
 	icon,
+	disabled = false,
 }) {
 	return (
 		<button
 			type={type}
 			className={secondary ? 'action-btn secondary' : 'action-btn'}
 			onClick={onClick}
+			disabled={disabled}
 		>
 			{icon ? <Icon name={icon} className='button-icon' /> : null}
 			{children}
@@ -2206,6 +2208,7 @@ function StudentHistoryModal({ history, onClose }) {
 
 function CourseModal({ initialData, onClose, onSubmit }) {
 	const initialSchedule = parseScheduleString(initialData.schedule || '')
+	const [submitting, setSubmitting] = useState(false)
 	const [form, setForm] = useState({
 		...initialData,
 		scheduleDays: initialSchedule.days,
@@ -2220,16 +2223,25 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 		>
 			<form
 				className='modal-form'
-				onSubmit={event =>
-					onSubmit(event, {
-						...form,
-						schedule: buildScheduleString(
-							form.scheduleDays,
-							form.startTime,
-							form.endTime,
-						),
-					})
-				}
+				onSubmit={async event => {
+					if (submitting) {
+						event.preventDefault()
+						return
+					}
+					setSubmitting(true)
+					try {
+						await onSubmit(event, {
+							...form,
+							schedule: buildScheduleString(
+								form.scheduleDays,
+								form.startTime,
+								form.endTime,
+							),
+						})
+					} finally {
+						setSubmitting(false)
+					}
+				}}
 			>
 				<div className='field-grid'>
 					<div>
@@ -2297,8 +2309,8 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 					<button type='button' className='ghost-outline' onClick={onClose}>
 						Bekor qilish
 					</button>
-					<ActionButton type='submit' icon='save'>
-						Saqlash
+					<ActionButton type='submit' icon='save' disabled={submitting}>
+						{submitting ? 'Saqlanmoqda...' : 'Saqlash'}
 					</ActionButton>
 				</div>
 			</form>
@@ -2308,13 +2320,28 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 
 function TeacherModal({ initialData, courses, onClose, onSubmit }) {
 	const [form, setForm] = useState(initialData)
+	const [submitting, setSubmitting] = useState(false)
 	return (
 		<Modal
 			title={form.id ? "O'qituvchini tahrirlash" : "Yangi o'qituvchi"}
 			subtitle="O'qituvchi ma'lumotlarini kiriting"
 			onClose={onClose}
 		>
-			<form className='modal-form teacher-modal-form' onSubmit={event => onSubmit(event, form)}>
+			<form
+				className='modal-form teacher-modal-form'
+				onSubmit={async event => {
+					if (submitting) {
+						event.preventDefault()
+						return
+					}
+					setSubmitting(true)
+					try {
+						await onSubmit(event, form)
+					} finally {
+						setSubmitting(false)
+					}
+				}}
+			>
 				<div className='field-grid'>
 					<div>
 						<label>Ism familiya</label>
@@ -2387,8 +2414,8 @@ function TeacherModal({ initialData, courses, onClose, onSubmit }) {
 					<button type='button' className='ghost-outline' onClick={onClose}>
 						Bekor qilish
 					</button>
-					<ActionButton type='submit' icon='save'>
-						Saqlash
+					<ActionButton type='submit' icon='save' disabled={submitting}>
+						{submitting ? 'Saqlanmoqda...' : 'Saqlash'}
 					</ActionButton>
 				</div>
 			</form>
@@ -4879,6 +4906,7 @@ function StudentSettingsPage({ token }) {
 
 function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 	const initialSchedule = parseScheduleString(initialData.schedule || '')
+	const [submitting, setSubmitting] = useState(false)
 	const [form, setForm] = useState({
 		...initialData,
 		status: initialData.status || 'trial',
@@ -4920,7 +4948,11 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 		>
 			<form
 				className='modal-form'
-				onSubmit={event => {
+				onSubmit={async event => {
+					if (submitting) {
+						event.preventDefault()
+						return
+					}
 					if (!availableTeachers.length) {
 						event.preventDefault()
 						showError(
@@ -4928,15 +4960,20 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 						)
 						return
 					}
-					onSubmit(event, {
-						...form,
-						trialRequired: form.status === 'active' ? 0 : Number(form.trialRequired || 3),
-						schedule: buildScheduleString(
-							form.scheduleDays,
-							selectedCourseSchedule.startTime,
-							selectedCourseSchedule.endTime,
-						),
-					})
+					setSubmitting(true)
+					try {
+						await onSubmit(event, {
+							...form,
+							trialRequired: form.status === 'active' ? 0 : Number(form.trialRequired || 3),
+							schedule: buildScheduleString(
+								form.scheduleDays,
+								selectedCourseSchedule.startTime,
+								selectedCourseSchedule.endTime,
+							),
+						})
+					} finally {
+						setSubmitting(false)
+					}
 				}}
 			>
 				<div className='field-grid'>
@@ -5083,7 +5120,9 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 					<button type='button' className='ghost-outline' onClick={onClose}>
 						Bekor qilish
 					</button>
-					<ActionButton type='submit'>Saqlash</ActionButton>
+					<ActionButton type='submit' disabled={submitting}>
+						{submitting ? 'Saqlanmoqda...' : 'Saqlash'}
+					</ActionButton>
 				</div>
 			</form>
 		</Modal>
@@ -5244,6 +5283,7 @@ function PaymentCollectionWorkspace({
 		allowDiscount: false,
 		reason: '',
 	})
+	const [paymentSubmitting, setPaymentSubmitting] = useState(false)
 
 	const visibleGroups = useMemo(() => {
 		const query = groupSearch.trim().toLowerCase()
@@ -5345,7 +5385,9 @@ function PaymentCollectionWorkspace({
 	async function handleSubmit(event) {
 		event.preventDefault()
 		if (!selectedStudent) return
+		if (paymentSubmitting) return
 		try {
+			setPaymentSubmitting(true)
 			const response = await api.createPayment(token, {
 				studentId: selectedStudent.id,
 				amount: enteredAmount,
@@ -5378,6 +5420,8 @@ function PaymentCollectionWorkspace({
 			onPaymentSaved?.()
 		} catch (err) {
 			await showError(err.message)
+		} finally {
+			setPaymentSubmitting(false)
 		}
 	}
 
@@ -5601,8 +5645,9 @@ function PaymentCollectionWorkspace({
 								<ActionButton
 									type='submit'
 									icon='payments'
+									disabled={paymentSubmitting}
 								>
-									To'lovni saqlash
+									{paymentSubmitting ? "Saqlanmoqda..." : "To'lovni saqlash"}
 								</ActionButton>
 							</div>
 						</form>
@@ -5626,6 +5671,7 @@ function ReceptionStudentsPage({ token, meta }) {
 	})
 	const [studentModal, setStudentModal] = useState(null)
 	const [historyModal, setHistoryModal] = useState(null)
+	const [studentSaving, setStudentSaving] = useState(false)
 	const displayedStudents = useMemo(() => {
 		const query = search.trim().toLowerCase()
 		return students.filter(student => {
@@ -5673,7 +5719,9 @@ function ReceptionStudentsPage({ token, meta }) {
 
 	async function submitStudent(event, form) {
 		event.preventDefault()
+		if (studentSaving) return
 		try {
+			setStudentSaving(true)
 			if (!form.id) {
 				const created = await api.createStudent(token, form)
 				await Swal.fire({
@@ -5707,6 +5755,8 @@ function ReceptionStudentsPage({ token, meta }) {
 			reload({ search, status, includeArchived })
 		} catch (err) {
 			await showError(err.message)
+		} finally {
+			setStudentSaving(false)
 		}
 	}
 
@@ -6440,6 +6490,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 	const [attendanceMap, setAttendanceMap] = useState({})
 	const [history, setHistory] = useState([])
 	const [groupModal, setGroupModal] = useState(null)
+	const [attendanceSaving, setAttendanceSaving] = useState(false)
 	const groups = useMemo(
 		() => (role === 'reception' ? buildReceptionTracks(students, meta) : groupStudentsForAttendance(students)),
 		[students, meta, role],
@@ -6485,7 +6536,9 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 	})
 
 	async function handleSaveAttendance() {
+		if (attendanceSaving) return
 		try {
+			setAttendanceSaving(true)
 			await api.saveAttendanceBatch(token, {
 				lessonDate,
 				entries: (currentGroup?.members || []).map(student => ({
@@ -6499,6 +6552,8 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 			await showSuccess('Davomat saqlandi', `${currentGroup?.members.length || 0} ta o'quvchi bo'yicha davomat yangilandi`)
 		} catch (err) {
 			await showError(err.message)
+		} finally {
+			setAttendanceSaving(false)
 		}
 	}
 
@@ -6609,8 +6664,8 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 								<button type='button' className='text-link' onClick={() => setAttendanceMap({})}>
 									Tanlovni tozalash
 								</button>
-								<ActionButton icon='save' onClick={handleSaveAttendance}>
-									Davomatni saqlash
+								<ActionButton icon='save' onClick={handleSaveAttendance} disabled={attendanceSaving}>
+									{attendanceSaving ? 'Saqlanmoqda...' : 'Davomatni saqlash'}
 								</ActionButton>
 							</div>
 						</div>
@@ -8237,6 +8292,7 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 		internet_expense: 0,
 		admin_salary_expense: 0,
 	})
+	const [settingsSaving, setSettingsSaving] = useState('')
 
 	useEffect(() => {
 		setError('')
@@ -8271,13 +8327,21 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 
 	async function handleCourseSubmit(event, form) {
 		event.preventDefault()
-		if (form.id) {
-			await api.updateCourse(token, form.id, form)
-		} else {
-			await api.createCourse(token, form)
+		if (settingsSaving) return
+		try {
+			setSettingsSaving('course')
+			if (form.id) {
+				await api.updateCourse(token, form.id, form)
+			} else {
+				await api.createCourse(token, form)
+			}
+			setCourseModal(null)
+			setBundle(await api.getSettings(token))
+		} catch (err) {
+			await showError(err.message)
+		} finally {
+			setSettingsSaving('')
 		}
-		setCourseModal(null)
-		setBundle(await api.getSettings(token))
 	}
 
 	async function handleDeleteCourse(courseId) {
@@ -8297,17 +8361,25 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 
 	async function handleTeacherSubmit(event, form) {
 		event.preventDefault()
+		if (settingsSaving) return
 		if (!form.courseIds?.length) {
 			await showError("O'qituvchiga kamida bitta kurs biriktiring")
 			return
 		}
-		if (form.id) {
-			await api.updateTeacher(token, form.id, form)
-		} else {
-			await api.createTeacher(token, form)
+		try {
+			setSettingsSaving('teacher')
+			if (form.id) {
+				await api.updateTeacher(token, form.id, form)
+			} else {
+				await api.createTeacher(token, form)
+			}
+			setTeacherModal(null)
+			setBundle(await api.getSettings(token))
+		} catch (err) {
+			await showError(err.message)
+		} finally {
+			setSettingsSaving('')
 		}
-		setTeacherModal(null)
-		setBundle(await api.getSettings(token))
 	}
 
 	async function handleDeleteTeacher(teacherId) {
@@ -8317,9 +8389,15 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 
 	async function handleSaveExpenses(event) {
 		event.preventDefault()
-		await api.saveSettings(token, expenseForm)
-		setBundle(await api.getSettings(token))
-		toast.fire({ icon: 'success', title: 'Xarajatlar saqlandi' })
+		if (settingsSaving) return
+		try {
+			setSettingsSaving('expenses')
+			await api.saveSettings(token, expenseForm)
+			setBundle(await api.getSettings(token))
+			toast.fire({ icon: 'success', title: 'Xarajatlar saqlandi' })
+		} finally {
+			setSettingsSaving('')
+		}
 	}
 
 	function handleChannelChange(index, key, value) {
@@ -8339,6 +8417,7 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 	}
 
 	async function handleSaveChannels() {
+		if (settingsSaving) return
 		const sanitized = telegramChannels
 			.map(item => ({
 				id: String(item.id || '').trim(),
@@ -8346,23 +8425,34 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 				url: String(item.url || '').trim(),
 			}))
 			.filter(item => item.id || item.url)
-		await api.saveSettings(token, { telegram_required_channels: sanitized })
-		setBundle(await api.getSettings(token))
-		toast.fire({ icon: 'success', title: 'Telegram kanallari saqlandi' })
+		try {
+			setSettingsSaving('channels')
+			await api.saveSettings(token, { telegram_required_channels: sanitized })
+			setBundle(await api.getSettings(token))
+			toast.fire({ icon: 'success', title: 'Telegram kanallari saqlandi' })
+		} finally {
+			setSettingsSaving('')
+		}
 	}
 
 	async function handleSendBroadcast(event) {
 		event.preventDefault()
+		if (settingsSaving) return
 		if (!broadcastForm.title.trim() || !broadcastForm.message.trim()) {
 			await showError('Sarlavha va xabar matnini kiriting')
 			return
 		}
-		const result = await api.broadcastNotifications(token, broadcastForm)
-		setBroadcastForm(current => ({ ...current, title: '', message: '' }))
-		toast.fire({
-			icon: 'success',
-			title: `Yuborildi: sayt ${result.siteCount || 0} ta, bot ${result.botCount || 0} ta`,
-		})
+		try {
+			setSettingsSaving('broadcast')
+			const result = await api.broadcastNotifications(token, broadcastForm)
+			setBroadcastForm(current => ({ ...current, title: '', message: '' }))
+			toast.fire({
+				icon: 'success',
+				title: `Yuborildi: sayt ${result.siteCount || 0} ta, bot ${result.botCount || 0} ta`,
+			})
+		} finally {
+			setSettingsSaving('')
+		}
 	}
 
 	const audienceOptions = [
@@ -8466,8 +8556,8 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 						</div>
 					</div>
 					<div className='modal-actions'>
-						<ActionButton type='submit' icon='save'>
-							Xarajatlarni saqlash
+						<ActionButton type='submit' icon='save' disabled={settingsSaving === 'expenses'}>
+							{settingsSaving === 'expenses' ? 'Saqlanmoqda...' : 'Xarajatlarni saqlash'}
 						</ActionButton>
 					</div>
 				</form>
@@ -8527,8 +8617,8 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 					)) : <EmptyStateNotice message='Majburiy kanal hozircha qo‘shilmagan.' />}
 				</div>
 				<div className='modal-actions top-divider'>
-					<ActionButton icon='save' onClick={handleSaveChannels}>
-						Kanallarni saqlash
+					<ActionButton icon='save' onClick={handleSaveChannels} disabled={settingsSaving === 'channels'}>
+						{settingsSaving === 'channels' ? 'Saqlanmoqda...' : 'Kanallarni saqlash'}
 					</ActionButton>
 				</div>
 			</section>
@@ -8584,8 +8674,8 @@ function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 						/>
 					</div>
 					<div className='modal-actions'>
-						<ActionButton type='submit' icon='send'>
-							Xabarni yuborish
+						<ActionButton type='submit' icon='send' disabled={settingsSaving === 'broadcast'}>
+							{settingsSaving === 'broadcast' ? 'Yuborilmoqda...' : 'Xabarni yuborish'}
 						</ActionButton>
 					</div>
 				</form>

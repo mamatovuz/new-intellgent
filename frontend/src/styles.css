@@ -5695,6 +5695,15 @@ background: #00236f;
   gap: 8px;
 }
 
+.action-btn:disabled,
+.login-submit:disabled,
+.admin-submit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+  transform: none;
+  box-shadow: none;
+}
+
 .payment-editor-stats span {
   color: #72819c;
   font-size: 11px;

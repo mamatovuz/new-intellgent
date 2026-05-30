@@ -825,7 +825,9 @@ router.post("/reception/payments", authenticate, authorize("reception", "directo
       receiptImageMimeType: "image/png",
       receiptImageBuffer: receiptAsset.imageBuffer
     };
-    sendStudentPaymentNotification(receiptResponse).catch(() => null);
+    if (!receipt.duplicate) {
+      sendStudentPaymentNotification(receiptResponse).catch(() => null);
+    }
     res.json({
       message: "To'lov saqlandi",
       receipt: {

@@ -89,6 +89,7 @@ const paymentSchema = new Schema(
   },
   jsonOptions
 );
+paymentSchema.index({ studentId: 1, amount: 1, method: 1, status: 1, receivedByUserId: 1, createdAt: -1 });
 
 const attendanceSchema = new Schema(
   {
@@ -102,6 +103,7 @@ const attendanceSchema = new Schema(
   jsonOptions
 );
 attendanceSchema.index({ studentId: 1, lessonDate: 1 }, { unique: true });
+attendanceSchema.index({ studentId: 1, status: 1, lessonDate: 1 });
 
 const telegramLinkSchema = new Schema(
   {
