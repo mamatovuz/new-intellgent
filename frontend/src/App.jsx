@@ -7325,6 +7325,7 @@ function DirectorDashboardPage({ token }) {
 	const [chartPeriod, setChartPeriod] = useState('monthly')
 	const [dateRange, setDateRange] = useState({ from: '', to: '' })
 	const [hoveredPoint, setHoveredPoint] = useState(null)
+	const [isRevenueFullscreen, setIsRevenueFullscreen] = useState(false)
 	useEffect(() => {
 		setError('')
 		api
@@ -7503,33 +7504,43 @@ function DirectorDashboardPage({ token }) {
 				/>
 			</div>
 
-			<section className='card chart-card'>
+			<section className={isRevenueFullscreen ? 'card chart-card chart-card-fullscreen' : 'card chart-card'}>
 				<div className='card-head-row'>
 					<div>
 						<h3>Tushumlar dinamikasi</h3>
 						<p>{chartSubtitleMap[chartPeriod]}</p>
 					</div>
-					<div className='segmented-switch'>
+					<div className='chart-head-actions'>
+						<div className='segmented-switch'>
+							<button
+								type='button'
+								className={chartPeriod === 'daily' ? 'active' : ''}
+								onClick={() => setChartPeriod('daily')}
+							>
+								Kunlik
+							</button>
+							<button
+								type='button'
+								className={chartPeriod === 'weekly' ? 'active' : ''}
+								onClick={() => setChartPeriod('weekly')}
+							>
+								Haftalik
+							</button>
+							<button
+								type='button'
+								className={chartPeriod === 'monthly' ? 'active' : ''}
+								onClick={() => setChartPeriod('monthly')}
+							>
+								Oylik
+							</button>
+						</div>
 						<button
 							type='button'
-							className={chartPeriod === 'daily' ? 'active' : ''}
-							onClick={() => setChartPeriod('daily')}
+							className='chart-fullscreen-btn'
+							onClick={() => setIsRevenueFullscreen(value => !value)}
+							title={isRevenueFullscreen ? 'To‘liq ekrandan chiqish' : 'To‘liq ekranda ko‘rish'}
 						>
-							Kunlik
-						</button>
-						<button
-							type='button'
-							className={chartPeriod === 'weekly' ? 'active' : ''}
-							onClick={() => setChartPeriod('weekly')}
-						>
-							Haftalik
-						</button>
-						<button
-							type='button'
-							className={chartPeriod === 'monthly' ? 'active' : ''}
-							onClick={() => setChartPeriod('monthly')}
-						>
-							Oylik
+							<Icon name={isRevenueFullscreen ? 'fullscreen_exit' : 'fullscreen'} />
 						</button>
 					</div>
 				</div>
@@ -7573,38 +7584,39 @@ function DirectorDashboardPage({ token }) {
 							<span key={`${tick}-${index}`}>{formatCompactMoney(Math.round(tick))}</span>
 						))}
 					</div>
-					<div className='chart-grid-lines'>
-						<span />
-						<span />
-						<span />
-						<span />
-					</div>
-					{hoveredPoint ? (
-						<div
-							className='chart-tooltip'
-							style={{
-								left: `${hoveredPoint.left}px`,
-								top: `${hoveredPoint.top}px`,
-							}}
-						>
-							<strong>{hoveredPoint.label}</strong>
-							<span>{formatMoney(hoveredPoint.value)}</span>
+					<div className='revenue-line-stage'>
+						<div className='chart-grid-lines'>
+							<span />
+							<span />
+							<span />
+							<span />
 						</div>
-					) : null}
-					{chartData.length ? (
-						<svg
-							className='revenue-line-overlay'
-							viewBox='0 0 100 100'
-							preserveAspectRatio='none'
-						>
-							<polyline points={chartPoints} />
-							{chartPointMeta.map(point => (
-								<circle key={point.id} cx={point.x} cy={point.y} r='2.8' />
-							))}
-						</svg>
-					) : null}
-					{chartData.length ? (
-						<>
+						{hoveredPoint ? (
+							<div
+								className='chart-tooltip'
+								style={{
+									left: `${hoveredPoint.left}px`,
+									top: `${hoveredPoint.top}px`,
+								}}
+							>
+								<strong>{hoveredPoint.label}</strong>
+								<span>{formatMoney(hoveredPoint.value)}</span>
+							</div>
+						) : null}
+						{chartData.length ? (
+							<svg
+								className='revenue-line-overlay'
+								viewBox='0 0 100 100'
+								preserveAspectRatio='none'
+							>
+								<polyline points={chartPoints} />
+								{chartPointMeta.map(point => (
+									<circle key={point.id} cx={point.x} cy={point.y} r='2.8' />
+								))}
+							</svg>
+						) : null}
+						{chartData.length ? (
+							<>
 							<div className='revenue-line-hotspots'>
 								{chartPointMeta.map(point => (
 									<button
@@ -7614,7 +7626,7 @@ function DirectorDashboardPage({ token }) {
 										style={{ left: `${point.x}%`, top: `${point.y}%` }}
 										onMouseEnter={event => {
 										const rect = event.currentTarget.getBoundingClientRect()
-										const parentRect = event.currentTarget.closest('.revenue-chart-wrap').getBoundingClientRect()
+										const parentRect = event.currentTarget.closest('.revenue-line-stage').getBoundingClientRect()
 										setHoveredPoint({
 											label: point.label,
 											value: point.value,
@@ -7625,7 +7637,7 @@ function DirectorDashboardPage({ token }) {
 										onMouseLeave={() => setHoveredPoint(null)}
 										onFocus={event => {
 											const rect = event.currentTarget.getBoundingClientRect()
-											const parentRect = event.currentTarget.closest('.revenue-chart-wrap').getBoundingClientRect()
+											const parentRect = event.currentTarget.closest('.revenue-line-stage').getBoundingClientRect()
 											setHoveredPoint({
 												label: point.label,
 												value: point.value,
@@ -7645,12 +7657,13 @@ function DirectorDashboardPage({ token }) {
 									</span>
 								))}
 							</div>
-						</>
-					) : (
-						<div className='revenue-chart-empty'>
-							Tanlangan davr bo'yicha tushum topilmadi.
-						</div>
-					)}
+							</>
+						) : (
+							<div className='revenue-chart-empty'>
+								Tanlangan davr bo'yicha tushum topilmadi.
+							</div>
+						)}
+					</div>
 				</div>
 
 				<div className='chart-summary'>
