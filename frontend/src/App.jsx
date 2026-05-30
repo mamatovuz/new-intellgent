@@ -7390,21 +7390,26 @@ function DirectorDashboardPage({ token }) {
 		monthly: '6 OYLIK JAMI',
 	}
 	const chartPoints = chartData.length
-		? chartData
+		? chartData.length === 1
+			? (() => {
+					const y = Math.max(10, 100 - (Number(chartData[0]?.revenue || 0) / maxRevenue) * 78 - 8)
+					return `0,${y} 100,${y}`
+				})()
+			: chartData
 				.map((item, index) => {
 					const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
-					const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 100
-					return `${x},${Math.max(6, y)}`
+					const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 78 - 8
+					return `${x},${Math.max(10, y)}`
 				})
 				.join(' ')
 		: ''
 	const chartPointMeta = chartData.map((item, index) => {
 		const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
-		const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 100
+		const y = 100 - (Number(item.revenue || 0) / maxRevenue) * 78 - 8
 		return {
 			id: `${item.period || item.label}-${index}`,
 			x,
-			y: Math.max(6, y),
+			y: Math.max(10, y),
 			label: formatTrendTooltipLabel(item.label || item.period),
 			value: Number(item.revenue || 0),
 		}

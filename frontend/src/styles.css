@@ -6875,17 +6875,26 @@ th {
 .revenue-chart-wrap {
   position: relative;
   border-radius: 14px;
-  padding: 12px 0 0 72px;
+  min-height: 340px;
+  height: 340px;
+  padding: 0 16px 46px 72px;
   border: 1px solid #e8eef7;
-  background: linear-gradient(180deg, #fcfdff 0%, #f7faff 100%);
+  background:
+    linear-gradient(180deg, #fcfdff 0%, #f7faff 100%),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 63px,
+      rgba(145, 161, 188, 0.2) 64px
+    );
   overflow: hidden;
 }
 
 .chart-y-axis {
   position: absolute;
-  top: 16px;
+  top: 28px;
   left: 16px;
-  bottom: 64px;
+  bottom: 56px;
   width: 44px;
   display: grid;
   align-content: space-between;
@@ -6912,7 +6921,7 @@ th {
   }
 
   .revenue-chart-wrap {
-    padding-left: 0;
+    padding-left: 16px;
   }
 
   .chart-y-axis {
@@ -6920,12 +6929,22 @@ th {
   }
 
   .chart-grid-lines {
-    left: 0;
+    left: 16px;
   }
 
   .revenue-line-overlay {
-    inset: 54px 16px 48px 16px;
+    left: 16px;
+    right: 16px;
     width: calc(100% - 32px);
+  }
+
+  .revenue-line-hotspots {
+    left: 16px;
+    right: 16px;
+  }
+
+  .revenue-chart-labels {
+    left: 16px;
   }
 }
 
@@ -8961,9 +8980,12 @@ th {
 
 .revenue-line-overlay {
   position: absolute;
-  inset: 54px 16px 48px 16px;
-  width: calc(100% - 32px);
-  height: calc(100% - 102px);
+  left: 72px;
+  right: 16px;
+  top: 28px;
+  bottom: 56px;
+  width: calc(100% - 88px);
+  height: calc(100% - 84px);
   pointer-events: none;
   z-index: 2;
 }
@@ -8971,7 +8993,7 @@ th {
 .revenue-line-overlay polyline {
   fill: none;
   stroke: #2563eb;
-  stroke-width: 2.6;
+  stroke-width: 3.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(0 6px 10px rgba(37, 99, 235, 0.18));
@@ -8980,12 +9002,15 @@ th {
 .revenue-line-overlay circle {
   fill: #ffffff;
   stroke: #2563eb;
-  stroke-width: 1.8;
+  stroke-width: 2.4;
 }
 
 .revenue-line-hotspots {
   position: absolute;
-  inset: 54px 16px 48px 16px;
+  left: 72px;
+  right: 16px;
+  top: 28px;
+  bottom: 56px;
   z-index: 4;
 }
 
@@ -9018,9 +9043,9 @@ th {
 
 .revenue-chart-labels {
   position: absolute;
-  left: 16px;
+  left: 72px;
   right: 16px;
-  bottom: 10px;
+  bottom: 16px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -10425,13 +10450,31 @@ th {
   }
 
   .revenue-chart-wrap {
-    padding: 14px 12px;
+    height: 300px;
+    min-height: 300px;
+    padding: 0 12px 42px;
   }
 
   .revenue-line-overlay {
-    inset: 50px 12px 46px 12px;
+    left: 12px;
+    right: 12px;
+    top: 28px;
+    bottom: 48px;
     width: calc(100% - 24px);
-    height: calc(100% - 96px);
+    height: calc(100% - 76px);
+  }
+
+  .revenue-line-hotspots {
+    left: 12px;
+    right: 12px;
+    top: 28px;
+    bottom: 48px;
+  }
+
+  .revenue-chart-labels {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
   }
 
   .mini-trend-chart {
