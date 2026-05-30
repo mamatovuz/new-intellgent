@@ -1053,7 +1053,7 @@ export async function addStudentMongo(payload, actorUserId = null) {
       ? `${payload.fullName} import orqali tizimga qo'shildi`
       : isActiveFlow
         ? `${payload.fullName} tizimga faol student sifatida qo'shildi`
-        : `${payload.fullName} tizimga qo'shildi. Sinov muddati 3 kun.`
+        : `${payload.fullName} tizimga qo'shildi. Sinov muddati ${trialRequired} kun.`
   );
 
   if (!payload.skipDirectorNotification && !payload.imported) {

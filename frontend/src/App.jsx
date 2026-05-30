@@ -4831,6 +4831,7 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 	const [form, setForm] = useState({
 		...initialData,
 		status: initialData.status || 'trial',
+		trialRequired: Number(initialData.trialRequired || 3),
 		billingStartDate: initialData.billingStartDate || '',
 		scheduleDays: initialSchedule.days,
 	})
@@ -4878,7 +4879,7 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 					}
 					onSubmit(event, {
 						...form,
-						trialRequired: form.status === 'active' ? 0 : 3,
+						trialRequired: form.status === 'active' ? 0 : Number(form.trialRequired || 3),
 						schedule: buildScheduleString(
 							form.scheduleDays,
 							selectedCourseSchedule.startTime,
@@ -4955,6 +4956,21 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 							<option value='active'>Faol</option>
 						</select>
 					</div>
+					{form.status === 'trial' ? (
+						<div>
+							<label>Sinov muddati</label>
+							<select
+								value={form.trialRequired}
+								onChange={e => setForm({ ...form, trialRequired: Number(e.target.value) })}
+							>
+								{[1, 2, 3, 4].map(day => (
+									<option key={day} value={day}>
+										{day} kun
+									</option>
+								))}
+							</select>
+						</div>
+					) : null}
 					<div className='full-span'>
 						<label>Dars kunlari</label>
 						<div className='weekday-grid'>
@@ -5006,7 +5022,7 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 							value={
 								form.status === 'active'
 									? "Faol student: oylik to'lov darhol hisoblanadi"
-									: "Sinov student: 3 ta o'qish kuni sinov"
+									: `Sinov student: ${form.trialRequired || 3} ta o'qish kuni sinov`
 							}
 							readOnly
 						/>
@@ -5599,6 +5615,7 @@ function ReceptionStudentsPage({ token, meta }) {
 		balance: 0,
 		lastPaymentDate: '',
 		status: 'trial',
+		trialRequired: 3,
 		billingStartDate: '',
 		schedule: '',
 	}
