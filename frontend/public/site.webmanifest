@@ -1,0 +1,14 @@
+{
+  "name": "ILM NEST O'quv Markazi",
+  "short_name": "ILM NEST",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#00236f",
+  "background_color": "#faf8ff",
+  "display": "standalone"
+}

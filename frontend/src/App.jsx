@@ -2491,6 +2491,7 @@ function PublicSiteFooter() {
 }
 
 function HomePage() {
+	const location = useLocation()
 	const [activeFaq, setActiveFaq] = useState(0)
 	const [testimonialIndex, setTestimonialIndex] = useState(0)
 	const [publicCourses, setPublicCourses] = useState([])
@@ -2510,6 +2511,14 @@ function HomePage() {
 		message: '',
 	})
 	const touchStartX = useRef(0)
+
+	useEffect(() => {
+		if (location.pathname !== '/aloqa' && location.hash !== '#aloqa') return
+		const timer = window.setTimeout(() => {
+			document.getElementById('aloqa')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+		}, 120)
+		return () => window.clearTimeout(timer)
+	}, [location.pathname, location.hash])
 
 	useEffect(() => {
 		const timer = setInterval(() => {
@@ -4107,14 +4116,7 @@ function StudentLoginPage({ onLogin }) {
 						</button>
 					</form>
 
-					<div className='login-help'>
-						<p>
-							Telegram orqali kirishda Web App tugmasi avtomatik ishlaydi.{' '}
-							<Link to='/register' className='text-link'>
-								Eski registratsiya sahifasi
-							</Link>
-						</p>
-					</div>
+					
 				</div>
 			</main>
 		</div>
@@ -8640,6 +8642,7 @@ function AppInner() {
 				<LanguageRuntime />
 				<Routes>
 					<Route path='/' element={<HomePage />} />
+					<Route path='/aloqa' element={<HomePage />} />
 					<Route path='/dasturchilar' element={<DevelopersPage />} />
 					<Route path='/dasturchilar/:slug' element={<DeveloperDetailPage />} />
 					<Route path='/dasturchilar/login' element={<DeveloperPortalPage />} />
@@ -8666,6 +8669,7 @@ function AppInner() {
 			<LanguageRuntime />
 			<Routes>
 				<Route path='/' element={<HomePage />} />
+				<Route path='/aloqa' element={<HomePage />} />
 				<Route path='/dasturchilar' element={<DevelopersPage />} />
 				<Route path='/dasturchilar/:slug' element={<DeveloperDetailPage />} />
 				<Route path='/dasturchilar/login' element={<DeveloperPortalPage />} />
