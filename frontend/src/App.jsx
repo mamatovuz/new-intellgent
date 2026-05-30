@@ -5360,7 +5360,16 @@ function PaymentCollectionWorkspace({
 		)
 	}, [currentGroup, studentSearch])
 
+	const forcedInitialStudent = useMemo(() => {
+		if (showStudentList || !initialStudentId) return null
+		return students.find(student => isSameRecordId(student.id, initialStudentId)) || null
+	}, [initialStudentId, showStudentList, students])
+
 	useEffect(() => {
+		if (forcedInitialStudent) {
+			setSelectedStudentId(forcedInitialStudent.id)
+			return
+		}
 		if (!currentGroup?.members?.length) {
 			setSelectedStudentId(null)
 			return
@@ -5372,9 +5381,10 @@ function PaymentCollectionWorkspace({
 		if (!hasCurrent) {
 			setSelectedStudentId(currentGroup.members[0].id)
 		}
-	}, [currentGroup, selectedStudentId])
+	}, [currentGroup, forcedInitialStudent, selectedStudentId])
 
 	const selectedStudent =
+		forcedInitialStudent ||
 		currentGroup?.members.find(student => isSameRecordId(student.id, selectedStudentId)) ||
 		visibleMembers[0] ||
 		null
@@ -6202,7 +6212,7 @@ function ReceptionDashboardPage({ token }) {
 }
 
 function ReceptionPaymentsPage({ token, meta }) {
-	const [searchParams] = useSearchParams()
+	const [searchParams, setSearchParams] = useSearchParams()
 	const { students, reload } = useReceptionData(token, {
 		search: '',
 		status: '',
@@ -6244,7 +6254,8 @@ function ReceptionPaymentsPage({ token, meta }) {
 			studyMonth: getStudyMonthLabel(matchedStudent),
 			phone: matchedStudent.phone,
 		})
-	}, [groupedStudents, paymentStudentModal?.studentId, searchParams])
+		setSearchParams({}, { replace: true })
+	}, [groupedStudents, paymentStudentModal?.studentId, searchParams, setSearchParams])
 
 	async function handlePaymentSaved() {
 		const nextPayments = await api.getAllPayments(token)
@@ -6287,6 +6298,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 							className='attendance-group-card'
 							onClick={() => {
 								setPaymentStudentSearch('')
+								setSearchParams({}, { replace: true })
 								setPaymentGroupModal(group)
 							}}
 						>
@@ -6371,6 +6383,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 									className='payment-picker-row'
 									onClick={() => {
 										setPaymentGroupModal(null)
+										setSearchParams({}, { replace: true })
 										setPaymentStudentModal({
 											groupKey: paymentGroupModal.key,
 											courseTitle: paymentGroupModal.courseTitle,
