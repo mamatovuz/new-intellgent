@@ -17778,3 +17778,320 @@ body.theme-dark .loading-screen {
     min-width: 680px !important;
   }
 }
+
+/* Visual repair pass after screenshots: cleaner header, compact CRM rows, balanced cards. */
+.app-shell .page-topbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 14px 20px !important;
+}
+
+.app-shell .hamburger-btn {
+  flex: 0 0 auto !important;
+}
+
+.app-shell .search-box {
+  flex: 0 1 430px !important;
+  width: min(430px, 42vw) !important;
+  min-width: 260px !important;
+  height: 46px !important;
+  padding: 0 16px !important;
+}
+
+.app-shell .topbar-user,
+.app-shell.theme-dark .topbar-user {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  gap: 10px !important;
+}
+
+.app-shell .topbar-icon,
+.app-shell.theme-dark .topbar-icon {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe5f2 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 12px rgba(16, 35, 63, .035) !important;
+}
+
+.app-shell.theme-dark .topbar-icon {
+  background: #172033 !important;
+  border-color: #31415c !important;
+  color: #dbe7f7 !important;
+  box-shadow: none !important;
+}
+
+.app-shell .theme-toggle-btn,
+.app-shell.theme-dark .theme-toggle-btn {
+  width: auto !important;
+  min-width: 82px !important;
+  height: 42px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
+}
+
+.app-shell .theme-toggle-btn .material-symbols-outlined {
+  flex: 0 0 auto !important;
+  line-height: 1 !important;
+}
+
+.app-shell .theme-toggle-label {
+  display: inline-block !important;
+  line-height: 1 !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.app-shell .user-avatar {
+  flex: 0 0 auto !important;
+}
+
+.app-shell .kpi-icon,
+.app-shell .mini-stat-icon,
+.app-shell .group-card-icon,
+.app-shell .course-icon {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 14px !important;
+}
+
+.app-shell .kpi-icon .material-symbols-outlined,
+.app-shell .mini-stat-icon .material-symbols-outlined,
+.app-shell .group-card-icon .material-symbols-outlined,
+.app-shell .course-icon .material-symbols-outlined {
+  font-size: 24px !important;
+}
+
+.app-shell .kpi-card {
+  display: grid !important;
+  gap: 14px !important;
+  min-height: 136px !important;
+}
+
+.app-shell .kpi-head {
+  align-items: start !important;
+}
+
+.app-shell .kpi-card strong {
+  font-size: clamp(28px, 2.4vw, 38px) !important;
+}
+
+.app-shell .contact-requests-panel {
+  margin-top: 18px !important;
+  padding: 18px !important;
+}
+
+.app-shell .crm-status-board {
+  margin-bottom: 8px !important;
+}
+
+.app-shell .contact-request-grid {
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+}
+
+.app-shell .contact-request-card {
+  grid-template-columns: minmax(240px, .9fr) minmax(250px, .82fr) minmax(220px, 1fr) minmax(360px, 1.05fr) !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 14px 16px !important;
+  border-radius: 16px !important;
+}
+
+.app-shell .contact-request-head {
+  grid-template-columns: 44px minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+}
+
+.app-shell .contact-request-avatar {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+}
+
+.app-shell .contact-request-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.app-shell .contact-request-meta div,
+.app-shell .contact-request-message {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+}
+
+.app-shell .contact-request-message {
+  align-self: stretch !important;
+  display: grid !important;
+  align-content: center !important;
+}
+
+.app-shell .contact-request-message p {
+  margin-top: 4px !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.app-shell .contact-request-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.app-shell .contact-request-actions .page-btn {
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.app-shell .teacher-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, auto) !important;
+  align-items: center !important;
+}
+
+.app-shell .group-switcher {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr) 180px !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.app-shell .group-switcher select,
+.app-shell .group-switcher input {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 42px !important;
+  padding: 0 12px !important;
+  border: 1px solid #dbe5f2 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  color: #10233f !important;
+  font: inherit !important;
+}
+
+.app-shell.theme-dark .group-switcher select,
+.app-shell.theme-dark .group-switcher input {
+  background: #111a2b !important;
+  border-color: #31415c !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell .mini-stat-card {
+  min-height: 112px !important;
+  align-content: center !important;
+}
+
+.app-shell .trend-line-plot {
+  min-height: 190px !important;
+}
+
+.app-shell .trend-line-canvas {
+  height: 190px !important;
+}
+
+.app-shell .revenue-chart-section {
+  padding: 22px !important;
+}
+
+.app-shell .revenue-chart-section .chart-card-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.app-shell .revenue-chart-section .chart-actions {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.app-shell .chart-fullscreen-btn {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+}
+
+@media (max-width: 1280px) {
+  .app-shell .contact-request-card {
+    grid-template-columns: minmax(240px, 1fr) minmax(250px, 1fr) !important;
+  }
+
+  .app-shell .contact-request-message,
+  .app-shell .contact-request-actions {
+    grid-column: auto !important;
+  }
+
+  .app-shell .contact-request-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell .page-topbar {
+    flex-wrap: wrap !important;
+  }
+
+  .app-shell .search-box {
+    order: 3 !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .app-shell .teacher-header {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-shell .group-switcher {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-shell .contact-request-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-shell .contact-request-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell .theme-toggle-btn {
+    min-width: 42px !important;
+    padding: 0 !important;
+  }
+
+  .app-shell .theme-toggle-label {
+    display: none !important;
+  }
+
+  .app-shell .contact-request-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
