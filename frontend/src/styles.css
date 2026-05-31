@@ -18240,3 +18240,75 @@ body.theme-dark .loading-screen {
     font-size: 11px !important;
   }
 }
+
+/* Compact KPI cards: keep dashboards readable without oversized empty boxes. */
+.app-shell .kpi-card {
+  min-height: 112px !important;
+  padding: 16px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+}
+
+.app-shell .kpi-head {
+  align-items: flex-start !important;
+  gap: 10px !important;
+}
+
+.app-shell .kpi-head span {
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  letter-spacing: .08em !important;
+}
+
+.app-shell .kpi-card strong {
+  font-size: clamp(24px, 1.85vw, 31px) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.035em !important;
+  max-width: 100% !important;
+}
+
+.app-shell .director-kpis .kpi-card strong,
+.app-shell .three-column-grid .kpi-card strong {
+  font-size: clamp(22px, 1.55vw, 28px) !important;
+}
+
+.app-shell .kpi-card p,
+.app-shell .kpi-card .stat-note {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.app-shell .kpi-icon,
+.app-shell .mini-stat-icon {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 12px !important;
+}
+
+.app-shell .kpi-icon .material-symbols-outlined,
+.app-shell .mini-stat-icon .material-symbols-outlined {
+  font-size: 22px !important;
+}
+
+.app-shell .director-kpis,
+.app-shell .three-column-grid,
+.app-shell .teacher-stats {
+  gap: 14px !important;
+}
+
+@media (max-width: 900px) {
+  .app-shell .kpi-card {
+    min-height: 104px !important;
+    padding: 14px 16px !important;
+  }
+
+  .app-shell .kpi-card strong,
+  .app-shell .director-kpis .kpi-card strong,
+  .app-shell .three-column-grid .kpi-card strong {
+    font-size: clamp(22px, 7vw, 28px) !important;
+  }
+}
