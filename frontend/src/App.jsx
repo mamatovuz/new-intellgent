@@ -15,7 +15,7 @@ import Swal from 'sweetalert2'
 import { api, resolveAssetUrl } from './api'
 
 const LANGUAGE_STORAGE_KEY = 'ilmnest-language'
-const APP_BUILD_ID = 'panel-counts-2026-05-31-v4'
+const APP_BUILD_ID = 'panel-counts-2026-05-31-v5'
 
 function useBuildRefreshGuard() {
 	useEffect(() => {
@@ -297,6 +297,7 @@ const TRANSLATIONS = {
 }
 
 const translationOriginals = new WeakMap()
+const translationRenderedValues = new WeakMap()
 const reverseTranslations = Object.values(TRANSLATIONS).reduce((acc, dictionary) => {
 	Object.entries(dictionary).forEach(([source, value]) => {
 		acc[value] = source
@@ -342,20 +343,31 @@ function applyLanguageToDom(language) {
 	const nodes = []
 	while (walker.nextNode()) nodes.push(walker.currentNode)
 	nodes.forEach(node => {
-		const original = translationOriginals.get(node) || normalizeTranslationSource(node.nodeValue)
+		const current = node.nodeValue
+		const previousRendered = translationRenderedValues.get(node)
+		const shouldRefreshOriginal =
+			!translationOriginals.has(node) || current !== previousRendered
+		const original = shouldRefreshOriginal
+			? normalizeTranslationSource(current)
+			: translationOriginals.get(node)
 		translationOriginals.set(node, original)
 		const translated = translateTextValue(original, language)
-		if (node.nodeValue !== translated) {
+		translationRenderedValues.set(node, translated)
+		if (current !== translated) {
 			node.nodeValue = translated
 		}
 	})
 
 	document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(element => {
+		const current = element.getAttribute('placeholder') || ''
+		const previousRendered = element.dataset.i18nPlaceholderRendered || ''
 		const original =
-			element.dataset.i18nPlaceholderOriginal ||
-			normalizeTranslationSource(element.getAttribute('placeholder') || '')
+			!element.dataset.i18nPlaceholderOriginal || current !== previousRendered
+				? normalizeTranslationSource(current)
+				: element.dataset.i18nPlaceholderOriginal
 		const translated = translateTextValue(original, language)
 		element.dataset.i18nPlaceholderOriginal = original
+		element.dataset.i18nPlaceholderRendered = translated
 		if (element.getAttribute('placeholder') !== translated) {
 			element.setAttribute('placeholder', translated)
 		}
