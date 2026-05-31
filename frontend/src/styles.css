@@ -18312,3 +18312,68 @@ body.theme-dark .loading-screen {
     font-size: clamp(22px, 7vw, 28px) !important;
   }
 }
+
+/* Fullscreen revenue chart: scrollable canvas + draggable pan for diagnostics. */
+.app-shell .chart-card-fullscreen {
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+.app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen {
+  height: calc(100vh - 250px) !important;
+  min-height: 540px !important;
+  max-height: calc(100vh - 250px) !important;
+  overflow: auto !important;
+  cursor: grab !important;
+  touch-action: none !important;
+  scrollbar-gutter: stable both-edges !important;
+  padding: 36px 46px 112px 94px !important;
+}
+
+.app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen.is-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen .chart-y-axis {
+  position: sticky !important;
+  left: 18px !important;
+  z-index: 6 !important;
+  pointer-events: none !important;
+}
+
+.app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen .revenue-line-stage {
+  width: max(100%, 1180px) !important;
+  min-width: 1180px !important;
+  height: 650px !important;
+  min-height: 650px !important;
+}
+
+.app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen .chart-tooltip {
+  z-index: 30 !important;
+  transform: translate(-50%, -112%) !important;
+  white-space: nowrap !important;
+}
+
+.app-shell .chart-card-fullscreen .revenue-chart-labels {
+  bottom: -42px !important;
+}
+
+.app-shell .chart-card-fullscreen .chart-average-guide span {
+  max-width: 220px !important;
+}
+
+@media (max-width: 760px) {
+  .app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen {
+    height: calc(100vh - 220px) !important;
+    max-height: calc(100vh - 220px) !important;
+    padding: 28px 32px 96px 72px !important;
+  }
+
+  .app-shell .chart-card-fullscreen .revenue-chart-wrap.is-fullscreen .revenue-line-stage {
+    min-width: 980px !important;
+    width: 980px !important;
+    height: 580px !important;
+    min-height: 580px !important;
+  }
+}

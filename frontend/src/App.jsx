@@ -8273,6 +8273,9 @@ function DirectorDashboardPage({ token }) {
 	const [dateRange, setDateRange] = useState({ from: '', to: '' })
 	const [hoveredPoint, setHoveredPoint] = useState(null)
 	const [isRevenueFullscreen, setIsRevenueFullscreen] = useState(false)
+	const [isChartDragging, setIsChartDragging] = useState(false)
+	const revenueChartWrapRef = useRef(null)
+	const chartDragRef = useRef(null)
 	useEffect(() => {
 		setError('')
 		api
@@ -8280,6 +8283,50 @@ function DirectorDashboardPage({ token }) {
 			.then(setData)
 			.catch(error => setError(error.message || "Analitika olinmadi"))
 	}, [token])
+
+	function updateRevenueTooltip(event, point) {
+		const stage = event.currentTarget.closest('.revenue-line-stage')
+		if (!stage) return
+		const rect = event.currentTarget.getBoundingClientRect()
+		const stageRect = stage.getBoundingClientRect()
+		const rawLeft = rect.left - stageRect.left + rect.width / 2
+		const rawTop = rect.top - stageRect.top - 12
+		setHoveredPoint({
+			label: point.label,
+			value: point.value,
+			left: Math.max(96, Math.min(stageRect.width - 96, rawLeft)),
+			top: Math.max(62, Math.min(stageRect.height - 18, rawTop)),
+		})
+	}
+
+	function handleRevenueChartPointerDown(event) {
+		if (!isRevenueFullscreen || event.button !== 0) return
+		if (event.target.closest('button, input, select, textarea, a')) return
+		const target = event.currentTarget
+		chartDragRef.current = {
+			x: event.clientX,
+			y: event.clientY,
+			scrollLeft: target.scrollLeft,
+			scrollTop: target.scrollTop,
+		}
+		setIsChartDragging(true)
+		target.setPointerCapture?.(event.pointerId)
+	}
+
+	function handleRevenueChartPointerMove(event) {
+		const drag = chartDragRef.current
+		if (!drag) return
+		event.preventDefault()
+		event.currentTarget.scrollLeft = drag.scrollLeft - (event.clientX - drag.x)
+		event.currentTarget.scrollTop = drag.scrollTop - (event.clientY - drag.y)
+	}
+
+	function stopRevenueChartDrag(event) {
+		if (!chartDragRef.current) return
+		chartDragRef.current = null
+		setIsChartDragging(false)
+		event.currentTarget.releasePointerCapture?.(event.pointerId)
+	}
 
 	if (error) return <div className='card'>{error}</div>
 	if (!data) return <div className='card'>Analitika yuklanmoqda...</div>
@@ -8570,7 +8617,15 @@ function DirectorDashboardPage({ token }) {
 				</div>
 
 				<div
-					className={isRevenueFullscreen ? 'revenue-chart-wrap is-fullscreen' : 'revenue-chart-wrap'}
+					ref={revenueChartWrapRef}
+					className={[
+						isRevenueFullscreen ? 'revenue-chart-wrap is-fullscreen' : 'revenue-chart-wrap',
+						isChartDragging ? 'is-dragging' : '',
+					].join(' ').trim()}
+					onPointerDown={handleRevenueChartPointerDown}
+					onPointerMove={handleRevenueChartPointerMove}
+					onPointerUp={stopRevenueChartDrag}
+					onPointerCancel={stopRevenueChartDrag}
 					style={{
 						minHeight: isRevenueFullscreen ? '600px' : '420px',
 						height: isRevenueFullscreen ? 'calc(100vh - 300px)' : '420px',
@@ -8694,25 +8749,11 @@ function DirectorDashboardPage({ token }) {
 										className='revenue-line-hotspot'
 										style={{ left: `${point.x}%`, top: `${point.y}%` }}
 										onMouseEnter={event => {
-										const rect = event.currentTarget.getBoundingClientRect()
-										const parentRect = event.currentTarget.closest('.revenue-line-stage').getBoundingClientRect()
-										setHoveredPoint({
-											label: point.label,
-											value: point.value,
-											left: rect.left - parentRect.left + rect.width / 2,
-											top: rect.top - parentRect.top - 12,
-										})
-									}}
+											updateRevenueTooltip(event, point)
+										}}
 										onMouseLeave={() => setHoveredPoint(null)}
 										onFocus={event => {
-											const rect = event.currentTarget.getBoundingClientRect()
-											const parentRect = event.currentTarget.closest('.revenue-line-stage').getBoundingClientRect()
-											setHoveredPoint({
-												label: point.label,
-												value: point.value,
-												left: rect.left - parentRect.left + rect.width / 2,
-												top: rect.top - parentRect.top - 12,
-											})
+											updateRevenueTooltip(event, point)
 										}}
 										onBlur={() => setHoveredPoint(null)}
 										aria-label={`${point.label}: ${formatMoney(point.value)}`}
