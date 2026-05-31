@@ -8264,7 +8264,7 @@ function DirectorDashboardPage({ token }) {
 			y: Math.max(18, Math.min(84, y)),
 			label: formatTrendTooltipLabel(item.label || item.period),
 			value,
-			radius: value === peakRevenue && value > 0 ? 5.6 : 4.1,
+			radius: value === peakRevenue && value > 0 ? 4.4 : 3.4,
 		}
 	})
 	const chartRangeCaption = formatDateRangeCaption(dateRange.from, dateRange.to)
@@ -8461,8 +8461,8 @@ function DirectorDashboardPage({ token }) {
 				<div
 					className={isRevenueFullscreen ? 'revenue-chart-wrap is-fullscreen' : 'revenue-chart-wrap'}
 					style={{
-						minHeight: isRevenueFullscreen ? '620px' : '460px',
-						height: isRevenueFullscreen ? 'calc(100vh - 290px)' : '460px',
+						minHeight: isRevenueFullscreen ? '600px' : '420px',
+						height: isRevenueFullscreen ? 'calc(100vh - 300px)' : '420px',
 					}}
 				>
 					<div className='chart-y-axis'>
@@ -8474,8 +8474,8 @@ function DirectorDashboardPage({ token }) {
 						className='revenue-line-stage'
 						style={{
 							position: 'relative',
-							height: isRevenueFullscreen ? 'calc(100vh - 405px)' : '340px',
-							minHeight: isRevenueFullscreen ? '430px' : '340px',
+							height: isRevenueFullscreen ? 'calc(100vh - 420px)' : '306px',
+							minHeight: isRevenueFullscreen ? '410px' : '306px',
 							width: '100%',
 						}}
 					>
@@ -8538,7 +8538,7 @@ function DirectorDashboardPage({ token }) {
 									vectorEffect='non-scaling-stroke'
 									fill='none'
 									stroke='url(#revenueLineGradient)'
-									strokeWidth='5'
+									strokeWidth='3'
 									strokeLinecap='round'
 									strokeLinejoin='round'
 								/>
@@ -8569,7 +8569,7 @@ function DirectorDashboardPage({ token }) {
 										height: 5,
 										background: '#2563eb',
 										borderRadius: 999,
-										boxShadow: '0 10px 22px rgba(37, 99, 235, 0.24)',
+										boxShadow: 'none',
 										transform: 'translateY(-50%)',
 										zIndex: 3,
 									}}
