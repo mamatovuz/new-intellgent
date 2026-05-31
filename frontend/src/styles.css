@@ -2529,13 +2529,13 @@ tbody tr:hover {
   width: 100%;
   min-height: 14px;
   border-radius: 999px 999px 8px 8px;
-  background: linear-gradient(180deg, #5184ff 0%, #133385 100%);
-  box-shadow: 0 12px 18px rgba(19, 51, 133, 0.16);
+  background: #2f65d9;
+  box-shadow: 0 8px 14px rgba(47, 101, 217, 0.12);
 }
 
 .mini-trend-chart.tone-green .mini-trend-fill {
-  background: linear-gradient(180deg, #42c17f 0%, #14804a 100%);
-  box-shadow: 0 12px 18px rgba(20, 128, 74, 0.14);
+  background: #22c55e;
+  box-shadow: 0 8px 14px rgba(34, 197, 94, 0.1);
 }
 
 .mini-trend-value {
@@ -18139,5 +18139,104 @@ body.theme-dark .loading-screen {
 
   .app-shell .contact-request-actions {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* Final mobile topbar repair: keep header compact instead of stacked. */
+@media (max-width: 760px) {
+  .app-shell .page-topbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    min-height: 60px !important;
+    overflow: visible !important;
+  }
+
+  .app-shell .hamburger-btn {
+    order: 0 !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+  }
+
+  .app-shell .search-box {
+    order: 1 !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+  }
+
+  .app-shell .search-box input {
+    min-width: 0 !important;
+    font-size: 12px !important;
+  }
+
+  .app-shell .topbar-user,
+  .app-shell.theme-dark .topbar-user {
+    order: 2 !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    margin-left: 0 !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+  }
+
+  .app-shell .topbar-icon,
+  .app-shell.theme-dark .topbar-icon,
+  .app-shell .theme-toggle-btn,
+  .app-shell.theme-dark .theme-toggle-btn,
+  .app-shell .user-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 12px !important;
+  }
+
+  .app-shell .theme-toggle-btn,
+  .app-shell.theme-dark .theme-toggle-btn {
+    padding: 0 !important;
+  }
+
+  .app-shell .theme-toggle-label,
+  .app-shell .user-meta {
+    display: none !important;
+  }
+
+  .app-shell .topbar-icon-badge {
+    top: -6px !important;
+    right: -5px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-shell .page-topbar {
+    gap: 6px !important;
+    padding-inline: 8px !important;
+  }
+
+  .app-shell .hamburger-btn,
+  .app-shell .topbar-icon,
+  .app-shell.theme-dark .topbar-icon,
+  .app-shell .theme-toggle-btn,
+  .app-shell.theme-dark .theme-toggle-btn,
+  .app-shell .user-avatar {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+  }
+
+  .app-shell .search-box {
+    height: 36px !important;
+  }
+
+  .app-shell .search-box input {
+    font-size: 11px !important;
   }
 }
