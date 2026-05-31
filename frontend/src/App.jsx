@@ -15,6 +15,30 @@ import Swal from 'sweetalert2'
 import { api, resolveAssetUrl } from './api'
 
 const LANGUAGE_STORAGE_KEY = 'ilmnest-language'
+const APP_BUILD_ID = 'panel-counts-2026-05-31-v4'
+
+function useBuildRefreshGuard() {
+	useEffect(() => {
+		if (typeof window === 'undefined') return
+
+		window.__ILMNEST_BUILD_ID__ = APP_BUILD_ID
+		const key = 'ilmnest-active-build'
+		const currentBuild = window.localStorage.getItem(key)
+		const url = new URL(window.location.href)
+
+		if (currentBuild !== APP_BUILD_ID) {
+			window.localStorage.setItem(key, APP_BUILD_ID)
+			url.searchParams.set('_build', APP_BUILD_ID)
+			window.location.replace(url.toString())
+			return
+		}
+
+		if (url.searchParams.get('_build')) {
+			url.searchParams.delete('_build')
+			window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+		}
+	}, [])
+}
 
 const LANGUAGE_OPTIONS = [
 	{ value: 'uz', label: "O'zbek", short: 'UZ' },
@@ -9124,6 +9148,7 @@ function ProtectedApp({ auth, meta, onLogout, onProfileUpdated }) {
 }
 
 function AppInner() {
+	useBuildRefreshGuard()
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [auth, setAuth] = useState(() => {
