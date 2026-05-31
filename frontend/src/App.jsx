@@ -3716,7 +3716,6 @@ function DevelopersPage() {
 							<div className='developer-card-copy'>
 								<div className='developer-card-top'>
 									<h3>{developer.fullName}</h3>
-									<span>{developer.age ? `${developer.age} yosh` : ''}</span>
 								</div>
 								<strong>{developer.roleTitle}</strong>
 								<p>{developer.shortBio}</p>
