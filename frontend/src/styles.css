@@ -16497,3 +16497,332 @@ html[dir="rtl"] .material-symbols-outlined {
     padding: 18px !important;
   }
 }
+
+/* Calm premium correction: lighter, quieter, and easier on the eyes. */
+.app-shell {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --border: #e0e7f1;
+  --border-soft: #edf1f7;
+  --text: #10233f;
+  --muted: #6b778b;
+  --navy: #12326a;
+  --blue: #2f65d9;
+  --premium-shadow: 0 10px 24px rgba(16, 35, 63, .045);
+  --premium-shadow-sm: 0 4px 12px rgba(16, 35, 63, .035);
+  background: #f5f7fb !important;
+}
+
+.app-shell .page-shell,
+.app-shell .page-content {
+  background: #f5f7fb !important;
+}
+
+.app-shell .page-content {
+  padding: 24px 28px 32px !important;
+}
+
+.app-shell .sidebar {
+  background: #ffffff !important;
+  border-right-color: #e2e8f2 !important;
+  box-shadow: 4px 0 18px rgba(16, 35, 63, .025) !important;
+}
+
+.app-shell .brand-logo,
+.app-shell .topbar-user,
+.app-shell .topbar-icon,
+.app-shell .language-selector {
+  box-shadow: 0 4px 12px rgba(16, 35, 63, .035) !important;
+}
+
+.app-shell .sidebar-link,
+.app-shell .sidebar-logout {
+  border-radius: 11px !important;
+  color: #526174 !important;
+}
+
+.app-shell .sidebar-link:hover,
+.app-shell .sidebar-logout:hover {
+  background: #f7f9fc !important;
+  border-color: transparent !important;
+}
+
+.app-shell .sidebar-link.active {
+  background: #f0f5ff !important;
+  border-color: #d9e5f7 !important;
+  box-shadow: none !important;
+}
+
+.app-shell .page-topbar {
+  background: rgba(255, 255, 255, .96) !important;
+  border-bottom-color: #e1e8f2 !important;
+  box-shadow: 0 4px 18px rgba(16, 35, 63, .035) !important;
+}
+
+.app-shell .toolbar-card,
+.app-shell .card,
+.app-shell .kpi-card,
+.app-shell .quick-payments,
+.app-shell .next-lesson-card,
+.app-shell .teacher-header,
+.app-shell .attendance-card,
+.app-shell .analytics-panel,
+.app-shell .chart-card,
+.app-shell .table-shell,
+.app-shell .student-overview-card,
+.app-shell .student-summary-grid > *,
+.app-shell .student-grid > *,
+.app-shell .payment-table-card,
+.app-shell .attendance-calendar-card,
+.app-shell .student-receipt-card,
+.app-shell .student-notification-item,
+.app-shell .complaint-card-item,
+.app-shell .payment-flow-card,
+.app-shell .payment-workspace-card,
+.app-shell .payment-student-card,
+.app-shell .payment-editor-card,
+.app-shell .payment-picker-shell,
+.app-shell .payment-picker-row,
+.app-shell .attendance-hub-card,
+.app-shell .attendance-group-card,
+.app-shell .attendance-student-row,
+.app-shell .contact-requests-panel,
+.app-shell .contact-request-card,
+.app-shell .import-summary-card,
+.app-shell .language-setting-card,
+.app-shell .group-card,
+.app-shell .mini-stat-card,
+.app-shell .metric-chip-card,
+.app-shell .summary-mini,
+.app-shell .revenue-insight-card,
+.app-shell .today-lesson-item,
+.app-shell .course-summary-grid > div,
+.app-shell .attendance-calendar-day {
+  background: #ffffff !important;
+  border-color: #e0e7f1 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 20px rgba(16, 35, 63, .04) !important;
+}
+
+.app-shell .toolbar-card,
+.app-shell .card,
+.app-shell .quick-payments,
+.app-shell .payment-flow-card,
+.app-shell .payment-workspace-card,
+.app-shell .attendance-hub-card,
+.app-shell .analytics-panel,
+.app-shell .chart-card,
+.app-shell .settings-card {
+  padding: 20px !important;
+}
+
+.app-shell .card:hover,
+.app-shell .kpi-card:hover,
+.app-shell .attendance-group-card:hover,
+.app-shell .payment-student-card:hover,
+.app-shell .payment-picker-row:hover,
+.app-shell .contact-request-card:hover,
+.app-shell .group-card:hover,
+.app-shell .student-receipt-card:hover {
+  transform: none !important;
+  border-color: #ccd8e8 !important;
+  box-shadow: 0 10px 24px rgba(16, 35, 63, .055) !important;
+}
+
+.app-shell .kpi-card::before,
+.app-shell .metric-chip-card::before,
+.app-shell .group-card::before,
+.app-shell .revenue-insight-card::before {
+  display: none !important;
+}
+
+.app-shell .kpi-card {
+  min-height: 124px !important;
+  padding: 18px !important;
+}
+
+.app-shell .kpi-card strong {
+  color: #10233f !important;
+  font-size: clamp(25px, 2.05vw, 32px) !important;
+  font-weight: 850 !important;
+}
+
+.app-shell .kpi-card p,
+.app-shell .page-intro p,
+.app-shell .card-head-row p,
+.app-shell .teacher-header p,
+.app-shell .student-identity span,
+.app-shell .contact-cell span,
+.app-shell .course-cell span {
+  color: #6b778b !important;
+}
+
+.app-shell .kpi-icon,
+.app-shell .mini-stat-icon,
+.app-shell .group-card-icon,
+.app-shell .student-notification-icon,
+.app-shell .contact-request-avatar,
+.app-shell .course-icon,
+.app-shell .avatar-badge {
+  width: 40px !important;
+  height: 40px !important;
+  background: #f0f5ff !important;
+  border-color: #dde8f8 !important;
+  border-radius: 12px !important;
+  color: #12326a !important;
+  box-shadow: none !important;
+}
+
+.app-shell .action-btn,
+.app-shell .login-submit,
+.app-shell .action-btn.link-btn {
+  min-height: 40px !important;
+  background: #12326a !important;
+  border-color: #12326a !important;
+  border-radius: 11px !important;
+  box-shadow: 0 8px 18px rgba(18, 50, 106, .12) !important;
+}
+
+.app-shell .action-btn:hover,
+.app-shell .login-submit:hover,
+.app-shell .action-btn.link-btn:hover {
+  background: #0f2a59 !important;
+  border-color: #0f2a59 !important;
+  transform: none !important;
+  box-shadow: 0 10px 22px rgba(18, 50, 106, .15) !important;
+}
+
+.app-shell .action-btn.secondary,
+.app-shell .ghost-outline,
+.app-shell .sort-btn,
+.app-shell .page-btn,
+.app-shell .mini-pill,
+.app-shell .square-btn,
+.app-shell .close-btn,
+.app-shell .link-btn:not(.action-btn),
+.app-shell .table-actions button,
+.app-shell .chart-fullscreen-btn {
+  background: #ffffff !important;
+  border-color: #dde6f2 !important;
+  border-radius: 11px !important;
+  box-shadow: 0 3px 8px rgba(16, 35, 63, .025) !important;
+}
+
+.app-shell .search-box,
+.app-shell .toolbar-search,
+.app-shell .payment-inline-search,
+.app-shell .modal-form input,
+.app-shell .modal-form select,
+.app-shell .modal-form textarea,
+.app-shell .settings-card input,
+.app-shell .settings-card select,
+.app-shell .settings-card textarea,
+.app-shell .attendance-hub-controls select,
+.app-shell .attendance-hub-controls input,
+.app-shell .payment-editor-card input,
+.app-shell .payment-editor-card select,
+.app-shell .payment-editor-card textarea,
+.app-shell .chart-filter-row input {
+  background: #ffffff !important;
+  border-color: #dfe7f2 !important;
+  box-shadow: none !important;
+}
+
+.app-shell .table-shell {
+  box-shadow: 0 6px 16px rgba(16, 35, 63, .035) !important;
+}
+
+.app-shell table thead th {
+  background: #f7f9fc !important;
+  color: #64748b !important;
+}
+
+.app-shell table tbody tr:hover {
+  background: #fafcff !important;
+}
+
+.app-shell .badge,
+.app-shell .chip,
+.app-shell .money-chip {
+  box-shadow: none !important;
+}
+
+.app-shell .student-overview-balance {
+  background: #12326a !important;
+  border-color: #1f4381 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(18, 50, 106, .12) !important;
+}
+
+.app-shell .payment-student-card.active,
+.app-shell .attendance-group-card.selected,
+.app-shell .payment-picker-row.active {
+  background: #f2f7ff !important;
+  border-color: #b9cbed !important;
+  box-shadow: inset 3px 0 0 #12326a, 0 8px 18px rgba(18, 50, 106, .06) !important;
+}
+
+.app-shell .modal-card,
+.app-shell .notifications-popover {
+  border-radius: 18px !important;
+  box-shadow: 0 22px 54px rgba(16, 35, 63, .18) !important;
+}
+
+.app-shell .revenue-chart-section {
+  padding: 22px !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 20px rgba(16, 35, 63, .04) !important;
+}
+
+.app-shell .revenue-chart-section .chart-card-head {
+  border-bottom-color: #edf1f7 !important;
+}
+
+.app-shell .segmented-switch {
+  background: #f3f6fa !important;
+  border-radius: 12px !important;
+  padding: 4px !important;
+  box-shadow: none !important;
+}
+
+.app-shell .segmented-switch button.active {
+  box-shadow: 0 4px 10px rgba(16, 35, 63, .05) !important;
+}
+
+.app-shell .revenue-chart-wrap {
+  height: 360px !important;
+  min-height: 360px !important;
+  border-radius: 16px !important;
+  border-color: #e0e7f1 !important;
+  box-shadow: 0 4px 12px rgba(16, 35, 63, .025) !important;
+}
+
+.app-shell .chart-grid-lines span,
+.app-shell .trend-line-guides span {
+  border-top-color: #e8eef6 !important;
+}
+
+.app-shell .revenue-line-canvas polyline {
+  stroke: #2f65d9 !important;
+  stroke-width: 2.6 !important;
+}
+
+.app-shell .revenue-line-canvas circle {
+  stroke: #2f65d9 !important;
+  stroke-width: 2 !important;
+}
+
+.app-shell .revenue-line-canvas polygon {
+  fill: rgba(47, 101, 217, .055) !important;
+}
+
+.app-shell .chart-tooltip {
+  box-shadow: 0 14px 28px rgba(16, 35, 63, .18) !important;
+}
+
+.app-shell .chart-card-fullscreen {
+  inset: 18px !important;
+  border-radius: 20px !important;
+  box-shadow: 0 26px 72px rgba(16, 35, 63, .22) !important;
+}
