@@ -4442,11 +4442,11 @@ function useReceptionData(token, query = {}) {
 
 	async function reload(next = query) {
 		const data = await api.getReceptionStudents(token, next)
-		setStudents(data)
+		setStudents(Array.isArray(data) ? data : [])
 	}
 
 	useEffect(() => {
-		reload({ search, status, includeArchived })
+		reload({ search, status, includeArchived }).catch(() => setStudents([]))
 	}, [token, search, status, includeArchived])
 
 	return { students, reload, setStudents }
@@ -5711,6 +5711,7 @@ function ReceptionStudentsPage({ token, meta }) {
 			return statusMatches && searchMatches
 		})
 	}, [students, search, status])
+	const visibleStudentCount = Math.max(studentBaseCount, displayedStudents.length)
 
 	useEffect(() => {
 		const searchFromUrl = searchParams.get('search') || ''
@@ -5902,7 +5903,7 @@ function ReceptionStudentsPage({ token, meta }) {
 						<span className='card-label'>Ro'yxat</span>
 						<h3>O'quvchilar bazasi</h3>
 					</div>
-					<Badge tone='default'>{studentBaseCount} ta</Badge>
+					<Badge tone='default'>{visibleStudentCount} ta</Badge>
 				</div>
 				{displayedStudents.length ? (
 					<div className='table-shell responsive-cards'>
@@ -6061,7 +6062,8 @@ function ReceptionDashboardPage({ token }) {
 	const navigate = useNavigate()
 
 	const visibleStudents = useMemo(
-		() => students.filter(student => !student.isArchived && student.status !== 'archived'),
+		() => (Array.isArray(students) ? students : [])
+			.filter(student => !student.isArchived && student.status !== 'archived'),
 		[students],
 	)
 	const active = visibleStudents.filter(student => student.status === 'active').length
@@ -6121,11 +6123,26 @@ function ReceptionDashboardPage({ token }) {
 	)
 
 	useEffect(() => {
-		api
-			.getReceptionStudents(token, { search: '', status: '', includeArchived: false })
-			.then(setStudents)
-			.catch(() => setStudents([]))
+		let cancelled = false
+		async function loadStudents() {
+			try {
+				const primary = await api.getReceptionStudents(token, { search: '', status: '', includeArchived: false })
+				if (cancelled) return
+				if (Array.isArray(primary) && primary.length) {
+					setStudents(primary)
+					return
+				}
+				const fallback = await api.getReceptionStudents(token, { search: '', status: '', includeArchived: true })
+				if (!cancelled) setStudents(Array.isArray(fallback) ? fallback : [])
+			} catch {
+				if (!cancelled) setStudents([])
+			}
+		}
+		loadStudents()
 		api.getReceptionContactRequests(token).then(setContactRequests).catch(() => setContactRequests([]))
+		return () => {
+			cancelled = true
+		}
 	}, [token])
 
 	return (
@@ -7073,17 +7090,18 @@ function useTeacherStudents(token) {
 	const [students, setStudents] = useState([])
 	const reload = async () => {
 		const data = await api.getTeacherStudents(token)
-		setStudents(data)
+		setStudents(Array.isArray(data) ? data : [])
 	}
 	useEffect(() => {
-		reload()
+		reload().catch(() => setStudents([]))
 	}, [token])
 	return { students, reload }
 }
 
 function TeacherAttendancePage({ token }) {
 	const { students, reload } = useTeacherStudents(token)
-	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
+	const teacherStudents = Array.isArray(students) ? students : []
+	const groups = useMemo(() => groupStudentsForAttendance(teacherStudents), [teacherStudents])
 	const [selectedGroup, setSelectedGroup] = useState('')
 	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
 	const [history, setHistory] = useState([])
@@ -7097,7 +7115,7 @@ function TeacherAttendancePage({ token }) {
 
 	useEffect(() => {
 		api.getTeacherAttendanceHistory(token, 'day', lessonDate).then(setHistory)
-	}, [token, lessonDate, reload])
+	}, [token, lessonDate])
 
 	const historyMap = useMemo(() => {
 		const next = {}
@@ -7110,7 +7128,9 @@ function TeacherAttendancePage({ token }) {
 	const currentGroup = groups.find(group => group.key === effectiveSelectedGroup) ||
 		groups[0] || { members: [], label: '' }
 	const currentMembers = Array.isArray(currentGroup.members) ? currentGroup.members : []
-	const attendanceMembers = currentMembers.length ? currentMembers : students
+	const attendanceMembers = currentMembers.length
+		? currentMembers
+		: (groups[0]?.members?.length ? groups[0].members : teacherStudents)
 	const currentSchedule =
 		attendanceMembers[0]?.schedule || 'Jadval kiritilmagan'
 	const currentGroupAttendancePercent = attendanceMembers.length
@@ -7221,9 +7241,10 @@ function TeacherAttendancePage({ token }) {
 
 function TeacherGroupsPage({ token }) {
 	const { students } = useTeacherStudents(token)
+	const teacherStudents = Array.isArray(students) ? students : []
 	const groups = useMemo(() => {
 		const map = new Map()
-		students.forEach(student => {
+		teacherStudents.forEach(student => {
 			const key = student.courseTitle || "Noma'lum guruh"
 			if (!map.has(key)) map.set(key, [])
 			map.get(key).push(student)
@@ -7232,7 +7253,7 @@ function TeacherGroupsPage({ token }) {
 			name,
 			members,
 		}))
-	}, [students])
+	}, [teacherStudents])
 
 	return (
 		<>
@@ -7282,14 +7303,27 @@ function TeacherGroupsPage({ token }) {
 function TeacherDashboardPage({ token }) {
 	const { students } = useTeacherStudents(token)
 	const [history, setHistory] = useState([])
-	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
-	const groupsCount = groups.length
-	const averageAttendance = students.length
-		? Math.round(
-				students.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) /
-					students.length,
-			)
+	const teacherStudents = Array.isArray(students) ? students : []
+	const groups = useMemo(() => groupStudentsForAttendance(teacherStudents), [teacherStudents])
+	const historyStudentCount = useMemo(
+		() => new Set(history.map(item => item.studentId || item.studentName).filter(Boolean)).size,
+		[history],
+	)
+	const historyGroupsCount = useMemo(
+		() => new Set(history.map(item => item.courseTitle).filter(Boolean)).size,
+		[history],
+	)
+	const studentsCount = Math.max(teacherStudents.length, historyStudentCount)
+	const groupsCount = Math.max(groups.length, historyGroupsCount)
+	const historyAttendanceAverage = history.length
+		? Math.round((history.filter(item => item.status === 'present').length / history.length) * 100)
 		: 0
+	const averageAttendance = teacherStudents.length
+		? Math.round(
+				teacherStudents.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) /
+					teacherStudents.length,
+			)
+		: historyAttendanceAverage
 	const dayKeyMap = ['yak', 'du', 'se', 'chor', 'pay', 'juma', 'shan']
 	const todayKey = dayKeyMap[new Date().getDay()]
 	const todayLessonsCount = groups.filter(group =>
@@ -7322,7 +7356,7 @@ function TeacherDashboardPage({ token }) {
 			<div className='three-column-grid'>
 				<StatCard
 					label='Studentlar'
-					value={`${students.length} ta`}
+					value={`${studentsCount} ta`}
 					note={`${groupsCount} ta guruh`}
 					icon='group'
 				/>
@@ -7361,6 +7395,7 @@ function TeacherDashboardPage({ token }) {
 function TeacherStatisticsPage({ token }) {
 	const { students } = useTeacherStudents(token)
 	const [history, setHistory] = useState([])
+	const teacherStudents = Array.isArray(students) ? students : []
 
 	useEffect(() => {
 		api.getTeacherAttendanceHistory(token, 'month').then(setHistory)
@@ -7373,7 +7408,7 @@ function TeacherStatisticsPage({ token }) {
 				subtitle='Davomat va guruh samaradorligi'
 			/>
 			<section className='card table-card'>
-				{students.length ? (
+				{teacherStudents.length ? (
 					<div className='table-shell responsive-cards'>
 						<table>
 							<thead>
@@ -7384,7 +7419,7 @@ function TeacherStatisticsPage({ token }) {
 								</tr>
 							</thead>
 							<tbody>
-								{students.map(student => (
+								{teacherStudents.map(student => (
 									<tr key={student.id}>
 										<td data-label='Student'>{student.fullName}</td>
 										<td data-label='Kurs'>{student.courseTitle}</td>
