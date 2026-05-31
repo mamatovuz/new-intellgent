@@ -18004,6 +18004,52 @@ body.theme-dark .loading-screen {
   align-content: center !important;
 }
 
+.app-shell .teacher-stats .next-lesson-card {
+  min-height: 112px !important;
+  display: grid !important;
+  align-content: center !important;
+  gap: 8px !important;
+  padding: 18px 22px !important;
+  background: #ffffff !important;
+  color: #10233f !important;
+}
+
+.app-shell .teacher-stats .next-lesson-card span {
+  color: #6b778b !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+}
+
+.app-shell .teacher-stats .next-lesson-card strong {
+  margin: 0 !important;
+  color: #10233f !important;
+  font-size: 20px !important;
+  font-weight: 850 !important;
+  line-height: 1.25 !important;
+}
+
+.app-shell .teacher-stats .next-lesson-card p {
+  margin: 0 !important;
+  color: #6b778b !important;
+  font-size: 14px !important;
+}
+
+.app-shell.theme-dark .teacher-stats .next-lesson-card {
+  background: #172033 !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .teacher-stats .next-lesson-card span,
+.app-shell.theme-dark .teacher-stats .next-lesson-card p {
+  color: #9aa8bb !important;
+}
+
+.app-shell.theme-dark .teacher-stats .next-lesson-card strong {
+  color: #e8eef8 !important;
+}
+
 .app-shell .trend-line-plot {
   min-height: 190px !important;
 }
