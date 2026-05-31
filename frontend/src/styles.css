@@ -16064,3 +16064,436 @@ html[dir="rtl"] .material-symbols-outlined {
     width: 100% !important;
   }
 }
+
+/* Premium no-gradient dashboard skin. */
+.app-shell,
+.app-shell *,
+.app-shell *::before,
+.app-shell *::after {
+  background-image: none !important;
+}
+
+.app-shell {
+  --bg: #eef3f8;
+  --surface: #ffffff;
+  --surface-soft: #f7f9fc;
+  --border: #d8e2ef;
+  --border-soft: #e8eef6;
+  --text: #0b1f3a;
+  --muted: #637188;
+  --navy: #0b2d66;
+  --blue: #1e5bd7;
+  --teal: #0f766e;
+  --premium-shadow: 0 18px 44px rgba(15, 31, 58, .08);
+  --premium-shadow-sm: 0 10px 24px rgba(15, 31, 58, .06);
+  --premium-ring: inset 0 1px 0 rgba(255, 255, 255, .86);
+  background: #eef3f8 !important;
+}
+
+.app-shell .page-shell,
+.app-shell .page-content {
+  background: #eef3f8 !important;
+}
+
+.app-shell .page-content {
+  padding: 26px 30px 34px !important;
+}
+
+.app-shell .sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid #d7e1ef !important;
+  box-shadow: 8px 0 32px rgba(15, 31, 58, .05) !important;
+}
+
+.app-shell .sidebar-brand {
+  padding: 8px 10px 20px !important;
+  border-bottom: 1px solid #e6edf6 !important;
+}
+
+.app-shell .brand-logo {
+  border-radius: 15px !important;
+  border-color: #d7e1ef !important;
+  box-shadow: 0 12px 26px rgba(11, 45, 102, .12) !important;
+}
+
+.app-shell .sidebar-link,
+.app-shell .sidebar-logout {
+  height: 46px !important;
+  border: 1px solid transparent !important;
+  border-radius: 13px !important;
+  color: #526176 !important;
+  font-weight: 720 !important;
+}
+
+.app-shell .sidebar-link:hover,
+.app-shell .sidebar-logout:hover {
+  background: #f5f8fc !important;
+  border-color: #e4ebf5 !important;
+  color: var(--navy) !important;
+}
+
+.app-shell .sidebar-link.active {
+  background: #eef4ff !important;
+  border-color: #c9d9f2 !important;
+  color: var(--navy) !important;
+  box-shadow: 0 10px 22px rgba(30, 91, 215, .08) !important;
+}
+
+.app-shell .page-topbar {
+  background: rgba(255, 255, 255, .94) !important;
+  border-bottom: 1px solid #dce5f1 !important;
+  box-shadow: 0 10px 30px rgba(15, 31, 58, .05) !important;
+}
+
+.app-shell .search-box,
+.app-shell .toolbar-search,
+.app-shell .payment-inline-search {
+  min-height: 44px !important;
+  background: #f8fafc !important;
+  border-color: #d8e2ef !important;
+  border-radius: 13px !important;
+  box-shadow: var(--premium-ring) !important;
+}
+
+.app-shell .topbar-user,
+.app-shell .topbar-icon,
+.app-shell .language-selector {
+  background: #ffffff !important;
+  border-color: #d8e2ef !important;
+  border-radius: 13px !important;
+  box-shadow: var(--premium-shadow-sm) !important;
+}
+
+.app-shell .toolbar-card,
+.app-shell .card,
+.app-shell .kpi-card,
+.app-shell .quick-payments,
+.app-shell .next-lesson-card,
+.app-shell .teacher-header,
+.app-shell .attendance-card,
+.app-shell .analytics-panel,
+.app-shell .chart-card,
+.app-shell .table-shell,
+.app-shell .student-overview-card,
+.app-shell .student-summary-grid > *,
+.app-shell .student-grid > *,
+.app-shell .payment-table-card,
+.app-shell .attendance-calendar-card,
+.app-shell .student-receipt-card,
+.app-shell .student-notification-item,
+.app-shell .complaint-card-item,
+.app-shell .payment-flow-card,
+.app-shell .payment-workspace-card,
+.app-shell .payment-student-card,
+.app-shell .payment-editor-card,
+.app-shell .payment-picker-shell,
+.app-shell .payment-picker-row,
+.app-shell .attendance-hub-card,
+.app-shell .attendance-group-card,
+.app-shell .attendance-student-row,
+.app-shell .contact-requests-panel,
+.app-shell .contact-request-card,
+.app-shell .import-summary-card,
+.app-shell .language-setting-card,
+.app-shell .group-card,
+.app-shell .mini-stat-card,
+.app-shell .metric-chip-card,
+.app-shell .summary-mini,
+.app-shell .revenue-insight-card,
+.app-shell .today-lesson-item,
+.app-shell .course-summary-grid > div,
+.app-shell .attendance-calendar-day {
+  background: #ffffff !important;
+  border: 1px solid #dbe4f0 !important;
+  border-radius: 18px !important;
+  box-shadow: var(--premium-shadow) !important;
+}
+
+.app-shell .toolbar-card,
+.app-shell .card,
+.app-shell .quick-payments,
+.app-shell .payment-flow-card,
+.app-shell .payment-workspace-card,
+.app-shell .attendance-hub-card,
+.app-shell .analytics-panel,
+.app-shell .chart-card,
+.app-shell .settings-card {
+  padding: 22px !important;
+}
+
+.app-shell .card:hover,
+.app-shell .kpi-card:hover,
+.app-shell .attendance-group-card:hover,
+.app-shell .payment-student-card:hover,
+.app-shell .payment-picker-row:hover,
+.app-shell .contact-request-card:hover,
+.app-shell .group-card:hover,
+.app-shell .student-receipt-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: #bfcfe5 !important;
+  box-shadow: 0 22px 50px rgba(15, 31, 58, .1) !important;
+}
+
+.app-shell .kpi-card,
+.app-shell .metric-chip-card,
+.app-shell .group-card,
+.app-shell .revenue-insight-card {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.app-shell .kpi-card::before,
+.app-shell .metric-chip-card::before,
+.app-shell .group-card::before,
+.app-shell .revenue-insight-card::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 18px !important;
+  bottom: 18px !important;
+  left: 0 !important;
+  width: 4px !important;
+  border-radius: 0 999px 999px 0 !important;
+  background: var(--blue) !important;
+}
+
+.app-shell .kpi-card.warning::before,
+.app-shell .metric-chip-card.warning::before {
+  background: #f59e0b !important;
+}
+
+.app-shell .kpi-card.danger::before,
+.app-shell .metric-chip-card.danger::before {
+  background: #ef4444 !important;
+}
+
+.app-shell .kpi-card.success::before,
+.app-shell .metric-chip-card.success::before,
+.app-shell .revenue-insight-card.positive::before {
+  background: #10b981 !important;
+}
+
+.app-shell .kpi-card strong {
+  color: #08214a !important;
+  font-size: clamp(28px, 2.35vw, 36px) !important;
+  font-weight: 900 !important;
+}
+
+.app-shell .kpi-card p,
+.app-shell .page-intro p,
+.app-shell .card-head-row p,
+.app-shell .teacher-header p {
+  color: #65738a !important;
+  line-height: 1.65 !important;
+}
+
+.app-shell .kpi-icon,
+.app-shell .mini-stat-icon,
+.app-shell .group-card-icon,
+.app-shell .student-notification-icon,
+.app-shell .contact-request-avatar,
+.app-shell .course-icon,
+.app-shell .avatar-badge {
+  width: 42px !important;
+  height: 42px !important;
+  background: #edf4ff !important;
+  border: 1px solid #d4e2f6 !important;
+  border-radius: 14px !important;
+  color: var(--navy) !important;
+  box-shadow: 0 10px 20px rgba(30, 91, 215, .08) !important;
+}
+
+.app-shell .action-btn,
+.app-shell .login-submit,
+.app-shell .action-btn.link-btn {
+  min-height: 42px !important;
+  padding: 0 18px !important;
+  background: var(--navy) !important;
+  border-color: var(--navy) !important;
+  border-radius: 13px !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 26px rgba(11, 45, 102, .18) !important;
+}
+
+.app-shell .action-btn:hover,
+.app-shell .login-submit:hover,
+.app-shell .action-btn.link-btn:hover {
+  background: #082552 !important;
+  border-color: #082552 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 18px 34px rgba(11, 45, 102, .22) !important;
+}
+
+.app-shell .action-btn.secondary,
+.app-shell .ghost-outline,
+.app-shell .sort-btn,
+.app-shell .page-btn,
+.app-shell .mini-pill,
+.app-shell .square-btn,
+.app-shell .close-btn,
+.app-shell .link-btn:not(.action-btn),
+.app-shell .table-actions button,
+.app-shell .chart-fullscreen-btn {
+  background: #ffffff !important;
+  border-color: #d8e2ef !important;
+  color: var(--navy) !important;
+  border-radius: 13px !important;
+  box-shadow: 0 8px 18px rgba(15, 31, 58, .05) !important;
+}
+
+.app-shell .table-shell {
+  border-radius: 18px !important;
+}
+
+.app-shell table thead th {
+  background: #f5f8fc !important;
+  color: #5f6f86 !important;
+  font-size: 11px !important;
+  letter-spacing: .08em !important;
+}
+
+.app-shell table tbody tr:hover {
+  background: #f8fbff !important;
+}
+
+.app-shell .badge,
+.app-shell .chip,
+.app-shell .money-chip {
+  border: 1px solid rgba(216, 226, 239, .9) !important;
+  box-shadow: 0 6px 14px rgba(15, 31, 58, .04) !important;
+}
+
+.app-shell .chip.active,
+.app-shell .notification-filter-tabs button.active,
+.app-shell .crm-status-chip.active,
+.app-shell .import-filter-tabs button.active {
+  background: var(--navy) !important;
+  border-color: var(--navy) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgba(11, 45, 102, .16) !important;
+}
+
+.app-shell .student-overview-card,
+.app-shell .teacher-header {
+  border-color: #cad8ea !important;
+}
+
+.app-shell .student-overview-balance {
+  background: #0b2d66 !important;
+  border: 1px solid #173f84 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 38px rgba(11, 45, 102, .2) !important;
+}
+
+.app-shell .payment-editor-summary,
+.app-shell .payment-editor-stats div,
+.app-shell .attendance-hub-meta .metric-chip-card,
+.app-shell .import-preview,
+.app-shell .file-upload-field {
+  background: #f8fafc !important;
+  border-color: #dfe7f2 !important;
+  box-shadow: var(--premium-ring) !important;
+}
+
+.app-shell .payment-student-card.active,
+.app-shell .attendance-group-card.selected,
+.app-shell .payment-picker-row.active {
+  background: #edf4ff !important;
+  border-color: #abc3eb !important;
+  box-shadow: inset 4px 0 0 var(--navy), 0 16px 34px rgba(30, 91, 215, .1) !important;
+}
+
+.app-shell .modal-card,
+.app-shell .notifications-popover {
+  border-radius: 20px !important;
+  box-shadow: 0 28px 72px rgba(15, 31, 58, .24) !important;
+}
+
+.app-shell .revenue-chart-section {
+  padding: 26px !important;
+  border-radius: 22px !important;
+  box-shadow: var(--premium-shadow) !important;
+}
+
+.app-shell .revenue-chart-section .chart-card-head {
+  padding-bottom: 14px !important;
+  border-bottom: 1px solid #e6edf6 !important;
+}
+
+.app-shell .segmented-switch {
+  background: #eef3f8 !important;
+  border-radius: 14px !important;
+  padding: 5px !important;
+  box-shadow: inset 0 1px 2px rgba(15, 31, 58, .06) !important;
+}
+
+.app-shell .segmented-switch button {
+  min-height: 38px !important;
+  border-radius: 11px !important;
+}
+
+.app-shell .segmented-switch button.active {
+  background: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(15, 31, 58, .08) !important;
+}
+
+.app-shell .revenue-chart-wrap {
+  height: 380px !important;
+  min-height: 380px !important;
+  border-radius: 18px !important;
+  border-color: #d9e3f0 !important;
+  background: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 12px 28px rgba(15, 31, 58, .05) !important;
+}
+
+.app-shell .revenue-chart-wrap::before {
+  background: transparent !important;
+}
+
+.app-shell .chart-grid-lines span,
+.app-shell .trend-line-guides span {
+  border-top: 1px solid #e3eaf3 !important;
+}
+
+.app-shell .revenue-line-canvas polyline {
+  stroke: #1e5bd7 !important;
+  stroke-width: 3 !important;
+}
+
+.app-shell .revenue-line-canvas circle {
+  fill: #ffffff !important;
+  stroke: #1e5bd7 !important;
+  stroke-width: 2.5 !important;
+}
+
+.app-shell .revenue-line-canvas polygon {
+  fill: rgba(30, 91, 215, .08) !important;
+}
+
+.app-shell .chart-tooltip {
+  background: #0b1f3a !important;
+  box-shadow: 0 18px 34px rgba(15, 31, 58, .24) !important;
+}
+
+.app-shell .chart-card-fullscreen {
+  inset: 18px !important;
+  border-radius: 24px !important;
+  box-shadow: 0 34px 90px rgba(15, 31, 58, .28) !important;
+}
+
+@media (max-width: 760px) {
+  .app-shell .page-content {
+    padding: 18px 14px 26px !important;
+  }
+
+  .app-shell .toolbar-card,
+  .app-shell .card,
+  .app-shell .quick-payments,
+  .app-shell .payment-flow-card,
+  .app-shell .payment-workspace-card,
+  .app-shell .attendance-hub-card,
+  .app-shell .analytics-panel,
+  .app-shell .chart-card,
+  .app-shell .settings-card {
+    padding: 18px !important;
+  }
+}
