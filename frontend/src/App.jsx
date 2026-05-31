@@ -5692,6 +5692,7 @@ function ReceptionStudentsPage({ token, meta }) {
 	const [studentModal, setStudentModal] = useState(null)
 	const [historyModal, setHistoryModal] = useState(null)
 	const [studentSaving, setStudentSaving] = useState(false)
+	const studentBaseCount = Array.isArray(students) ? students.length : 0
 	const displayedStudents = useMemo(() => {
 		const query = search.trim().toLowerCase()
 		return students.filter(student => {
@@ -5901,7 +5902,7 @@ function ReceptionStudentsPage({ token, meta }) {
 						<span className='card-label'>Ro'yxat</span>
 						<h3>O'quvchilar bazasi</h3>
 					</div>
-					<Badge tone='default'>{displayedStudents.length} ta</Badge>
+					<Badge tone='default'>{studentBaseCount} ta</Badge>
 				</div>
 				{displayedStudents.length ? (
 					<div className='table-shell responsive-cards'>
