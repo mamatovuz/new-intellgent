@@ -17400,3 +17400,381 @@ body.theme-dark .loading-screen {
     min-width: 0;
   }
 }
+
+/* Dashboard layout QA pass: prevent cramped cards and keep both themes balanced. */
+.app-shell,
+.app-shell * {
+  box-sizing: border-box;
+}
+
+.app-shell .page-content > * {
+  min-width: 0;
+}
+
+.app-shell .toolbar-card,
+.app-shell .card,
+.app-shell .kpi-card,
+.app-shell .quick-payments,
+.app-shell .next-lesson-card,
+.app-shell .teacher-header,
+.app-shell .attendance-card,
+.app-shell .analytics-panel,
+.app-shell .chart-card,
+.app-shell .student-overview-card,
+.app-shell .payment-flow-card,
+.app-shell .payment-workspace-card,
+.app-shell .payment-student-card,
+.app-shell .payment-editor-card,
+.app-shell .attendance-hub-card,
+.app-shell .attendance-group-card,
+.app-shell .attendance-student-row,
+.app-shell .contact-request-card,
+.app-shell .settings-card,
+.app-shell .group-card,
+.app-shell .student-receipt-card {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.app-shell .page-intro,
+.app-shell .card-head-row,
+.app-shell .teacher-header,
+.app-shell .payment-workspace-head,
+.app-shell .attendance-hub-top,
+.app-shell .import-panel-top,
+.app-shell .notifications-head {
+  gap: 16px !important;
+}
+
+.app-shell .page-topbar {
+  display: grid !important;
+  grid-template-columns: auto minmax(220px, 1fr) auto !important;
+  gap: 14px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.app-shell .search-box {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app-shell .topbar-user {
+  min-width: 0 !important;
+  gap: 10px !important;
+}
+
+.app-shell .user-meta {
+  min-width: 0 !important;
+}
+
+.app-shell .user-meta strong,
+.app-shell .user-meta span,
+.app-shell .student-identity strong,
+.app-shell .student-identity span,
+.app-shell .course-cell strong,
+.app-shell .course-cell span,
+.app-shell .contact-cell strong,
+.app-shell .contact-cell span,
+.app-shell .contact-request-head strong,
+.app-shell .contact-request-head span,
+.app-shell .contact-request-meta strong,
+.app-shell .contact-request-message p {
+  overflow-wrap: anywhere !important;
+}
+
+.app-shell .table-shell {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+.app-shell .table-shell table {
+  min-width: 780px !important;
+}
+
+.app-shell .student-grid,
+.app-shell .student-summary-grid,
+.app-shell .teacher-stats,
+.app-shell .group-cards,
+.app-shell .analytics-panels,
+.app-shell .director-kpis,
+.app-shell .three-column-grid,
+.app-shell .attendance-group-grid,
+.app-shell .reception-quick-actions,
+.app-shell .import-summary-grid {
+  gap: 16px !important;
+}
+
+.app-shell .student-grid,
+.app-shell .teacher-stats,
+.app-shell .group-cards,
+.app-shell .analytics-panels {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important;
+}
+
+.app-shell .director-kpis,
+.app-shell .three-column-grid,
+.app-shell .import-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)) !important;
+}
+
+.app-shell .reception-quick-actions {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)) !important;
+}
+
+.app-shell .attendance-group-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)) !important;
+}
+
+.app-shell .payment-workspace-grid {
+  grid-template-columns: minmax(280px, .82fr) minmax(320px, 1.18fr) !important;
+  gap: 18px !important;
+  align-items: start !important;
+}
+
+.app-shell .payment-workspace-grid.single-column {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.app-shell .payment-student-list,
+.app-shell .payment-editor-card,
+.app-shell .payment-editor-summary,
+.app-shell .payment-editor-stats,
+.app-shell .payment-picker-list,
+.app-shell .attendance-student-list {
+  min-width: 0 !important;
+}
+
+.app-shell .payment-student-card,
+.app-shell .payment-picker-row {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.app-shell .payment-student-card-meta,
+.app-shell .payment-editor-stats {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)) !important;
+  gap: 10px !important;
+}
+
+.app-shell .payment-editor-actions,
+.app-shell .modal-actions,
+.app-shell .attendance-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.app-shell .attendance-student-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 14px !important;
+  align-items: center !important;
+}
+
+.app-shell .attendance-student-row-main,
+.app-shell .attendance-student-row-copy {
+  min-width: 0 !important;
+}
+
+.app-shell .contact-requests-panel {
+  display: grid !important;
+  gap: 18px !important;
+}
+
+.app-shell .contact-request-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+}
+
+.app-shell .contact-request-card {
+  display: grid !important;
+  align-content: start !important;
+  gap: 14px !important;
+  padding: 18px !important;
+}
+
+.app-shell .contact-request-card.new {
+  background: #fffaf2 !important;
+  border-color: #f1d39f !important;
+}
+
+.app-shell.theme-dark .contact-request-card.new {
+  background: #231c13 !important;
+  border-color: #5d4625 !important;
+}
+
+.app-shell .contact-request-head {
+  display: grid !important;
+  grid-template-columns: 46px minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.app-shell .contact-request-head .badge {
+  justify-self: end !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+}
+
+.app-shell .contact-request-meta {
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.app-shell .contact-request-meta div,
+.app-shell .contact-request-message {
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+}
+
+.app-shell.theme-dark .contact-request-meta div,
+.app-shell.theme-dark .contact-request-message {
+  background: #111a2b !important;
+  border-color: #2c3a52 !important;
+}
+
+.app-shell .contact-request-actions {
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important;
+  gap: 10px !important;
+  justify-content: stretch !important;
+}
+
+.app-shell .contact-request-actions .page-btn {
+  width: 100% !important;
+  min-height: 38px !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.app-shell .crm-status-board {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 !important;
+}
+
+.app-shell .crm-status-chip {
+  min-width: 118px !important;
+  justify-content: space-between !important;
+}
+
+.app-shell .settings-card {
+  display: grid !important;
+  gap: 18px !important;
+}
+
+.app-shell .settings-card > .language-setting-card,
+.app-shell .settings-card .language-selector + .language-setting-card,
+.app-shell .language-setting-card {
+  margin: 0 !important;
+}
+
+.app-shell .language-setting-card {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto) !important;
+  gap: 14px !important;
+  align-items: center !important;
+}
+
+.app-shell .theme-segmented {
+  width: 100% !important;
+  max-width: 440px !important;
+  min-width: 0 !important;
+}
+
+.app-shell .field-grid {
+  gap: 14px !important;
+}
+
+.app-shell .field-grid > *,
+.app-shell .modal-form > *,
+.app-shell .import-panel,
+.app-shell .import-panel > *,
+.app-shell .import-preview,
+.app-shell .import-preview > * {
+  min-width: 0 !important;
+}
+
+.app-shell .notifications-popover {
+  max-width: min(420px, calc(100vw - 24px)) !important;
+}
+
+.app-shell .notifications-list {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.app-shell .notification-item {
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.app-shell.theme-dark .contact-request-card,
+.app-shell.theme-dark .payment-student-card,
+.app-shell.theme-dark .payment-picker-row,
+.app-shell.theme-dark .attendance-student-row,
+.app-shell.theme-dark .student-notification-item,
+.app-shell.theme-dark .student-receipt-card {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .14) !important;
+}
+
+@media (max-width: 1100px) {
+  .app-shell .payment-workspace-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell .page-topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+  }
+
+  .app-shell .topbar-user {
+    gap: 8px !important;
+  }
+
+  .app-shell .user-meta {
+    display: none !important;
+  }
+
+  .app-shell .contact-request-head {
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+  }
+
+  .app-shell .contact-request-head .badge {
+    grid-column: 1 / -1 !important;
+    justify-self: start !important;
+  }
+
+  .app-shell .contact-request-meta,
+  .app-shell .contact-request-actions,
+  .app-shell .language-setting-card,
+  .app-shell .attendance-student-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-shell .attendance-student-row-check {
+    justify-self: stretch !important;
+  }
+
+  .app-shell .attendance-check-row {
+    width: 100% !important;
+  }
+
+  .app-shell .table-shell table {
+    min-width: 680px !important;
+  }
+}
