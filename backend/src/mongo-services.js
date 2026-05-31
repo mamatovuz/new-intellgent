@@ -1435,13 +1435,44 @@ export async function getTeacherStudentsMongo(teacherId) {
   const assignedCourseIds = new Set(assignments.map((item) => Number(item.courseId)).filter(Boolean));
   const teacherNameKey = normalizeComparableText(teacher?.fullName || "");
 
-  return students.filter((student) => {
+  const teacherStudents = students.filter((student) => {
     const sameTeacherId = Number(student.teacherId || 0) === normalizedTeacherId;
     const sameTeacherName =
       teacherNameKey && normalizeComparableText(student.teacherName || "") === teacherNameKey;
     const courseBelongsToTeacher = assignedCourseIds.has(Number(student.courseId || 0));
     const hasExplicitTeacherLink = Boolean(student.teacherId) || Boolean(student.teacherName);
     return sameTeacherId || sameTeacherName || (courseBelongsToTeacher && !hasExplicitTeacherLink);
+  });
+
+  if (!teacherStudents.length) {
+    return [];
+  }
+
+  const studentIds = teacherStudents.map((student) => Number(student.id)).filter(Boolean);
+  const attendanceRows = await Attendance.find({ studentId: { $in: studentIds } })
+    .select("studentId status")
+    .lean();
+  const attendanceStats = new Map();
+
+  for (const row of attendanceRows) {
+    const studentId = Number(row.studentId);
+    if (!attendanceStats.has(studentId)) {
+      attendanceStats.set(studentId, { total: 0, present: 0 });
+    }
+    const item = attendanceStats.get(studentId);
+    item.total += 1;
+    if (row.status === "present") {
+      item.present += 1;
+    }
+  }
+
+  return teacherStudents.map((student) => {
+    const stats = attendanceStats.get(Number(student.id));
+    const attendancePercent = stats?.total ? Math.round((stats.present / stats.total) * 100) : 0;
+    return {
+      ...student,
+      attendancePercent
+    };
   });
 }
 

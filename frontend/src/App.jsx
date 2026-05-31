@@ -3692,7 +3692,7 @@ function DevelopersPage() {
 						<span>Team</span>
 						<h1>Dasturchilar jamoasi</h1>
 						<p>
-							Intelligent loyihasining dizayn, frontend va backend arxitekturasi
+							loyihasining dizayn, frontend va backend arxitekturasi
 							ustida ishlayotgan jamoa a'zolari bilan tanishing.
 						</p>
 					</div>
@@ -7087,6 +7087,7 @@ function TeacherAttendancePage({ token }) {
 	const [selectedGroup, setSelectedGroup] = useState('')
 	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
 	const [history, setHistory] = useState([])
+	const effectiveSelectedGroup = selectedGroup || groups[0]?.key || ''
 
 	useEffect(() => {
 		if (!selectedGroup && groups[0]) {
@@ -7106,11 +7107,19 @@ function TeacherAttendancePage({ token }) {
 		return next
 	}, [history])
 
-	const currentGroup = groups.find(group => group.key === selectedGroup) ||
+	const currentGroup = groups.find(group => group.key === effectiveSelectedGroup) ||
 		groups[0] || { members: [], label: '' }
 	const currentMembers = Array.isArray(currentGroup.members) ? currentGroup.members : []
 	const currentSchedule =
 		currentMembers[0]?.schedule || 'Jadval kiritilmagan'
+	const currentGroupAttendancePercent = currentMembers.length
+		? Math.round(
+				currentMembers.reduce(
+					(sum, student) => sum + Number(student.attendancePercent || 0),
+					0,
+				) / currentMembers.length,
+			)
+		: 0
 
 	return (
 		<>
@@ -7121,7 +7130,7 @@ function TeacherAttendancePage({ token }) {
 				</div>
 				<div className='group-switcher'>
 					<select
-						value={selectedGroup}
+						value={effectiveSelectedGroup}
 						onChange={e => setSelectedGroup(e.target.value)}
 					>
 						{groups.length ? groups.map(group => (
@@ -7141,7 +7150,7 @@ function TeacherAttendancePage({ token }) {
 					</div>
 					<div>
 						<span>Jami o'quvchilar</span>
-						<strong>{students.length}</strong>
+						<strong>{currentMembers.length}</strong>
 					</div>
 				</section>
 				<section className='card mini-stat-card'>
@@ -7150,17 +7159,7 @@ function TeacherAttendancePage({ token }) {
 					</div>
 					<div>
 						<span>O'rtacha davomat</span>
-						<strong>
-							{students.length
-								? Math.round(
-										students.reduce(
-											(sum, student) => sum + Number(student.attendancePercent || 0),
-											0,
-										) / students.length,
-									)
-								: 0}
-							%
-						</strong>
+						<strong>{currentGroupAttendancePercent}%</strong>
 					</div>
 				</section>
 				<section className='next-lesson-card'>
@@ -7282,7 +7281,19 @@ function TeacherGroupsPage({ token }) {
 function TeacherDashboardPage({ token }) {
 	const { students } = useTeacherStudents(token)
 	const [history, setHistory] = useState([])
-	const groupsCount = new Set(students.map(student => student.courseTitle)).size
+	const groups = useMemo(() => groupStudentsForAttendance(students), [students])
+	const groupsCount = groups.length
+	const averageAttendance = students.length
+		? Math.round(
+				students.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) /
+					students.length,
+			)
+		: 0
+	const dayKeyMap = ['yak', 'du', 'se', 'chor', 'pay', 'juma', 'shan']
+	const todayKey = dayKeyMap[new Date().getDay()]
+	const todayLessonsCount = groups.filter(group =>
+		parseScheduleString(group.members[0]?.schedule || '').days.includes(todayKey),
+	).length
 	useEffect(() => {
 		api.getTeacherAttendanceHistory(token, 'month').then(setHistory)
 	}, [token])
@@ -7316,13 +7327,13 @@ function TeacherDashboardPage({ token }) {
 				/>
 				<StatCard
 					label='Davomat'
-					value={`${students.length ? Math.round(students.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) / students.length) : 0}%`}
+					value={`${averageAttendance}%`}
 					note="Joriy ko'rsatkich"
 					icon='event_available'
 				/>
 				<StatCard
 					label='Bugungi darslar'
-					value='3 ta'
+					value={`${todayLessonsCount} ta`}
 					note='Hammasi jadval asosida'
 					icon='schedule'
 				/>
