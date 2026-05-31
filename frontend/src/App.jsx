@@ -8201,9 +8201,14 @@ function DirectorDashboardPage({ token }) {
 		: 0
 	const currentRevenue = Number(chartData[chartData.length - 1]?.revenue || 0)
 	const previousRevenue = Number(chartData[chartData.length - 2]?.revenue || 0)
+	const revenueDelta = currentRevenue - previousRevenue
+	const growthNumber =
+		previousRevenue > 0
+			? Math.round((revenueDelta / previousRevenue) * 100)
+			: null
 	const growthPercent =
 		previousRevenue > 0
-			? `${Math.round(((currentRevenue - previousRevenue) / previousRevenue) * 100)}%`
+			? `${growthNumber > 0 ? '+' : ''}${growthNumber}%`
 			: 'Yangi davr'
 	const revenueAxisTicks = [maxRevenue, maxRevenue * 0.66, maxRevenue * 0.33, 0]
 	const chartSubtitleMap = {
@@ -8240,20 +8245,31 @@ function DirectorDashboardPage({ token }) {
 				})
 				.join(' ')
 		: ''
+	const chartAreaPoints = chartPoints
+		? chartData.length === 1
+			? `0,50 100,50 100,100 0,100`
+			: `${chartPoints} 100,100 0,100`
+		: ''
+	const averageLineY = chartData.length
+		? Math.max(18, Math.min(84, 84 - (averageRevenue / maxRevenue) * 64))
+		: null
 	const chartPointMeta = chartData.map((item, index) => {
 		const x = chartData.length === 1 ? 50 : (index / (chartData.length - 1)) * 100
 		const ratio = Number(item.revenue || 0) / maxRevenue
 		const y = chartData.length === 1 ? 50 : 84 - ratio * 64
+		const value = Number(item.revenue || 0)
 		return {
 			id: `${item.period || item.label}-${index}`,
 			x,
 			y: Math.max(18, Math.min(84, y)),
 			label: formatTrendTooltipLabel(item.label || item.period),
-			value: Number(item.revenue || 0),
+			value,
+			radius: value === peakRevenue && value > 0 ? 5.6 : 4.1,
 		}
 	})
 	const chartRangeCaption = formatDateRangeCaption(dateRange.from, dateRange.to)
 	const growthLabel = previousRevenue > 0 ? "O'SISH SUR'ATI" : 'HOLAT'
+	const chartHealthTone = growthNumber === null || growthNumber >= 0 ? 'positive' : 'negative'
 
 	async function handleExport(type) {
 		const blob = await api.exportReport(token, type, 'xlsx', {
@@ -8386,6 +8402,32 @@ function DirectorDashboardPage({ token }) {
 					<span className='chart-range-badge'>{chartRangeCaption}</span>
 					<p>Ko'k chiziq davrlar bo'yicha real tushum o'zgarishini ko'rsatadi.</p>
 				</div>
+				<div className='revenue-insight-row'>
+					<div className='revenue-insight-card primary'>
+						<span>Joriy davr</span>
+						<strong>{formatMoney(currentRevenue)}</strong>
+						<small>{chartPointMeta[chartPointMeta.length - 1]?.label || '-'}</small>
+					</div>
+					<div className='revenue-insight-card'>
+						<span>Eng yuqori nuqta</span>
+						<strong>{formatMoney(peakRevenue)}</strong>
+						<small>Tanlangan davrdagi pik tushum</small>
+					</div>
+					<div className={`revenue-insight-card ${chartHealthTone}`}>
+						<span>{growthLabel}</span>
+						<strong>{growthPercent}</strong>
+						<small>
+							{previousRevenue > 0
+								? `${formatMoney(Math.abs(revenueDelta))} farq`
+								: 'Oldingi davr yo‘q'}
+						</small>
+					</div>
+					<div className='revenue-insight-card'>
+						<span>Davrlar soni</span>
+						<strong>{chartData.length} ta</strong>
+						<small>{summaryLabelMap[chartPeriod].toLowerCase()} kesim</small>
+					</div>
+				</div>
 				<div className='chart-filter-row'>
 					<label>
 						<span>Dan</span>
@@ -8455,6 +8497,11 @@ function DirectorDashboardPage({ token }) {
 								<span>{formatMoney(hoveredPoint.value)}</span>
 							</div>
 						) : null}
+						{averageLineY !== null ? (
+							<div className='chart-average-guide' style={{ top: `${averageLineY}%` }}>
+								<span>O'rtacha {formatMoney(averageRevenue)}</span>
+							</div>
+						) : null}
 						{chartData.length ? (
 							<svg
 								className='revenue-line-canvas'
@@ -8475,7 +8522,17 @@ function DirectorDashboardPage({ token }) {
 										<stop offset='52%' stopColor='#2563eb' />
 										<stop offset='100%' stopColor='#0ea5e9' />
 									</linearGradient>
+									<linearGradient id='revenueAreaGradient' x1='0%' y1='0%' x2='0%' y2='100%'>
+										<stop offset='0%' stopColor='#2563eb' stopOpacity='0.28' />
+										<stop offset='55%' stopColor='#38bdf8' stopOpacity='0.10' />
+										<stop offset='100%' stopColor='#ffffff' stopOpacity='0' />
+									</linearGradient>
 								</defs>
+								<polygon
+									points={chartAreaPoints}
+									fill='url(#revenueAreaGradient)'
+									stroke='none'
+								/>
 								<polyline
 									points={chartPoints}
 									vectorEffect='non-scaling-stroke'
@@ -8490,7 +8547,7 @@ function DirectorDashboardPage({ token }) {
 										key={point.id}
 										cx={point.x}
 										cy={point.y}
-										r='4.2'
+										r={point.radius}
 										vectorEffect='non-scaling-stroke'
 										fill='#ffffff'
 										stroke='#2563eb'
