@@ -15,7 +15,8 @@ import Swal from 'sweetalert2'
 import { api, resolveAssetUrl } from './api'
 
 const LANGUAGE_STORAGE_KEY = 'ilmnest-language'
-const APP_BUILD_ID = 'panel-features-2026-05-31-v6'
+const THEME_STORAGE_KEY = 'ilmnest-theme'
+const APP_BUILD_ID = 'panel-features-2026-05-31-v7'
 
 function useBuildRefreshGuard() {
 	useEffect(() => {
@@ -45,6 +46,21 @@ const LANGUAGE_OPTIONS = [
 	{ value: 'ru', label: 'Русский', short: 'RU' },
 	{ value: 'en', label: 'English', short: 'EN' },
 	{ value: 'ar', label: 'العربية', short: 'AR' },
+]
+
+const THEME_OPTIONS = [
+	{
+		value: 'light',
+		label: 'Kun rejimi',
+		description: "Yorug' va sokin interfeys",
+		icon: 'light_mode',
+	},
+	{
+		value: 'dark',
+		label: 'Tun rejimi',
+		description: "Ko'zni charchatmaydigan to'q ranglar",
+		icon: 'dark_mode',
+	},
 ]
 
 const TRANSLATIONS = {
@@ -436,6 +452,94 @@ function LanguageSelector({ compact = false }) {
 				))}
 			</select>
 		</label>
+	)
+}
+
+function getInitialTheme() {
+	if (typeof window === 'undefined') return 'light'
+	const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+	return THEME_OPTIONS.some(item => item.value === saved) ? saved : 'light'
+}
+
+function setAppTheme(theme) {
+	if (typeof window === 'undefined') return
+	const nextTheme = THEME_OPTIONS.some(item => item.value === theme) ? theme : 'light'
+	window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+	window.dispatchEvent(new CustomEvent('ilmnest-theme-change', { detail: nextTheme }))
+}
+
+function useAppTheme() {
+	const [theme, setTheme] = useState(getInitialTheme)
+
+	useEffect(() => {
+		function handleChange(event) {
+			setTheme(event.detail || getInitialTheme())
+		}
+		window.addEventListener('ilmnest-theme-change', handleChange)
+		return () => window.removeEventListener('ilmnest-theme-change', handleChange)
+	}, [])
+
+	return [theme, setAppTheme]
+}
+
+function ThemeRuntime() {
+	const [theme] = useAppTheme()
+
+	useEffect(() => {
+		document.documentElement.dataset.theme = theme
+		document.body.dataset.theme = theme
+		document.body.classList.toggle('theme-dark', theme === 'dark')
+		document.body.classList.toggle('theme-light', theme !== 'dark')
+	}, [theme])
+
+	return null
+}
+
+function ThemeToggleButton() {
+	const [theme, changeTheme] = useAppTheme()
+	const isDark = theme === 'dark'
+	const nextTheme = isDark ? 'light' : 'dark'
+
+	return (
+		<button
+			type='button'
+			className={`topbar-icon theme-toggle-btn ${isDark ? 'active' : ''}`}
+			title={isDark ? "Kun rejimiga o'tish" : "Tun rejimiga o'tish"}
+			onClick={() => changeTheme(nextTheme)}
+			data-no-translate
+		>
+			<Icon name={isDark ? 'light_mode' : 'dark_mode'} />
+			<span className='theme-toggle-label'>{isDark ? 'Kun' : 'Tun'}</span>
+		</button>
+	)
+}
+
+function AppearanceSettingsCard() {
+	const [theme, changeTheme] = useAppTheme()
+
+	return (
+		<div className='language-setting-card appearance-setting-card'>
+			<div>
+				<strong>Kun / tun rejimi</strong>
+				<p>Interfeys ranglarini ko'zingizga qulay holatga almashtiring.</p>
+			</div>
+			<div className='theme-segmented' data-no-translate>
+				{THEME_OPTIONS.map(option => (
+					<button
+						key={option.value}
+						type='button'
+						className={theme === option.value ? 'active' : ''}
+						onClick={() => changeTheme(option.value)}
+					>
+						<Icon name={option.icon} />
+						<span>
+							<strong>{option.label}</strong>
+							<small>{option.description}</small>
+						</span>
+					</button>
+				))}
+			</div>
+		</div>
 	)
 }
 
@@ -1945,6 +2049,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 	)
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 	const [searchValue, setSearchValue] = useState('')
+	const [theme] = useAppTheme()
 	const location = useLocation()
 	const navigate = useNavigate()
 
@@ -2012,7 +2117,10 @@ function RoleLayout({ user, onLogout, children, token }) {
 	}
 
 	return (
-		<div className={`app-shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
+		<div
+			className={`app-shell theme-${theme} ${sidebarOpen ? 'sidebar-open' : ''}`}
+			data-theme={theme}
+		>
 			{sidebarOpen ? (
 				<button
 					type='button'
@@ -2073,6 +2181,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 					</form>
 
 					<div className='topbar-user'>
+						<ThemeToggleButton />
 						<button
 							type='button'
 							className='topbar-icon'
@@ -2215,6 +2324,7 @@ function ProfileSettingsCard({
 				</div>
 				<LanguageSelector />
 			</div>
+			<AppearanceSettingsCard />
 			<form className='modal-form' onSubmit={handleSubmit}>
 				<div className='field-grid'>
 					<div>
@@ -5145,6 +5255,7 @@ function StudentSettingsPage({ token }) {
 					</div>
 					<LanguageSelector />
 				</div>
+				<AppearanceSettingsCard />
 				<form className='modal-form' onSubmit={handleSubmit}>
 					<div className='field-grid'>
 						<div>
@@ -10044,6 +10155,7 @@ function AppInner() {
 		return (
 			<>
 				<LanguageRuntime />
+				<ThemeRuntime />
 				<div className='loading-screen'>Kabinetga kirilmoqda...</div>
 			</>
 		)
@@ -10053,6 +10165,7 @@ function AppInner() {
 		return (
 			<>
 				<LanguageRuntime />
+				<ThemeRuntime />
 				<Routes>
 					<Route path='/' element={<HomePage />} />
 					<Route path='/aloqa' element={<HomePage />} />
@@ -10072,6 +10185,7 @@ function AppInner() {
 		return (
 			<>
 				<LanguageRuntime />
+				<ThemeRuntime />
 				<div className='loading-screen'>Yuklanmoqda...</div>
 			</>
 		)
@@ -10080,6 +10194,7 @@ function AppInner() {
 	return (
 		<>
 			<LanguageRuntime />
+			<ThemeRuntime />
 			<Routes>
 				<Route path='/' element={<HomePage />} />
 				<Route path='/aloqa' element={<HomePage />} />

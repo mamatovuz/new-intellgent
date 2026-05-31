@@ -16826,3 +16826,577 @@ html[dir="rtl"] .material-symbols-outlined {
   border-radius: 20px !important;
   box-shadow: 0 26px 72px rgba(16, 35, 63, .22) !important;
 }
+
+/* Light / dark mode controls. */
+.theme-toggle-btn {
+  width: auto !important;
+  min-width: 78px !important;
+  padding: 0 12px !important;
+  gap: 7px !important;
+}
+
+.theme-toggle-btn .material-symbols-outlined {
+  font-size: 19px !important;
+}
+
+.theme-toggle-label {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+
+.appearance-setting-card {
+  align-items: center;
+}
+
+.theme-segmented {
+  min-width: min(430px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid #dfe7f2;
+  border-radius: 15px;
+  background: #f5f8fc;
+}
+
+.theme-segmented button {
+  min-width: 0;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #526174;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.theme-segmented button:hover {
+  background: #ffffff;
+  border-color: #d8e2ef;
+}
+
+.theme-segmented button.active {
+  background: #ffffff;
+  border-color: #b9cbed;
+  color: #12326a;
+  box-shadow: 0 6px 14px rgba(16, 35, 63, .045);
+}
+
+.theme-segmented button > .material-symbols-outlined {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #12326a;
+  font-size: 20px;
+}
+
+.theme-segmented span {
+  display: grid;
+  gap: 3px;
+}
+
+.theme-segmented strong {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.theme-segmented small {
+  color: #728196;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* Eye-friendly dark dashboard mode. */
+.app-shell.theme-dark {
+  --bg: #101827;
+  --surface: #172033;
+  --surface-soft: #1d293d;
+  --border: #2c3a52;
+  --border-soft: #253249;
+  --text: #e8eef8;
+  --muted: #9aa8bb;
+  --navy: #8fb9ff;
+  --blue: #7aa7ff;
+  background: #101827 !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .page-shell,
+.app-shell.theme-dark .page-content {
+  background: #101827 !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .sidebar {
+  background: #111a2b !important;
+  border-right-color: #26344b !important;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, .18) !important;
+}
+
+.app-shell.theme-dark .sidebar-brand {
+  border-bottom-color: #253249 !important;
+}
+
+.app-shell.theme-dark .brand-logo {
+  background: #172033 !important;
+  border-color: #2c3a52 !important;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .2) !important;
+}
+
+.app-shell.theme-dark .sidebar-brand strong,
+.app-shell.theme-dark .user-meta strong,
+.app-shell.theme-dark .page-intro h1,
+.app-shell.theme-dark .teacher-header h1,
+.app-shell.theme-dark .card-head-row h3,
+.app-shell.theme-dark .analytics-panel h3,
+.app-shell.theme-dark .settings-card h3,
+.app-shell.theme-dark .student-identity strong,
+.app-shell.theme-dark .course-cell strong,
+.app-shell.theme-dark .contact-cell strong,
+.app-shell.theme-dark .timeline-item strong,
+.app-shell.theme-dark .payment-editor-head h4,
+.app-shell.theme-dark .payment-editor-stats strong,
+.app-shell.theme-dark .summary-mini strong,
+.app-shell.theme-dark .metric-chip-card strong,
+.app-shell.theme-dark .group-card-top strong,
+.app-shell.theme-dark .notifications-head strong,
+.app-shell.theme-dark .notification-item strong,
+.app-shell.theme-dark label {
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .sidebar-brand p,
+.app-shell.theme-dark .user-meta span,
+.app-shell.theme-dark .page-intro p,
+.app-shell.theme-dark .teacher-header p,
+.app-shell.theme-dark .card-head-row p,
+.app-shell.theme-dark .student-identity span,
+.app-shell.theme-dark .course-cell span,
+.app-shell.theme-dark .contact-cell span,
+.app-shell.theme-dark .timeline-item span,
+.app-shell.theme-dark .mini-meta,
+.app-shell.theme-dark .payment-editor-head p,
+.app-shell.theme-dark .payment-editor-stats span,
+.app-shell.theme-dark .summary-mini span,
+.app-shell.theme-dark .metric-chip-card span,
+.app-shell.theme-dark .notification-item span,
+.app-shell.theme-dark .file-upload-name,
+.app-shell.theme-dark .theme-segmented small {
+  color: #9aa8bb !important;
+}
+
+.app-shell.theme-dark .sidebar-link,
+.app-shell.theme-dark .sidebar-logout {
+  color: #a9b6c8 !important;
+}
+
+.app-shell.theme-dark .sidebar-link:hover,
+.app-shell.theme-dark .sidebar-logout:hover {
+  background: #172033 !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .sidebar-link.active {
+  background: #1d2d49 !important;
+  border-color: #35517e !important;
+  color: #dbe9ff !important;
+}
+
+.app-shell.theme-dark .sidebar-link.active::after {
+  background: #8fb9ff !important;
+}
+
+.app-shell.theme-dark .page-topbar {
+  background: rgba(17, 26, 43, .96) !important;
+  border-bottom-color: #26344b !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .16) !important;
+}
+
+.app-shell.theme-dark .toolbar-card,
+.app-shell.theme-dark .card,
+.app-shell.theme-dark .kpi-card,
+.app-shell.theme-dark .quick-payments,
+.app-shell.theme-dark .next-lesson-card,
+.app-shell.theme-dark .teacher-header,
+.app-shell.theme-dark .attendance-card,
+.app-shell.theme-dark .analytics-panel,
+.app-shell.theme-dark .chart-card,
+.app-shell.theme-dark .table-shell,
+.app-shell.theme-dark .student-overview-card,
+.app-shell.theme-dark .student-summary-grid > *,
+.app-shell.theme-dark .student-grid > *,
+.app-shell.theme-dark .payment-table-card,
+.app-shell.theme-dark .attendance-calendar-card,
+.app-shell.theme-dark .student-receipt-card,
+.app-shell.theme-dark .student-notification-item,
+.app-shell.theme-dark .complaint-card-item,
+.app-shell.theme-dark .payment-flow-card,
+.app-shell.theme-dark .payment-workspace-card,
+.app-shell.theme-dark .payment-student-card,
+.app-shell.theme-dark .payment-editor-card,
+.app-shell.theme-dark .payment-picker-shell,
+.app-shell.theme-dark .payment-picker-row,
+.app-shell.theme-dark .attendance-hub-card,
+.app-shell.theme-dark .attendance-group-card,
+.app-shell.theme-dark .attendance-student-row,
+.app-shell.theme-dark .contact-requests-panel,
+.app-shell.theme-dark .contact-request-card,
+.app-shell.theme-dark .import-summary-card,
+.app-shell.theme-dark .language-setting-card,
+.app-shell.theme-dark .group-card,
+.app-shell.theme-dark .mini-stat-card,
+.app-shell.theme-dark .metric-chip-card,
+.app-shell.theme-dark .summary-mini,
+.app-shell.theme-dark .revenue-insight-card,
+.app-shell.theme-dark .today-lesson-item,
+.app-shell.theme-dark .course-summary-grid > div,
+.app-shell.theme-dark .attendance-calendar-day {
+  background: #172033 !important;
+  border-color: #2c3a52 !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .16) !important;
+}
+
+.app-shell.theme-dark .card:hover,
+.app-shell.theme-dark .kpi-card:hover,
+.app-shell.theme-dark .attendance-group-card:hover,
+.app-shell.theme-dark .payment-student-card:hover,
+.app-shell.theme-dark .payment-picker-row:hover,
+.app-shell.theme-dark .contact-request-card:hover,
+.app-shell.theme-dark .group-card:hover,
+.app-shell.theme-dark .student-receipt-card:hover {
+  border-color: #40536f !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .2) !important;
+}
+
+.app-shell.theme-dark .kpi-card strong,
+.app-shell.theme-dark .student-balance,
+.app-shell.theme-dark .chart-y-axis span,
+.app-shell.theme-dark .revenue-chart-labels span {
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .kpi-card p,
+.app-shell.theme-dark .kpi-head span,
+.app-shell.theme-dark .card-label {
+  color: #9aa8bb !important;
+}
+
+.app-shell.theme-dark .kpi-icon,
+.app-shell.theme-dark .mini-stat-icon,
+.app-shell.theme-dark .group-card-icon,
+.app-shell.theme-dark .student-notification-icon,
+.app-shell.theme-dark .contact-request-avatar,
+.app-shell.theme-dark .course-icon,
+.app-shell.theme-dark .avatar-badge,
+.app-shell.theme-dark .theme-segmented button > .material-symbols-outlined {
+  background: #1f3150 !important;
+  border-color: #334866 !important;
+  color: #a9c9ff !important;
+  box-shadow: none !important;
+}
+
+.app-shell.theme-dark .topbar-user,
+.app-shell.theme-dark .topbar-icon,
+.app-shell.theme-dark .language-selector,
+.app-shell.theme-dark .notification-read-all-btn,
+.app-shell.theme-dark .notification-filter-tabs button,
+.app-shell.theme-dark .crm-status-chip,
+.app-shell.theme-dark .import-filter-tabs button,
+.app-shell.theme-dark .theme-segmented {
+  background: #172033 !important;
+  border-color: #2c3a52 !important;
+  color: #dbe7f7 !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .14) !important;
+}
+
+.app-shell.theme-dark .theme-toggle-btn.active {
+  background: #1d2d49 !important;
+  border-color: #405f91 !important;
+  color: #dbe9ff !important;
+}
+
+.app-shell.theme-dark .theme-segmented {
+  background: #111a2b !important;
+}
+
+.app-shell.theme-dark .theme-segmented button {
+  color: #a9b6c8 !important;
+}
+
+.app-shell.theme-dark .theme-segmented button:hover {
+  background: #1d293d !important;
+  border-color: #33445f !important;
+}
+
+.app-shell.theme-dark .theme-segmented button.active {
+  background: #223452 !important;
+  border-color: #456391 !important;
+  color: #e8eef8 !important;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .18) !important;
+}
+
+.app-shell.theme-dark .search-box,
+.app-shell.theme-dark .toolbar-search,
+.app-shell.theme-dark .payment-inline-search,
+.app-shell.theme-dark .modal-form input,
+.app-shell.theme-dark .modal-form select,
+.app-shell.theme-dark .modal-form textarea,
+.app-shell.theme-dark .settings-card input,
+.app-shell.theme-dark .settings-card select,
+.app-shell.theme-dark .settings-card textarea,
+.app-shell.theme-dark .attendance-hub-controls select,
+.app-shell.theme-dark .attendance-hub-controls input,
+.app-shell.theme-dark .payment-editor-card input,
+.app-shell.theme-dark .payment-editor-card select,
+.app-shell.theme-dark .payment-editor-card textarea,
+.app-shell.theme-dark .chart-filter-row input,
+.app-shell.theme-dark .input-wrap {
+  background: #111a2b !important;
+  border-color: #31415c !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark input::placeholder,
+.app-shell.theme-dark textarea::placeholder {
+  color: #7f8ea3 !important;
+}
+
+.app-shell.theme-dark .search-icon,
+.app-shell.theme-dark .material-symbols-outlined {
+  color: inherit;
+}
+
+.app-shell.theme-dark .action-btn,
+.app-shell.theme-dark .login-submit,
+.app-shell.theme-dark .action-btn.link-btn {
+  background: #8fb9ff !important;
+  border-color: #8fb9ff !important;
+  color: #071326 !important;
+  box-shadow: 0 10px 22px rgba(143, 185, 255, .12) !important;
+}
+
+.app-shell.theme-dark .action-btn:hover,
+.app-shell.theme-dark .login-submit:hover,
+.app-shell.theme-dark .action-btn.link-btn:hover {
+  background: #a5c8ff !important;
+  border-color: #a5c8ff !important;
+}
+
+.app-shell.theme-dark .action-btn.secondary,
+.app-shell.theme-dark .ghost-outline,
+.app-shell.theme-dark .sort-btn,
+.app-shell.theme-dark .page-btn,
+.app-shell.theme-dark .mini-pill,
+.app-shell.theme-dark .square-btn,
+.app-shell.theme-dark .close-btn,
+.app-shell.theme-dark .link-btn:not(.action-btn),
+.app-shell.theme-dark .table-actions button,
+.app-shell.theme-dark .chart-fullscreen-btn {
+  background: #172033 !important;
+  border-color: #31415c !important;
+  color: #dbe7f7 !important;
+  box-shadow: none !important;
+}
+
+.app-shell.theme-dark .chip.active,
+.app-shell.theme-dark .notification-filter-tabs button.active,
+.app-shell.theme-dark .crm-status-chip.active,
+.app-shell.theme-dark .import-filter-tabs button.active {
+  background: #8fb9ff !important;
+  border-color: #8fb9ff !important;
+  color: #071326 !important;
+}
+
+.app-shell.theme-dark .badge,
+.app-shell.theme-dark .chip,
+.app-shell.theme-dark .money-chip {
+  background: #1d293d !important;
+  border-color: #33445f !important;
+  color: #dbe7f7 !important;
+}
+
+.app-shell.theme-dark .badge.success,
+.app-shell.theme-dark .kpi-icon.success,
+.app-shell.theme-dark .metric-chip-card.success {
+  background: #123527 !important;
+  border-color: #1f5e45 !important;
+  color: #8ee6bd !important;
+}
+
+.app-shell.theme-dark .badge.warning,
+.app-shell.theme-dark .kpi-icon.warning,
+.app-shell.theme-dark .metric-chip-card.warning {
+  background: #3a2a14 !important;
+  border-color: #70501f !important;
+  color: #f8cc83 !important;
+}
+
+.app-shell.theme-dark .badge.danger,
+.app-shell.theme-dark .kpi-icon.danger,
+.app-shell.theme-dark .metric-chip-card.danger {
+  background: #3b1b22 !important;
+  border-color: #743140 !important;
+  color: #ffadb8 !important;
+}
+
+.app-shell.theme-dark .student-overview-balance {
+  background: #1d2d49 !important;
+  border-color: #405f91 !important;
+  color: #e8eef8 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .18) !important;
+}
+
+.app-shell.theme-dark .payment-editor-summary,
+.app-shell.theme-dark .payment-editor-stats div,
+.app-shell.theme-dark .attendance-hub-meta .metric-chip-card,
+.app-shell.theme-dark .import-preview,
+.app-shell.theme-dark .file-upload-field {
+  background: #111a2b !important;
+  border-color: #2c3a52 !important;
+}
+
+.app-shell.theme-dark .payment-student-card.active,
+.app-shell.theme-dark .attendance-group-card.selected,
+.app-shell.theme-dark .payment-picker-row.active,
+.app-shell.theme-dark .notification-item.unread,
+.app-shell.theme-dark .contact-request-card.new {
+  background: #1d2d49 !important;
+  border-color: #456391 !important;
+  box-shadow: inset 3px 0 0 #8fb9ff, 0 10px 22px rgba(0, 0, 0, .18) !important;
+}
+
+.app-shell.theme-dark .table-shell {
+  background: #172033 !important;
+}
+
+.app-shell.theme-dark table thead th {
+  background: #111a2b !important;
+  color: #9aa8bb !important;
+}
+
+.app-shell.theme-dark table td,
+.app-shell.theme-dark table th {
+  border-bottom-color: #253249 !important;
+  color: #dbe7f7 !important;
+}
+
+.app-shell.theme-dark table tbody tr:hover {
+  background: #1a263a !important;
+}
+
+.app-shell.theme-dark .modal-card,
+.app-shell.theme-dark .notifications-popover {
+  background: #172033 !important;
+  border-color: #33445f !important;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .36) !important;
+}
+
+.app-shell.theme-dark .modal-backdrop {
+  background: rgba(4, 10, 21, .64) !important;
+}
+
+.app-shell.theme-dark .notification-item {
+  background: #111a2b !important;
+  border-color: #2c3a52 !important;
+}
+
+.app-shell.theme-dark .segmented-switch {
+  background: #111a2b !important;
+  border-color: #2c3a52 !important;
+}
+
+.app-shell.theme-dark .segmented-switch button {
+  color: #9aa8bb !important;
+}
+
+.app-shell.theme-dark .segmented-switch button.active {
+  background: #223452 !important;
+  color: #e8eef8 !important;
+}
+
+.app-shell.theme-dark .revenue-chart-section,
+.app-shell.theme-dark .revenue-chart-wrap {
+  background: #172033 !important;
+  border-color: #2c3a52 !important;
+}
+
+.app-shell.theme-dark .revenue-chart-section .chart-card-head {
+  border-bottom-color: #253249 !important;
+}
+
+.app-shell.theme-dark .chart-grid-lines span,
+.app-shell.theme-dark .trend-line-guides span {
+  border-top-color: #2a3850 !important;
+}
+
+.app-shell.theme-dark .revenue-chart-wrap::after {
+  background: #33445f !important;
+}
+
+.app-shell.theme-dark .revenue-line-canvas polyline {
+  stroke: #8fb9ff !important;
+}
+
+.app-shell.theme-dark .revenue-line-canvas circle {
+  fill: #172033 !important;
+  stroke: #8fb9ff !important;
+}
+
+.app-shell.theme-dark .revenue-line-canvas polygon {
+  fill: rgba(143, 185, 255, .09) !important;
+}
+
+.app-shell.theme-dark .chart-tooltip {
+  background: #070d18 !important;
+  color: #e8eef8 !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, .35) !important;
+}
+
+.app-shell.theme-dark .chart-average-guide span {
+  background: #111a2b !important;
+  border-color: #33445f !important;
+  color: #dbe7f7 !important;
+}
+
+.app-shell.theme-dark .chart-card-fullscreen {
+  background: #101827 !important;
+  border-color: #33445f !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .5) !important;
+}
+
+body.theme-dark .loading-screen {
+  background: #101827 !important;
+  color: #e8eef8 !important;
+}
+
+@media (max-width: 760px) {
+  .theme-toggle-btn {
+    min-width: 42px !important;
+    padding: 0 !important;
+  }
+
+  .theme-toggle-label {
+    display: none;
+  }
+
+  .appearance-setting-card {
+    align-items: stretch;
+  }
+
+  .theme-segmented {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+}
