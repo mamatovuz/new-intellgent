@@ -15,7 +15,7 @@ import Swal from 'sweetalert2'
 import { api, resolveAssetUrl } from './api'
 
 const LANGUAGE_STORAGE_KEY = 'ilmnest-language'
-const APP_BUILD_ID = 'panel-counts-2026-05-31-v5'
+const APP_BUILD_ID = 'panel-features-2026-05-31-v6'
 
 function useBuildRefreshGuard() {
 	useEffect(() => {
@@ -461,6 +461,7 @@ const NAV_ITEMS = {
 		{ to: '/director/students', label: "O'quvchilar", icon: 'group' },
 		{ to: '/director/payments', label: "To'lovlar", icon: 'payments' },
 		{ to: '/director/statistics', label: 'Statistika', icon: 'leaderboard' },
+		{ to: '/director/complaints', label: 'Shikoyatlar', icon: 'report' },
 		{ to: '/director/settings', label: 'Sozlamalar', icon: 'settings' },
 	],
 	reception: [
@@ -960,6 +961,18 @@ function formatDateLabel(value = new Date()) {
 		month: 'long',
 		year: 'numeric',
 	}).format(value)
+}
+
+function formatIsoDate(value = new Date()) {
+	const date = value instanceof Date ? value : new Date(value)
+	if (Number.isNaN(date.getTime())) return ''
+	return date.toISOString().slice(0, 10)
+}
+
+function getShortWeekdayLabel(value = new Date()) {
+	const date = value instanceof Date ? value : new Date(value)
+	if (Number.isNaN(date.getTime())) return ''
+	return new Intl.DateTimeFormat('uz-UZ', { weekday: 'short' }).format(date)
 }
 
 const WEEKDAY_OPTIONS = [
@@ -4738,6 +4751,18 @@ function StudentAttendancePage({ token }) {
 		api.getStudentAttendance(token).then(setData)
 	}, [token])
 	if (!data) return <div className='card'>Yuklanmoqda...</div>
+	const attendanceByDate = new Map((data.items || []).map(item => [String(item.date).slice(0, 10), item.status]))
+	const calendarDays = Array.from({ length: 30 }, (_, index) => {
+		const date = new Date()
+		date.setDate(date.getDate() - (29 - index))
+		const key = formatIsoDate(date)
+		return {
+			key,
+			day: String(date.getDate()).padStart(2, '0'),
+			weekday: getShortWeekdayLabel(date),
+			status: attendanceByDate.get(key) || 'empty',
+		}
+	})
 	return (
 		<>
 			<PageHeader title='Davomat' subtitle='Oxirgi 30 kunlik qatnashuv' />
@@ -4746,6 +4771,23 @@ function StudentAttendancePage({ token }) {
 				<StatCard label='Keldi' value={`${data.last30Days.present} ta`} note='Present' icon='check_circle' />
 				<StatCard label='Kelmadi' value={`${data.last30Days.absent} ta`} note='Absent' tone='danger' icon='cancel' />
 			</div>
+			<section className='card attendance-calendar-card'>
+				<div className='card-head-row'>
+					<div>
+						<h3>Davomat kalendari</h3>
+						<p>Oxirgi 30 kun ichida qaysi kuni kelgan yoki kelmagan ko'rinadi</p>
+					</div>
+				</div>
+				<div className='attendance-calendar-grid'>
+					{calendarDays.map(day => (
+						<div key={day.key} className={`attendance-calendar-day ${day.status}`}>
+							<small>{day.weekday}</small>
+							<strong>{day.day}</strong>
+							<span>{day.status === 'present' ? 'Keldi' : day.status === 'absent' ? 'Kelmadi' : '-'}</span>
+						</div>
+					))}
+				</div>
+			</section>
 			<section className='card table-card'>
 				{data.items.length ? (
 					<div className='table-shell responsive-cards'>
@@ -4784,6 +4826,20 @@ function StudentPaymentsPage({ token }) {
 		api.getStudentPayments(token).then(setData)
 	}, [token])
 	if (!data) return <div className='card'>Yuklanmoqda...</div>
+	function downloadStudentReceipt(payment) {
+		const content = [
+			'ILM NEST - TOLOV CHEKI',
+			'',
+			`Sana: ${payment.createdAt}`,
+			`Summa: ${formatMoney(payment.amount)}`,
+			`Usul: ${getPaymentMethodMeta(payment.method).shortLabel}`,
+			`Status: ${payment.status === 'paid' ? 'Muvaffaqiyatli' : payment.status}`,
+			`Qabul qildi: ${payment.receivedBy || '-'}`,
+			'',
+			'Chek avtomatik yaratildi.',
+		].join('\n')
+		downloadTextFile(`ilm-nest-check-${payment.id}.txt`, content)
+	}
 	return (
 		<>
 			<PageHeader title="To'lovlar" subtitle='Barcha payment tarixingiz' />
@@ -4793,37 +4849,29 @@ function StudentPaymentsPage({ token }) {
 			</div>
 			<section className='card table-card'>
 				{data.items.length ? (
-					<div className='table-shell responsive-cards'>
-						<table>
-							<thead>
-								<tr>
-									<th>SANA</th>
-									<th>SUMMA</th>
-									<th>USUL</th>
-									<th>STATUS</th>
-									<th>QABUL QILDI</th>
-								</tr>
-							</thead>
-							<tbody>
-								{data.items.map(payment => (
-									<tr key={payment.id}>
-										<td>{payment.createdAt}</td>
-										<td className='amount-cell'>{formatMoney(payment.amount)}</td>
-										<td>{getPaymentMethodMeta(payment.method).shortLabel}</td>
-										<td data-label='Kontakt'>
-											<Badge
-												tone={payment.status === 'paid' ? 'success' : 'danger'}
-											>
-												{payment.status === 'paid'
-													? 'Muvaffaqiyatli'
-													: payment.status}
-											</Badge>
-										</td>
-										<td>{payment.receivedBy || '-'}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+					<div className='student-receipt-grid'>
+						{data.items.map(payment => (
+							<article key={payment.id} className='student-receipt-card'>
+								<div className='student-receipt-top'>
+									<div className='receipt-success-icon'>
+										<Icon name='check_circle' />
+									</div>
+									<Badge tone={payment.status === 'paid' ? 'success' : 'danger'}>
+										{payment.status === 'paid' ? 'Muvaffaqiyatli' : payment.status}
+									</Badge>
+								</div>
+								<strong>{formatMoney(payment.amount)}</strong>
+								<div className='student-receipt-meta'>
+									<span>Sana: <b>{payment.createdAt}</b></span>
+									<span>Usul: <b>{getPaymentMethodMeta(payment.method).shortLabel}</b></span>
+									<span>Qabul qildi: <b>{payment.receivedBy || '-'}</b></span>
+								</div>
+								<button type='button' className='page-btn secondary' onClick={() => downloadStudentReceipt(payment)}>
+									<Icon name='download' />
+									Chekni yuklab olish
+								</button>
+							</article>
+						))}
 					</div>
 				) : (
 					<EmptyStateNotice message="To'lov tarixi hozircha yo'q." />
@@ -4849,6 +4897,24 @@ function StudentSchedulePage({ token }) {
 						<p>{data.teacherName || "Ustoz biriktirilmagan"}</p>
 					</div>
 					<Badge tone='success'>Haftalik jadval</Badge>
+				</div>
+				<div className='course-summary-grid'>
+					<div>
+						<span>Ustoz</span>
+						<strong>{data.teacherName || "Biriktirilmagan"}</strong>
+					</div>
+					<div>
+						<span>Dars vaqti</span>
+						<strong>{data.items?.find(item => item.time)?.time || '-'}</strong>
+					</div>
+					<div>
+						<span>Xona</span>
+						<strong>{data.room || 'Receptiondan aniqlanadi'}</strong>
+					</div>
+					<div>
+						<span>Keyingi dars</span>
+						<strong>{data.nextLessonDate || '-'}</strong>
+					</div>
 				</div>
 				<div className='schedule-week-grid'>
 					{data.items.map(item => (
@@ -4887,14 +4953,30 @@ function StudentNotificationsPage({ token }) {
 		<>
 			<PageHeader title='Bildirishnomalar' subtitle='Student uchun barcha ogohlantirishlar' />
 			<section className='card'>
-				<div className='timeline-list'>
+				<div className='student-notification-list'>
 					{items.length ? (
-						items.map(item => (
-							<button key={item.id} type='button' className={item.status === 'read' ? 'notification-item read' : 'notification-item'} onClick={() => readNotification(item.id)}>
-								<strong>{item.title}</strong>
-								<span>{item.message}</span>
-							</button>
-						))
+						items.map(item => {
+							const text = `${item.title || ''} ${item.message || ''}`.toLowerCase()
+							const icon = text.includes('qarz')
+								? 'warning'
+								: text.includes("to'lov") || text.includes('tolov')
+									? 'payments'
+									: text.includes('dars')
+										? 'event'
+										: 'notifications'
+							return (
+								<button key={item.id} type='button' className={item.status === 'read' ? 'student-notification-item read' : 'student-notification-item'} onClick={() => readNotification(item.id)}>
+									<span className='student-notification-icon'><Icon name={icon} /></span>
+									<span>
+										<strong>{item.title}</strong>
+										<small>{item.message}</small>
+									</span>
+									<Badge tone={item.status === 'read' ? 'gray' : 'warning'}>
+										{item.status === 'read' ? "O'qilgan" : 'Yangi'}
+									</Badge>
+								</button>
+							)
+						})
 					) : (
 						<div className='notification-empty'>Bildirishnoma yo'q.</div>
 					)}
@@ -4907,8 +4989,16 @@ function StudentNotificationsPage({ token }) {
 function StudentProfilePage({ token }) {
 	const [data, setData] = useState(null)
 	const [form, setForm] = useState({ password: '' })
+	const [complaintForm, setComplaintForm] = useState({ teacherId: '', reason: '' })
+	const [complaintSaving, setComplaintSaving] = useState(false)
 	useEffect(() => {
-		api.getStudentProfile(token).then(setData)
+		api.getStudentProfile(token).then(profile => {
+			setData(profile)
+			setComplaintForm(current => ({
+				...current,
+				teacherId: profile.teacherId ? String(profile.teacherId) : '',
+			}))
+		})
 	}, [token])
 	if (!data) return <div className='card'>Yuklanmoqda...</div>
 
@@ -4920,6 +5010,24 @@ function StudentProfilePage({ token }) {
 			await showSuccess('Yangilandi', 'Parol muvaffaqiyatli yangilandi')
 		} catch (err) {
 			await showError(err.message)
+		}
+	}
+
+	async function handleComplaintSubmit(event) {
+		event.preventDefault()
+		if (complaintSaving) return
+		setComplaintSaving(true)
+		try {
+			await api.createStudentComplaint(token, {
+				teacherId: complaintForm.teacherId ? Number(complaintForm.teacherId) : data.teacherId,
+				reason: complaintForm.reason,
+			})
+			setComplaintForm(current => ({ ...current, reason: '' }))
+			await showSuccess('Yuborildi', 'Shikoyat direktorga yuborildi')
+		} catch (err) {
+			await showError(err.message)
+		} finally {
+			setComplaintSaving(false)
 		}
 	}
 
@@ -4941,6 +5049,14 @@ function StudentProfilePage({ token }) {
 						<input value={data.phone || ''} readOnly />
 					</div>
 					<div>
+						<label>Kurs</label>
+						<input value={data.courseTitle || '-'} readOnly />
+					</div>
+					<div>
+						<label>Ustoz</label>
+						<input value={data.teacherName || "Ustoz biriktirilmagan"} readOnly />
+					</div>
+					<div>
 						<label>Yangi parol</label>
 						<input
 							type='password'
@@ -4952,6 +5068,47 @@ function StudentProfilePage({ token }) {
 					<div className='modal-actions'>
 						<span />
 						<ActionButton type='submit' icon='save'>Parolni saqlash</ActionButton>
+					</div>
+				</form>
+			</section>
+			<section className='card settings-card complaint-card'>
+				<div className='card-head-row'>
+					<div>
+						<h3>Ustoz bo'yicha shikoyat</h3>
+						<p>Shikoyat faqat director panelida ko'rinadi va ko'rib chiqiladi.</p>
+					</div>
+					<Badge tone='warning'>Maxfiy</Badge>
+				</div>
+				<form className='modal-form' onSubmit={handleComplaintSubmit}>
+					<div className='field-grid'>
+						<div>
+							<label>Ustozni tanlang</label>
+							<select
+								value={complaintForm.teacherId}
+								onChange={event => setComplaintForm(current => ({ ...current, teacherId: event.target.value }))}
+							>
+								{data.teacherId ? (
+									<option value={data.teacherId}>{data.teacherName || 'Biriktirilgan ustoz'}</option>
+								) : (
+									<option value=''>Ustoz biriktirilmagan</option>
+								)}
+							</select>
+						</div>
+						<div className='full-span'>
+							<label>Shikoyat sababi</label>
+							<textarea
+								rows={5}
+								value={complaintForm.reason}
+								onChange={event => setComplaintForm(current => ({ ...current, reason: event.target.value }))}
+								placeholder="Masalan: dars tushuntirish uslubi, kechikish yoki boshqa muammo..."
+							/>
+						</div>
+					</div>
+					<div className='modal-actions'>
+						<span />
+						<ActionButton type='submit' icon='report' disabled={complaintSaving}>
+							{complaintSaving ? 'Yuborilmoqda...' : 'Direktorga yuborish'}
+						</ActionButton>
 					</div>
 				</form>
 			</section>
@@ -6599,6 +6756,7 @@ function ReceptionPaymentsPage({ token, meta }) {
 
 function ReceptionContactRequestsPage({ token }) {
 	const [items, setItems] = useState([])
+	const [statusFilter, setStatusFilter] = useState('all')
 
 	async function load() {
 		const data = await api.getReceptionContactRequests(token)
@@ -6609,10 +6767,23 @@ function ReceptionContactRequestsPage({ token }) {
 		load()
 	}, [token])
 
-	async function handleRead(id) {
-		await api.readReceptionContactRequest(token, id)
+	async function handleStatus(id, status) {
+		await api.updateReceptionContactRequestStatus(token, id, status)
 		load()
 	}
+
+	const statusMeta = {
+		new: { label: 'Yangi', tone: 'warning' },
+		read: { label: "Ko'rildi", tone: 'default' },
+		contacted: { label: "Bog'landik", tone: 'info' },
+		coming: { label: 'Keladi', tone: 'success' },
+		rejected: { label: 'Rad etdi', tone: 'danger' },
+	}
+	const filteredItems = items.filter(item => statusFilter === 'all' || item.status === statusFilter)
+	const statusCounts = items.reduce((acc, item) => {
+		acc[item.status] = (acc[item.status] || 0) + 1
+		return acc
+	}, {})
 
 	return (
 		<>
@@ -6621,10 +6792,30 @@ function ReceptionContactRequestsPage({ token }) {
 				subtitle="Asosiy sahifadagi murojaatlar reception paneliga tushadi"
 			/>
 			<section className='contact-requests-panel'>
-				{items.length ? (
+				<div className='crm-status-board'>
+					{[
+						{ key: 'all', label: 'Barchasi' },
+						{ key: 'new', label: 'Yangi' },
+						{ key: 'contacted', label: "Bog'landik" },
+						{ key: 'coming', label: 'Keladi' },
+						{ key: 'rejected', label: 'Rad etdi' },
+					].map(item => (
+						<button
+							key={item.key}
+							type='button'
+							className={statusFilter === item.key ? 'crm-status-chip active' : 'crm-status-chip'}
+							onClick={() => setStatusFilter(item.key)}
+						>
+							<span>{item.label}</span>
+							<strong>{item.key === 'all' ? items.length : statusCounts[item.key] || 0}</strong>
+						</button>
+					))}
+				</div>
+				{filteredItems.length ? (
 					<div className='contact-request-grid'>
-						{items.map(item => {
+						{filteredItems.map(item => {
 							const lead = parseLandingLeadMessage(item.message)
+							const meta = statusMeta[item.status] || statusMeta.new
 							return (
 								<article key={item.id} className={`contact-request-card ${item.status === 'new' ? 'new' : 'read'}`}>
 									<div className='contact-request-head'>
@@ -6635,9 +6826,7 @@ function ReceptionContactRequestsPage({ token }) {
 											<strong>{item.fullName}</strong>
 											<span>{item.phone}</span>
 										</div>
-										<Badge tone={item.status === 'new' ? 'warning' : 'success'}>
-											{item.status === 'new' ? 'Yangi' : "Ko'rildi"}
-										</Badge>
+										<Badge tone={meta.tone}>{meta.label}</Badge>
 									</div>
 									<div className='contact-request-meta'>
 										<div>
@@ -6655,20 +6844,22 @@ function ReceptionContactRequestsPage({ token }) {
 									</div>
 									<div className='contact-request-actions'>
 										<a href={`tel:${item.phone}`} className='page-btn secondary'>Qo'ng'iroq qilish</a>
-										{item.status === 'new' ? (
-											<button type='button' className='page-btn' onClick={() => handleRead(item.id)}>
-												Ko'rildi
-											</button>
-										) : (
-											<span className='muted-label'>Murojaat ko'rilgan</span>
-										)}
+										<button type='button' className='page-btn' onClick={() => handleStatus(item.id, 'contacted')}>
+											Bog'landik
+										</button>
+										<button type='button' className='page-btn success' onClick={() => handleStatus(item.id, 'coming')}>
+											Keladi
+										</button>
+										<button type='button' className='page-btn danger' onClick={() => handleStatus(item.id, 'rejected')}>
+											Rad etdi
+										</button>
 									</div>
 								</article>
 							)
 						})}
 					</div>
 				) : (
-					<EmptyStateNotice message="Habar yo'q." />
+					<EmptyStateNotice message="Bu status bo'yicha murojaat yo'q." />
 				)}
 			</section>
 		</>
@@ -6864,13 +7055,41 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 					onClose={() => setGroupModal(null)}
 				>
 					<div className='attendance-modal-shell'>
-						<div className='toolbar-right'>
+						<div className='attendance-fast-actions'>
 							<input
 								className='toolbar-search'
 								placeholder="Ism, telefon yoki kurs bo'yicha qidiring..."
 								value={memberSearch}
 								onChange={event => setMemberSearch(event.target.value)}
 							/>
+							<button
+								type='button'
+								className='page-btn success'
+								onClick={() => {
+									const next = {}
+									;(currentGroup?.members || []).forEach(student => {
+										next[student.id] = 'present'
+									})
+									setAttendanceMap(current => ({ ...current, ...next }))
+								}}
+							>
+								<Icon name='done_all' />
+								Barchasi keldi
+							</button>
+							<button
+								type='button'
+								className='page-btn secondary'
+								onClick={() => {
+									const next = {}
+									;(currentGroup?.members || []).forEach(student => {
+										next[student.id] = 'absent'
+									})
+									setAttendanceMap(current => ({ ...current, ...next }))
+								}}
+							>
+								<Icon name='restart_alt' />
+								Barchasi kelmadi
+							</button>
 						</div>
 						<div className='attendance-student-list top-space'>
 							{visibleMembers.length ? visibleMembers.map((student, index) => {
@@ -6931,6 +7150,7 @@ function StudentImportSection({ token }) {
 	const [settingsBundle, setSettingsBundle] = useState(null)
 	const [loading, setLoading] = useState(false)
 	const [importing, setImporting] = useState(false)
+	const [importFilter, setImportFilter] = useState('all')
 
 	useEffect(() => {
 		api.getSettings(token).then(setSettingsBundle).catch(() => setSettingsBundle(null))
@@ -6982,6 +7202,10 @@ function StudentImportSection({ token }) {
 				"Tanlangan o'qituvchi bu kursga biriktirilmagan",
 				'Kurs nomi kiritilmagan',
 				"O'qituvchi kiritilmagan",
+				'F.I.SH kiritilmagan',
+				'Telefon raqami kiritilmagan',
+				'Import faylida telefon takrorlangan',
+				'Faylda telefon takrorlangan',
 			].includes(item)
 		)
 		const baseErrors = [...(row.errors || [])].filter(item =>
@@ -6991,6 +7215,10 @@ function StudentImportSection({ token }) {
 				"Tanlangan o'qituvchi bu kursga biriktirilmagan",
 				'Kurs nomi kiritilmagan',
 				"O'qituvchi kiritilmagan",
+				'F.I.SH kiritilmagan',
+				'Telefon raqami kiritilmagan',
+				'Import faylida telefon takrorlangan',
+				'Faylda telefon takrorlangan',
 			].includes(item)
 		)
 		errors.push(...baseErrors)
@@ -7000,6 +7228,8 @@ function StudentImportSection({ token }) {
 		const course = courses.find(item => Number(item.id) === courseId)
 		const teacher = teachers.find(item => Number(item.id) === teacherId)
 
+		if (!String(row.fullName || '').trim()) errors.push('F.I.SH kiritilmagan')
+		if (!String(row.phone || '').replace(/\D/g, '')) errors.push('Telefon raqami kiritilmagan')
 		if (!courseId || !course) errors.push('Kurs tanlanmagan')
 		if (!teacherId || !teacher) errors.push("O'qituvchi tanlanmagan")
 		if (course && teacher && !(teacher.courseIds || []).map(Number).includes(courseId)) {
@@ -7082,6 +7312,19 @@ function StudentImportSection({ token }) {
 		)
 	}
 
+	function handlePreviewFieldChange(rowNumber, field, value) {
+		updatePreviewRows(rows =>
+			rows.map(row =>
+				row.rowNumber === rowNumber
+					? {
+							...row,
+							[field]: value,
+						}
+					: row,
+			),
+		)
+	}
+
 	async function handlePreview() {
 		if (!selectedFile) {
 			await showError('Import uchun fayl tanlang')
@@ -7120,6 +7363,13 @@ function StudentImportSection({ token }) {
 			setImporting(false)
 		}
 	}
+
+	const filteredPreviewRows = preview?.rows?.filter(row => {
+		if (importFilter === 'ready') return row.ready
+		if (importFilter === 'error') return row.errors?.length
+		if (importFilter === 'warning') return row.warnings?.length && !row.errors?.length
+		return true
+	}) || []
 
 	return (
 		<section className='card settings-card'>
@@ -7185,6 +7435,24 @@ function StudentImportSection({ token }) {
 								<strong>{preview.summary.skipRows || 0}</strong>
 							</div>
 						</div>
+						<div className='import-filter-tabs'>
+							{[
+								{ key: 'all', label: 'Barchasi', count: preview.summary.totalRows },
+								{ key: 'ready', label: 'Tayyor', count: preview.summary.readyRows },
+								{ key: 'error', label: 'Xatolar', count: preview.summary.errorRows },
+								{ key: 'warning', label: 'Ogohlantirish', count: preview.summary.warningRows },
+							].map(item => (
+								<button
+									key={item.key}
+									type='button'
+									className={importFilter === item.key ? 'active' : ''}
+									onClick={() => setImportFilter(item.key)}
+								>
+									<span>{item.label}</span>
+									<strong>{item.count || 0}</strong>
+								</button>
+							))}
+						</div>
 						<div className='table-shell responsive-cards top-space'>
 							<table>
 								<thead>
@@ -7198,13 +7466,23 @@ function StudentImportSection({ token }) {
 									</tr>
 								</thead>
 								<tbody>
-									{preview.rows.map(row => (
+									{filteredPreviewRows.map(row => (
 										<tr key={`${row.rowNumber}-${row.phone}`}>
 											<td data-label='Qator'>#{row.rowNumber}</td>
 											<td data-label="O'quvchi">
 												<div className='import-student-cell'>
-													<strong>{row.fullName || '-'}</strong>
-													<span>{row.phone || '-'}</span>
+													<input
+														className='compact-input'
+														value={row.fullName || ''}
+														placeholder='F.I.Sh'
+														onChange={event => handlePreviewFieldChange(row.rowNumber, 'fullName', event.target.value)}
+													/>
+													<input
+														className='compact-input'
+														value={row.phone || ''}
+														placeholder='+998...'
+														onChange={event => handlePreviewFieldChange(row.rowNumber, 'phone', event.target.value)}
+													/>
 												</div>
 											</td>
 											<td data-label='Kurs'>
@@ -7624,6 +7902,21 @@ function TeacherDashboardPage({ token }) {
 	const todayLessonsCount = groups.filter(group =>
 		parseScheduleString(group.members[0]?.schedule || '').days.includes(todayKey),
 	).length
+	const todayLessonGroups = groups
+		.filter(group => parseScheduleString(group.members[0]?.schedule || '').days.includes(todayKey))
+		.map(group => {
+			const parsed = parseScheduleString(group.members[0]?.schedule || '')
+			return {
+				key: group.key,
+				label: group.label,
+				courseTitle: group.courseTitle,
+				teacherName: group.teacherName,
+				startTime: parsed.startTime || 'Vaqt kiritilmagan',
+				endTime: parsed.endTime,
+				count: group.members.length,
+			}
+		})
+		.sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)))
 	useEffect(() => {
 		let cancelled = false
 		async function loadHistory() {
@@ -7697,6 +7990,36 @@ function TeacherDashboardPage({ token }) {
 					/>
 				</section>
 			) : null}
+			<section className='card today-lessons-card'>
+				<div className='card-head-row'>
+					<div>
+						<h3>Bugungi darslar</h3>
+						<p>Bugun qaysi guruh, nechada va nechta o'quvchi borligi</p>
+					</div>
+					<Badge tone={todayLessonGroups.length ? 'success' : 'default'}>
+						{todayLessonGroups.length} ta dars
+					</Badge>
+				</div>
+				{todayLessonGroups.length ? (
+					<div className='today-lessons-list'>
+						{todayLessonGroups.map(group => (
+							<article key={group.key} className='today-lesson-item'>
+								<div className='today-lesson-time'>
+									<strong>{group.startTime}</strong>
+									<span>{group.endTime || '-'}</span>
+								</div>
+								<div>
+									<strong>{group.courseTitle}</strong>
+									<span>{group.teacherName}</span>
+								</div>
+								<Badge tone='info'>{group.count} o'quvchi</Badge>
+							</article>
+						))}
+					</div>
+				) : (
+					<EmptyStateNotice message="Bugun jadval bo'yicha dars yo'q." />
+				)}
+			</section>
 		</>
 	)
 }
@@ -8733,6 +9056,118 @@ function DirectorStatisticsPage({ token }) {
 	)
 }
 
+function DirectorComplaintsPage({ token }) {
+	const [items, setItems] = useState([])
+	const [loading, setLoading] = useState(true)
+	const [savingId, setSavingId] = useState(null)
+	const [error, setError] = useState('')
+	const statusMeta = {
+		new: { label: 'Yangi', tone: 'warning' },
+		reviewing: { label: "Ko'rib chiqilmoqda", tone: 'info' },
+		resolved: { label: 'Hal qilindi', tone: 'success' },
+		rejected: { label: 'Rad etildi', tone: 'danger' },
+	}
+
+	async function loadComplaints() {
+		try {
+			setError('')
+			const data = await api.getDirectorComplaints(token)
+			setItems(Array.isArray(data) ? data : [])
+		} catch (err) {
+			setError(err.message || 'Shikoyatlar olinmadi')
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	useEffect(() => {
+		let cancelled = false
+		async function load() {
+			try {
+				setError('')
+				const data = await api.getDirectorComplaints(token)
+				if (!cancelled) setItems(Array.isArray(data) ? data : [])
+			} catch (err) {
+				if (!cancelled) setError(err.message || 'Shikoyatlar olinmadi')
+			} finally {
+				if (!cancelled) setLoading(false)
+			}
+		}
+		load()
+		const interval = window.setInterval(load, 25000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
+	}, [token])
+
+	async function handleStatus(id, status) {
+		setSavingId(id)
+		try {
+			await api.updateDirectorComplaintStatus(token, id, status)
+			await loadComplaints()
+		} catch (err) {
+			await showError(err.message)
+		} finally {
+			setSavingId(null)
+		}
+	}
+
+	if (loading) return <div className='card'>Yuklanmoqda...</div>
+	if (error) return <div className='card'>{error}</div>
+
+	return (
+		<>
+			<PageHeader title='Shikoyatlar' subtitle="Studentlardan kelgan ustoz bo'yicha murojaatlar" />
+			<div className='three-column-grid'>
+				<StatCard label='Yangi' value={`${items.filter(item => item.status === 'new').length} ta`} note="Ko'rib chiqilmagan" icon='report' tone='warning' />
+				<StatCard label="Jarayonda" value={`${items.filter(item => item.status === 'reviewing').length} ta`} note='Director nazoratida' icon='visibility' />
+				<StatCard label='Yopilgan' value={`${items.filter(item => ['resolved', 'rejected'].includes(item.status)).length} ta`} note='Hal qilinganlar' icon='task_alt' tone='success' />
+			</div>
+			<section className='card complaints-board'>
+				{items.length ? (
+					items.map(item => {
+						const meta = statusMeta[item.status] || statusMeta.new
+						return (
+							<article key={item.id} className='complaint-card-item'>
+								<div className='complaint-main'>
+									<div className='complaint-avatar'>{getInitials(item.studentName)}</div>
+									<div>
+										<div className='complaint-title-row'>
+											<strong>{item.studentName}</strong>
+											<Badge tone={meta.tone}>{meta.label}</Badge>
+										</div>
+										<p>{item.reason}</p>
+										<span>
+											{item.courseTitle || '-'} · Ustoz: {item.teacherName || '-'} · {item.createdAt}
+										</span>
+									</div>
+								</div>
+								<div className='complaint-actions'>
+									<button type='button' className='page-btn secondary' disabled={savingId === item.id} onClick={() => handleStatus(item.id, 'reviewing')}>
+										<Icon name='visibility' />
+										Ko'rib chiqish
+									</button>
+									<button type='button' className='page-btn success' disabled={savingId === item.id} onClick={() => handleStatus(item.id, 'resolved')}>
+										<Icon name='task_alt' />
+										Hal qilindi
+									</button>
+									<button type='button' className='page-btn danger' disabled={savingId === item.id} onClick={() => handleStatus(item.id, 'rejected')}>
+										<Icon name='block' />
+										Rad etish
+									</button>
+								</div>
+							</article>
+						)
+					})
+				) : (
+					<EmptyStateNotice message="Shikoyatlar hozircha yo'q." />
+				)}
+			</section>
+		</>
+	)
+}
+
 function DirectorSettingsPage({ meta, token, onProfileUpdated }) {
 	const [bundle, setBundle] = useState(null)
 	const [error, setError] = useState('')
@@ -9420,6 +9855,10 @@ function ProtectedApp({ auth, meta, onLogout, onProfileUpdated }) {
 				<Route
 					path='/director/statistics'
 					element={<DirectorStatisticsPage token={auth.token} />}
+				/>
+				<Route
+					path='/director/complaints'
+					element={<DirectorComplaintsPage token={auth.token} />}
 				/>
 				<Route
 					path='/director/settings'

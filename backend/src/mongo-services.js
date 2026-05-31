@@ -6,6 +6,7 @@ import { config } from "./config.js";
 import {
   Attendance,
   Branch,
+  Complaint,
   ContactRequest,
   Course,
   DeveloperProfile,
@@ -1368,6 +1369,111 @@ export async function markContactRequestReadMongo(id) {
   return result.matchedCount > 0;
 }
 
+const CONTACT_REQUEST_STATUSES = new Set(["new", "contacted", "coming", "rejected", "read"]);
+
+export async function updateContactRequestStatusMongo(id, status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (!CONTACT_REQUEST_STATUSES.has(normalizedStatus)) {
+    throw new Error("Murojaat statusi noto'g'ri");
+  }
+  const update = {
+    status: normalizedStatus,
+    ...(normalizedStatus === "new" ? { readAt: null } : { readAt: new Date() })
+  };
+  const result = await ContactRequest.updateOne({ id: Number(id) }, { $set: update });
+  return result.matchedCount > 0;
+}
+
+const COMPLAINT_STATUSES = new Set(["new", "reviewing", "resolved", "rejected"]);
+
+function mapComplaintMongo(row, student, studentUser, teacher, course) {
+  return {
+    id: Number(row.id),
+    studentId: Number(row.studentId),
+    studentName: studentUser?.fullName || "",
+    studentPhone: studentUser?.phone || "",
+    teacherId: row.teacherId ? Number(row.teacherId) : null,
+    teacherName: teacher?.fullName || "",
+    courseTitle: course?.title || "",
+    reason: row.reason || "",
+    status: row.status || "new",
+    createdAt: dayjs(row.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+    resolvedAt: row.resolvedAt ? dayjs(row.resolvedAt).format("YYYY-MM-DD HH:mm:ss") : null
+  };
+}
+
+export async function createStudentComplaintMongo(userId, { teacherId, reason }) {
+  const student = await getStudentByUserIdMongo(userId);
+  if (!student) throw new Error("Student topilmadi");
+  const normalizedReason = String(reason || "").trim();
+  if (normalizedReason.length < 5) {
+    throw new Error("Shikoyat sababini batafsilroq yozing");
+  }
+  const selectedTeacherId = teacherId ? Number(teacherId) : Number(student.teacherId || 0);
+  const id = await getNextSequence("complaints");
+  await Complaint.create({
+    id,
+    studentId: Number(student.id),
+    teacherId: selectedTeacherId || null,
+    reason: normalizedReason,
+    status: "new",
+    createdAt: new Date()
+  });
+  await createNotificationMongo({
+    targetRole: "director",
+    type: "teacher_complaint",
+    title: "Yangi shikoyat",
+    message: `${student.fullName} ${student.teacherName || "ustoz"} ustidan shikoyat yubordi`,
+    metadata: { complaintId: id, studentId: student.id, teacherId: selectedTeacherId || null }
+  });
+  return { id, message: "Shikoyat direktorga yuborildi" };
+}
+
+export async function listComplaintsMongo() {
+  const rows = await Complaint.find({}).sort({ createdAt: -1, id: -1 }).lean();
+  const studentIds = [...new Set(rows.map((row) => Number(row.studentId)).filter(Boolean))];
+  const students = await Student.find({ id: { $in: studentIds } }).lean();
+  const userIds = [...new Set(students.map((student) => Number(student.userId)).filter(Boolean))];
+  const teacherIds = [...new Set(rows.map((row) => Number(row.teacherId)).filter(Boolean))];
+  const courseIds = [...new Set(students.map((student) => Number(student.courseId)).filter(Boolean))];
+  const [users, teachers, courses] = await Promise.all([
+    User.find({ id: { $in: userIds } }).lean(),
+    User.find({ id: { $in: teacherIds } }).lean(),
+    Course.find({ id: { $in: courseIds } }).lean()
+  ]);
+  const studentMap = new Map(students.map((item) => [Number(item.id), item]));
+  const userMap = new Map(users.map((item) => [Number(item.id), item]));
+  const teacherMap = new Map(teachers.map((item) => [Number(item.id), item]));
+  const courseMap = new Map(courses.map((item) => [Number(item.id), item]));
+  return rows.map((row) => {
+    const student = studentMap.get(Number(row.studentId));
+    return mapComplaintMongo(
+      row,
+      student,
+      userMap.get(Number(student?.userId)),
+      teacherMap.get(Number(row.teacherId)),
+      courseMap.get(Number(student?.courseId))
+    );
+  });
+}
+
+export async function updateComplaintStatusMongo(id, status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (!COMPLAINT_STATUSES.has(normalizedStatus)) {
+    throw new Error("Shikoyat statusi noto'g'ri");
+  }
+  const result = await Complaint.updateOne(
+    { id: Number(id) },
+    {
+      $set: {
+        status: normalizedStatus,
+        ...(normalizedStatus === "resolved" || normalizedStatus === "rejected" ? { resolvedAt: new Date() } : {})
+      }
+    }
+  );
+  return result.matchedCount > 0;
+}
+
 export async function upsertAttendanceBatchMongo({ lessonDate, entries = [], actorUserId }) {
   const nextLessonDate = lessonDate || dayjs().format("YYYY-MM-DD");
   const results = [];
@@ -1628,6 +1734,17 @@ export async function getStudentScheduleMongo(userId) {
   return {
     courseTitle: student.courseTitle,
     teacherName: student.teacherName,
+    teacherId: student.teacherId,
+    room: student.room || null,
+    nextLessonDate: await (async () => {
+      for (let offset = 0; offset < 8; offset += 1) {
+        const candidate = dayjs().add(offset, "day");
+        if (dayKeys.some((key) => numericMap[key] === candidate.day())) {
+          return candidate.format("YYYY-MM-DD");
+        }
+      }
+      return null;
+    })(),
     items: dayKeys.map((key) => ({
       day: dayMap[key] || key,
       time: timePart.trim(),
@@ -1639,9 +1756,29 @@ export async function getStudentScheduleMongo(userId) {
 export async function getStudentProfilePanelMongo(userId) {
   const profile = await getStudentByUserIdMongo(userId);
   if (!profile) return null;
+  const schedule = profile.schedule || "";
+  const numericMap = { du: 1, se: 2, chor: 3, pay: 4, juma: 5, shan: 6, yak: 0 };
+  const dayKeys = schedule
+    .split(",")[0]
+    .split("-")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  let nextLessonDate = null;
+  for (let offset = 0; offset < 8; offset += 1) {
+    const candidate = dayjs().add(offset, "day");
+    if (dayKeys.some((key) => numericMap[key] === candidate.day())) {
+      nextLessonDate = candidate.format("YYYY-MM-DD");
+      break;
+    }
+  }
   return {
     fullName: profile.fullName,
-    phone: profile.phone
+    phone: profile.phone,
+    courseTitle: profile.courseTitle,
+    teacherId: profile.teacherId,
+    teacherName: profile.teacherName,
+    schedule: profile.schedule,
+    nextLessonDate
   };
 }
 

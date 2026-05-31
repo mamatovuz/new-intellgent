@@ -2997,6 +2997,9 @@ export function getStudentSchedule(userId) {
   return {
     courseTitle: student.courseTitle,
     teacherName: student.teacherName,
+    teacherId: student.teacherId,
+    room: student.room || null,
+    nextLessonDate: getNextLessonDateFromSchedule(student.schedule),
     items: dayKeys.map((key) => ({
       day: dayMap[key] || key,
       time: timePart.trim(),
@@ -3025,6 +3028,9 @@ export async function getStudentScheduleAsync(userId) {
   return {
     courseTitle: student.courseTitle,
     teacherName: student.teacherName,
+    teacherId: student.teacherId,
+    room: student.room || null,
+    nextLessonDate: getNextLessonDateFromSchedule(student.schedule),
     items: dayKeys.map((key) => ({
       day: dayMap[key] || key,
       time: timePart.trim(),
@@ -3038,7 +3044,12 @@ export function getStudentProfilePanel(userId) {
   if (!profile) return null;
   return {
     fullName: profile.fullName,
-    phone: profile.phone
+    phone: profile.phone,
+    courseTitle: profile.courseTitle,
+    teacherId: profile.teacherId,
+    teacherName: profile.teacherName,
+    schedule: profile.schedule,
+    nextLessonDate: getNextLessonDateFromSchedule(profile.schedule)
   };
 }
 
@@ -3047,7 +3058,12 @@ export async function getStudentProfilePanelAsync(userId) {
   if (!profile) return null;
   return {
     fullName: profile.fullName,
-    phone: profile.phone
+    phone: profile.phone,
+    courseTitle: profile.courseTitle,
+    teacherId: profile.teacherId,
+    teacherName: profile.teacherName,
+    schedule: profile.schedule,
+    nextLessonDate: getNextLessonDateFromSchedule(profile.schedule)
   };
 }
 
@@ -5326,6 +5342,193 @@ export async function markContactRequestReadAsync(id) {
       RETURNING id
     `,
     [dayjs().format("YYYY-MM-DD HH:mm:ss"), id]
+  );
+  return result.rowCount > 0;
+}
+
+const CONTACT_REQUEST_STATUSES = new Set(["new", "contacted", "coming", "rejected", "read"]);
+
+export function updateContactRequestStatus(id, status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (!CONTACT_REQUEST_STATUSES.has(normalizedStatus)) {
+    throw new Error("Murojaat statusi noto'g'ri");
+  }
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const result = db.prepare(`
+    UPDATE contact_requests
+    SET status = ?, read_at = CASE WHEN ? = 'new' THEN NULL ELSE COALESCE(read_at, ?) END
+    WHERE id = ?
+  `).run(normalizedStatus, normalizedStatus, now, id);
+  return result.changes > 0;
+}
+
+export async function updateContactRequestStatusAsync(id, status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (!CONTACT_REQUEST_STATUSES.has(normalizedStatus)) {
+    throw new Error("Murojaat statusi noto'g'ri");
+  }
+  const result = await getSupabasePool().query(
+    `
+      UPDATE contact_requests
+      SET status = $1,
+          read_at = CASE WHEN $1 = 'new' THEN NULL ELSE COALESCE(read_at, $2) END
+      WHERE id = $3
+      RETURNING id
+    `,
+    [normalizedStatus, dayjs().format("YYYY-MM-DD HH:mm:ss"), id]
+  );
+  return result.rowCount > 0;
+}
+
+const COMPLAINT_STATUSES = new Set(["new", "reviewing", "resolved", "rejected"]);
+
+function mapComplaintRow(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    studentId: Number(row.studentId),
+    studentName: row.studentName || "",
+    studentPhone: row.studentPhone || "",
+    teacherId: row.teacherId ? Number(row.teacherId) : null,
+    teacherName: row.teacherName || "",
+    courseTitle: row.courseTitle || "",
+    reason: row.reason || "",
+    status: row.status || "new",
+    createdAt: row.createdAt,
+    resolvedAt: row.resolvedAt || null
+  };
+}
+
+export function createStudentComplaint(userId, { teacherId, reason }) {
+  const student = getStudentByUserId(userId);
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+  const normalizedReason = String(reason || "").trim();
+  if (normalizedReason.length < 5) {
+    throw new Error("Shikoyat sababini batafsilroq yozing");
+  }
+  const selectedTeacherId = teacherId ? Number(teacherId) : Number(student.teacherId || 0);
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const id = db.prepare(`
+    INSERT INTO complaints (student_id, teacher_id, reason, status, created_at)
+    VALUES (?, ?, ?, 'new', ?)
+  `).run(student.id, selectedTeacherId || null, normalizedReason, now).lastInsertRowid;
+
+  createNotification({
+    targetRole: "director",
+    type: "teacher_complaint",
+    title: "Yangi shikoyat",
+    message: `${student.fullName} ${student.teacherName || "ustoz"} ustidan shikoyat yubordi`,
+    metadata: { complaintId: id, studentId: student.id, teacherId: selectedTeacherId || null }
+  });
+
+  return { id, message: "Shikoyat direktorga yuborildi" };
+}
+
+export async function createStudentComplaintAsync(userId, { teacherId, reason }) {
+  const student = await getStudentByUserIdAsync(userId);
+  if (!student) {
+    throw new Error("Student topilmadi");
+  }
+  const normalizedReason = String(reason || "").trim();
+  if (normalizedReason.length < 5) {
+    throw new Error("Shikoyat sababini batafsilroq yozing");
+  }
+  const selectedTeacherId = teacherId ? Number(teacherId) : Number(student.teacherId || 0);
+  const result = await getSupabasePool().query(
+    `
+      INSERT INTO complaints (student_id, teacher_id, reason, status, created_at)
+      VALUES ($1, $2, $3, 'new', $4)
+      RETURNING id
+    `,
+    [student.id, selectedTeacherId || null, normalizedReason, dayjs().format("YYYY-MM-DD HH:mm:ss")]
+  );
+  const id = Number(result.rows[0].id);
+  await createNotificationAsync({
+    targetRole: "director",
+    type: "teacher_complaint",
+    title: "Yangi shikoyat",
+    message: `${student.fullName} ${student.teacherName || "ustoz"} ustidan shikoyat yubordi`,
+    metadata: { complaintId: id, studentId: student.id, teacherId: selectedTeacherId || null }
+  });
+  return { id, message: "Shikoyat direktorga yuborildi" };
+}
+
+export function listComplaints() {
+  return db.prepare(`
+    SELECT
+      c.id,
+      c.student_id as studentId,
+      su.full_name as studentName,
+      su.phone as studentPhone,
+      c.teacher_id as teacherId,
+      tu.full_name as teacherName,
+      co.title as courseTitle,
+      c.reason,
+      c.status,
+      c.created_at as createdAt,
+      c.resolved_at as resolvedAt
+    FROM complaints c
+    JOIN students s ON s.id = c.student_id
+    JOIN users su ON su.id = s.user_id
+    LEFT JOIN users tu ON tu.id = c.teacher_id
+    LEFT JOIN courses co ON co.id = s.course_id
+    ORDER BY datetime(c.created_at) DESC, c.id DESC
+  `).all().map(mapComplaintRow);
+}
+
+export async function listComplaintsAsync() {
+  const { rows } = await getSupabasePool().query(`
+    SELECT
+      c.id,
+      c.student_id as "studentId",
+      su.full_name as "studentName",
+      su.phone as "studentPhone",
+      c.teacher_id as "teacherId",
+      tu.full_name as "teacherName",
+      co.title as "courseTitle",
+      c.reason,
+      c.status,
+      c.created_at as "createdAt",
+      c.resolved_at as "resolvedAt"
+    FROM complaints c
+    JOIN students s ON s.id = c.student_id
+    JOIN users su ON su.id = s.user_id
+    LEFT JOIN users tu ON tu.id = c.teacher_id
+    LEFT JOIN courses co ON co.id = s.course_id
+    ORDER BY c.created_at DESC, c.id DESC
+  `);
+  return rows.map(mapComplaintRow);
+}
+
+export function updateComplaintStatus(id, status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (!COMPLAINT_STATUSES.has(normalizedStatus)) {
+    throw new Error("Shikoyat statusi noto'g'ri");
+  }
+  const result = db.prepare(`
+    UPDATE complaints
+    SET status = ?, resolved_at = CASE WHEN ? IN ('resolved', 'rejected') THEN ? ELSE resolved_at END
+    WHERE id = ?
+  `).run(normalizedStatus, normalizedStatus, dayjs().format("YYYY-MM-DD HH:mm:ss"), id);
+  return result.changes > 0;
+}
+
+export async function updateComplaintStatusAsync(id, status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (!COMPLAINT_STATUSES.has(normalizedStatus)) {
+    throw new Error("Shikoyat statusi noto'g'ri");
+  }
+  const result = await getSupabasePool().query(
+    `
+      UPDATE complaints
+      SET status = $1,
+          resolved_at = CASE WHEN $1 IN ('resolved', 'rejected') THEN $2 ELSE resolved_at END
+      WHERE id = $3
+      RETURNING id
+    `,
+    [normalizedStatus, dayjs().format("YYYY-MM-DD HH:mm:ss"), id]
   );
   return result.rowCount > 0;
 }

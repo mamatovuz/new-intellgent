@@ -199,6 +199,18 @@ export function migrate() {
       read_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS complaints (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      teacher_id INTEGER,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TEXT NOT NULL,
+      resolved_at TEXT,
+      FOREIGN KEY(student_id) REFERENCES students(id),
+      FOREIGN KEY(teacher_id) REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS reminder_dispatches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       student_id INTEGER NOT NULL,

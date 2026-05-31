@@ -16,6 +16,8 @@ import {
   changeStudentPasswordAsync,
   createContactRequestAsync,
   createContactRequest,
+  createStudentComplaint,
+  createStudentComplaintAsync,
   createCourse,
   createCourseAsync,
   createStudentRegistrationToken,
@@ -67,6 +69,8 @@ import {
   listBranchesAsync,
   listContactRequests,
   listContactRequestsAsync,
+  listComplaints,
+  listComplaintsAsync,
   listCourses,
   listCoursesAsync,
   listDeveloperProfiles,
@@ -81,6 +85,10 @@ import {
   listTeachersAsync,
   markContactRequestRead,
   markContactRequestReadAsync,
+  updateContactRequestStatus,
+  updateContactRequestStatusAsync,
+  updateComplaintStatus,
+  updateComplaintStatusAsync,
   markAllNotificationsRead,
   markAllNotificationsReadAsync,
   markNotificationReadAsync,
@@ -121,6 +129,7 @@ import {
   broadcastNotificationMongo,
   changeStudentPasswordMongo,
   createContactRequestMongo,
+  createStudentComplaintMongo,
   createCourseMongo,
   createStudentRegistrationTokenMongo,
   createTeacherMongo,
@@ -150,6 +159,7 @@ import {
   listAttendanceHistoryMongo,
   listBranchesMongo,
   listContactRequestsMongo,
+  listComplaintsMongo,
   listCoursesMongo,
   listDeveloperProfilesMongo,
   listNotificationsMongo,
@@ -157,6 +167,8 @@ import {
   listStudentsMongo,
   listTeachersMongo,
   markContactRequestReadMongo,
+  updateContactRequestStatusMongo,
+  updateComplaintStatusMongo,
   markAllNotificationsReadMongo,
   markNotificationReadMongo,
   loginStudentByAccessTokenMongo,
@@ -890,6 +902,24 @@ router.post("/reception/contact-requests/:id/read", authenticate, authorize("rec
   });
 });
 
+router.post("/reception/contact-requests/:id/status", authenticate, authorize("reception", "director"), (req, res) => {
+  const handleContactStatus = async () => {
+    const ok =
+      config.dbProvider === "mongodb"
+        ? await updateContactRequestStatusMongo(Number(req.params.id), req.body.status)
+        : config.dbProvider === "postgres"
+          ? await updateContactRequestStatusAsync(Number(req.params.id), req.body.status)
+          : updateContactRequestStatus(Number(req.params.id), req.body.status);
+    if (!ok) {
+      return res.status(404).json({ message: "Murojaat topilmadi" });
+    }
+    res.json({ ok: true });
+  };
+  handleContactStatus().catch((error) => {
+    res.status(400).json({ message: error.message || "Murojaat statusi yangilanmadi" });
+  });
+});
+
 router.post("/payments/webhook", async (req, res) => {
   try {
     const { phone, amount, provider, transactionId } = req.body;
@@ -1377,6 +1407,39 @@ router.post("/notifications/broadcast", authenticate, authorize("director"), (re
   });
 });
 
+router.get("/director/complaints", authenticate, authorize("director"), (req, res) => {
+  const handleComplaints = async () => {
+    res.json(
+      config.dbProvider === "mongodb"
+        ? await listComplaintsMongo()
+        : config.dbProvider === "postgres"
+          ? await listComplaintsAsync()
+          : listComplaints()
+    );
+  };
+  handleComplaints().catch((error) => {
+    res.status(500).json({ message: error.message || "Shikoyatlar olinmadi" });
+  });
+});
+
+router.post("/director/complaints/:id/status", authenticate, authorize("director"), (req, res) => {
+  const handleComplaintStatus = async () => {
+    const ok =
+      config.dbProvider === "mongodb"
+        ? await updateComplaintStatusMongo(Number(req.params.id), req.body.status)
+        : config.dbProvider === "postgres"
+          ? await updateComplaintStatusAsync(Number(req.params.id), req.body.status)
+          : updateComplaintStatus(Number(req.params.id), req.body.status);
+    if (!ok) {
+      return res.status(404).json({ message: "Shikoyat topilmadi" });
+    }
+    res.json({ ok: true });
+  };
+  handleComplaintStatus().catch((error) => {
+    res.status(400).json({ message: error.message || "Shikoyat statusi yangilanmadi" });
+  });
+});
+
 router.get("/settings", authenticate, authorize("director", "reception"), (_req, res) => {
   const handleSettings = async () => {
     res.json(
@@ -1528,6 +1591,21 @@ router.get("/student/me/notifications", authenticate, authorize("student"), (req
   };
   handleStudentNotifications().catch((error) => {
     res.status(500).json({ message: error.message || "Bildirishnomalar olinmadi" });
+  });
+});
+
+router.post("/student/me/complaints", authenticate, authorize("student"), (req, res) => {
+  const handleStudentComplaint = async () => {
+    const result =
+      config.dbProvider === "mongodb"
+        ? await createStudentComplaintMongo(req.user.id, req.body)
+        : config.dbProvider === "postgres"
+          ? await createStudentComplaintAsync(req.user.id, req.body)
+          : createStudentComplaint(req.user.id, req.body);
+    res.status(201).json(result);
+  };
+  handleStudentComplaint().catch((error) => {
+    res.status(400).json({ message: error.message || "Shikoyat yuborilmadi" });
   });
 });
 

@@ -155,6 +155,12 @@ export const api = {
       method: "POST",
       token
     }),
+  updateReceptionContactRequestStatus: (token, id, status) =>
+    request(`/reception/contact-requests/${id}/status`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ status })
+    }),
   createStudent: (token, payload) =>
     request("/reception/students", {
       method: "POST",
@@ -236,6 +242,13 @@ export const api = {
   getDirectorOverview: (token) => request("/director/overview", { token }),
   getDirectorFinance: (token) => request("/director/finance", { token }),
   getDirectorCourses: (token) => request("/director/courses", { token }),
+  getDirectorComplaints: (token) => request("/director/complaints", { token }),
+  updateDirectorComplaintStatus: (token, id, status) =>
+    request(`/director/complaints/${id}/status`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ status })
+    }),
   createTeacher: (token, payload) =>
     request("/director/teachers", {
       method: "POST",
@@ -309,6 +322,12 @@ export const api = {
   getStudentPayments: (token) => request("/student/me/payments", { token }),
   getStudentSchedule: (token) => request("/student/me/schedule", { token }),
   getStudentNotifications: (token) => request("/student/me/notifications", { token }),
+  createStudentComplaint: (token, payload) =>
+    request("/student/me/complaints", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload)
+    }),
   getStudentProfile: (token) => request("/student/me/profile", { token }),
   updateStudentPassword: (token, payload) =>
     request("/student/me/profile/password", {

@@ -184,6 +184,18 @@ CREATE TABLE IF NOT EXISTS contact_requests (
   read_at DATETIME NULL
 );
 
+CREATE TABLE IF NOT EXISTS complaints (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  student_id BIGINT NOT NULL,
+  teacher_id BIGINT NULL,
+  reason TEXT NOT NULL,
+  status VARCHAR(64) NOT NULL DEFAULT 'new',
+  created_at DATETIME NOT NULL,
+  resolved_at DATETIME NULL,
+  CONSTRAINT fk_complaint_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  CONSTRAINT fk_complaint_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS reminder_dispatches (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   student_id BIGINT NOT NULL,

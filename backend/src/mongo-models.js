@@ -235,6 +235,19 @@ const contactRequestSchema = new Schema(
   jsonOptions
 );
 
+const complaintSchema = new Schema(
+  {
+    id: { type: Number, required: true, unique: true, index: true },
+    studentId: { type: Number, required: true, index: true },
+    teacherId: { type: Number, index: true },
+    reason: { type: String, required: true },
+    status: { type: String, default: "new", index: true },
+    createdAt: { type: Date, default: Date.now, index: true },
+    resolvedAt: Date
+  },
+  jsonOptions
+);
+
 const reminderDispatchSchema = new Schema(
   {
     id: { type: Number, required: true, unique: true, index: true },
@@ -264,6 +277,7 @@ export const StudentAuth = models.StudentAuth || model("StudentAuth", studentAut
 export const QrToken = models.QrToken || model("QrToken", qrTokenSchema);
 export const DeveloperProfile = models.DeveloperProfile || model("DeveloperProfile", developerProfileSchema);
 export const ContactRequest = models.ContactRequest || model("ContactRequest", contactRequestSchema);
+export const Complaint = models.Complaint || model("Complaint", complaintSchema);
 export const ReminderDispatch = models.ReminderDispatch || model("ReminderDispatch", reminderDispatchSchema);
 
 export async function getNextSequence(key) {
