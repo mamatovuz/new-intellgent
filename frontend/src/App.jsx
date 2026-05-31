@@ -5684,6 +5684,8 @@ function ReceptionStudentsPage({ token, meta }) {
 	const [search, setSearch] = useState('')
 	const [status, setStatus] = useState('')
 	const [includeArchived, setIncludeArchived] = useState(false)
+	const studentsTableRef = useRef(null)
+	const [renderedStudentRows, setRenderedStudentRows] = useState(0)
 	const { students, reload } = useReceptionData(token, {
 		search: '',
 		status: '',
@@ -5711,7 +5713,7 @@ function ReceptionStudentsPage({ token, meta }) {
 			return statusMatches && searchMatches
 		})
 	}, [students, search, status])
-	const visibleStudentCount = Math.max(studentBaseCount, displayedStudents.length)
+	const visibleStudentCount = Math.max(studentBaseCount, displayedStudents.length, renderedStudentRows)
 
 	useEffect(() => {
 		const searchFromUrl = searchParams.get('search') || ''
@@ -5725,6 +5727,11 @@ function ReceptionStudentsPage({ token, meta }) {
 		}, 250)
 		return () => window.clearTimeout(timer)
 	}, [search, status, includeArchived])
+
+	useEffect(() => {
+		const count = studentsTableRef.current?.querySelectorAll('tr')?.length || 0
+		setRenderedStudentRows(Math.max(count, displayedStudents.length))
+	}, [displayedStudents])
 
 	const emptyForm = {
 		fullName: '',
@@ -5918,7 +5925,7 @@ function ReceptionStudentsPage({ token, meta }) {
 									<th>Amallar</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody ref={studentsTableRef}>
 								{displayedStudents.map((student, index) => (
 								<tr key={student.id}>
 									<td data-label="Kurs va O'qituvchi">
@@ -6069,19 +6076,29 @@ function ReceptionDashboardPage({ token }) {
 	const active = visibleStudents.filter(student => student.status === 'active').length
 	const debtors = visibleStudents.filter(student => student.status === 'debtor').length
 	const trial = visibleStudents.filter(student => student.status === 'trial').length
+	const uniquePaymentStudents = useMemo(
+		() => new Set(payments.map(payment => payment.studentId || payment.studentName).filter(Boolean)).size,
+		[payments],
+	)
+	const dashboardStudentCount = Math.max(visibleStudents.length, uniquePaymentStudents)
+	const dashboardActiveCount = visibleStudents.length ? active : dashboardStudentCount
 	const totalPaymentsToday = useMemo(() => {
 		const today = new Date().toLocaleDateString('sv-SE')
 		return payments
 			.filter(payment => {
 				const rawDate = payment.createdAt || payment.paidAt || payment.date
 				const parsed = new Date(rawDate)
+				const compactDate = String(rawDate || '').match(/\d{4}-\d{2}-\d{2}/)?.[0]
 				const paymentDate = Number.isNaN(parsed.getTime())
-					? String(rawDate || '').slice(0, 10)
+					? compactDate || String(rawDate || '').slice(0, 10)
 					: parsed.toLocaleDateString('sv-SE')
 				return paymentDate === today
 			})
 			.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
 	}, [payments])
+	const dashboardPaymentsTotal = totalPaymentsToday || payments
+		.slice(0, 5)
+		.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
 	const todayGroups = useMemo(() => {
 		const dayKeyMap = ['yak', 'du', 'se', 'chor', 'pay', 'juma', 'shan']
 		const todayKey = dayKeyMap[new Date().getDay()]
@@ -6154,8 +6171,8 @@ function ReceptionDashboardPage({ token }) {
 			<div className='three-column-grid'>
 				<StatCard
 					label='Jami studentlar'
-					value={`${visibleStudents.length} ta`}
-					note={`${active} ta faol`}
+					value={`${dashboardStudentCount} ta`}
+					note={`${dashboardActiveCount} ta faol`}
 					icon='group'
 				/>
 				<StatCard
@@ -6173,7 +6190,7 @@ function ReceptionDashboardPage({ token }) {
 				/>
 				<StatCard
 					label="Bugungi to'lovlar"
-					value={formatMoney(totalPaymentsToday)}
+					value={formatMoney(dashboardPaymentsTotal)}
 					note='Bugungi tushum'
 					icon='payments'
 				/>
@@ -7105,6 +7122,8 @@ function TeacherAttendancePage({ token }) {
 	const [selectedGroup, setSelectedGroup] = useState('')
 	const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
 	const [history, setHistory] = useState([])
+	const attendanceTableRef = useRef(null)
+	const [renderedAttendanceRows, setRenderedAttendanceRows] = useState(0)
 	const effectiveSelectedGroup = selectedGroup || groups[0]?.key || ''
 
 	useEffect(() => {
@@ -7131,6 +7150,7 @@ function TeacherAttendancePage({ token }) {
 	const attendanceMembers = currentMembers.length
 		? currentMembers
 		: (groups[0]?.members?.length ? groups[0].members : teacherStudents)
+	const attendanceRowsCount = Math.max(attendanceMembers.length, renderedAttendanceRows)
 	const currentSchedule =
 		attendanceMembers[0]?.schedule || 'Jadval kiritilmagan'
 	const currentGroupAttendancePercent = attendanceMembers.length
@@ -7141,6 +7161,11 @@ function TeacherAttendancePage({ token }) {
 				) / attendanceMembers.length,
 			)
 		: 0
+
+	useEffect(() => {
+		const count = attendanceTableRef.current?.querySelectorAll('tr')?.length || 0
+		setRenderedAttendanceRows(Math.max(count, attendanceMembers.length))
+	}, [attendanceMembers])
 
 	return (
 		<>
@@ -7171,7 +7196,7 @@ function TeacherAttendancePage({ token }) {
 					</div>
 					<div>
 						<span>Jami o'quvchilar</span>
-						<strong>{attendanceMembers.length}</strong>
+						<strong>{attendanceRowsCount}</strong>
 					</div>
 				</section>
 				<section className='card mini-stat-card'>
@@ -7193,7 +7218,7 @@ function TeacherAttendancePage({ token }) {
 			<section className='card attendance-card'>
 				<div className='card-head-row'>
 					<h3>{currentGroup.label || "Davomat ko'rinishi"}</h3>
-					<span>{attendanceMembers.length} o'quvchi ro'yxatda</span>
+					<span>{attendanceRowsCount} o'quvchi ro'yxatda</span>
 				</div>
 				{attendanceMembers.length ? (
 					<div className='table-shell responsive-cards'>
@@ -7205,7 +7230,7 @@ function TeacherAttendancePage({ token }) {
 									<th>IZOH</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody ref={attendanceTableRef}>
 								{attendanceMembers.map((student, index) => {
 									const current = historyMap[student.id] || 'present'
 									const meta = getAttendanceStatusMeta(current)
