@@ -3692,7 +3692,7 @@ function DevelopersPage() {
 						<span>Team</span>
 						<h1>Dasturchilar jamoasi</h1>
 						<p>
-							loyihasining dizayn, frontend va backend arxitekturasi
+							ILM-NEST O'quv markazi loyihasining dizayn, frontend va backend arxitekturasi
 							ustida ishlayotgan jamoa a'zolari bilan tanishing.
 						</p>
 					</div>
