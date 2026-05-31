@@ -810,13 +810,13 @@ router.delete("/reception/students/:id", authenticate, authorize("reception", "d
 
 router.post("/reception/payments", authenticate, authorize("reception", "director"), async (req, res) => {
   try {
-    const { studentId, amount, method, reason } = req.body;
-      const receipt =
-        config.dbProvider === "mongodb"
-          ? await recordPaymentMongo(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason)
-          : config.dbProvider === "postgres"
-            ? await recordPaymentAsync(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason)
-            : recordPayment(Number(studentId), Number(amount), method, "paid", null, req.user.id, reason);
+    const { studentId, amount, method, reason, externalId } = req.body;
+    const receipt =
+      config.dbProvider === "mongodb"
+        ? await recordPaymentMongo(Number(studentId), Number(amount), method, "paid", externalId || null, req.user.id, reason)
+        : config.dbProvider === "postgres"
+          ? await recordPaymentAsync(Number(studentId), Number(amount), method, "paid", externalId || null, req.user.id, reason)
+          : recordPayment(Number(studentId), Number(amount), method, "paid", externalId || null, req.user.id, reason);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
     const receiptResponse = {
       ...receipt,
@@ -911,12 +911,14 @@ router.post("/payments/webhook", async (req, res) => {
           ? await recordPaymentAsync(student.id, Number(amount), provider, "paid", transactionId)
           : recordPayment(student.id, Number(amount), provider, "paid", transactionId);
     const receiptAsset = await buildPaymentReceiptAsset(receipt);
-    sendStudentPaymentNotification({
-      ...receipt,
-      receiptCaption: receiptAsset.caption,
-      receiptImageBuffer: receiptAsset.imageBuffer,
-      receiptImageMimeType: "image/png"
-    }).catch(() => null);
+    if (!receipt.duplicate) {
+      sendStudentPaymentNotification({
+        ...receipt,
+        receiptCaption: receiptAsset.caption,
+        receiptImageBuffer: receiptAsset.imageBuffer,
+        receiptImageMimeType: "image/png"
+      }).catch(() => null);
+    }
     res.json({ message: "Webhook qabul qilindi" });
   } catch (error) {
     res.status(400).json({ message: error.message || "Webhook qabul qilinmadi" });

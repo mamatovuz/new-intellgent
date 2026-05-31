@@ -8919,6 +8919,36 @@ th {
   font-size: 16px;
 }
 
+.group-attendance-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.group-attendance-breakdown span {
+  padding: 10px;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.group-attendance-breakdown strong {
+  color: var(--navy);
+}
+
+.group-card .mini-trend-chart {
+  min-height: 118px;
+  margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+}
+
+.group-card .mini-trend-bar {
+  min-height: 110px;
+}
+
 .progress-bar {
   height: 8px;
   background: #edf1f7;
@@ -9503,6 +9533,32 @@ th {
 
 .notification-read-all-btn:hover {
   background: rgba(19, 51, 133, 0.06);
+}
+
+.notification-filter-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8fbff;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.notification-filter-tabs button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+
+.notification-filter-tabs button.active {
+  background: #fff;
+  border-color: rgba(19, 51, 133, 0.16);
+  color: var(--primary);
+  box-shadow: 0 8px 20px rgba(19, 51, 133, 0.08);
 }
 
 .notifications-list {

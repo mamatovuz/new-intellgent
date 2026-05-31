@@ -1608,11 +1608,48 @@ export function addStudent(payload, actorUserId = null) {
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const enrolledDate = normalizeImportedDate(payload.enrolledAt) || dayjs().format("YYYY-MM-DD");
   const defaultPasswordHash = bcrypt.hashSync("12345678", 10);
+  const normalizedPhone = normalizePhone(payload.phone);
+
+  if (!teacherCanTeachCourse(payload.teacherId, payload.courseId)) {
+    throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
+  }
+
+  if (!payload.imported) {
+    const existingStudent = db.prepare(`
+      SELECT s.id
+      FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE u.role = 'student'
+        AND u.phone = ?
+        AND s.course_id = ?
+        AND s.teacher_id = ?
+        AND COALESCE(s.is_archived, 0) = 0
+        AND u.created_at >= ?
+      ORDER BY u.created_at DESC, s.id DESC
+      LIMIT 1
+    `).get(
+      normalizedPhone,
+      payload.courseId,
+      payload.teacherId,
+      dayjs().subtract(2, "minute").format("YYYY-MM-DD HH:mm:ss")
+    );
+    if (existingStudent) {
+      const auth = ensureStudentAuth(existingStudent.id, normalizedPhone, defaultPasswordHash);
+      return {
+        studentId: existingStudent.id,
+        phone: normalizedPhone,
+        defaultPassword: "12345678",
+        accessToken: auth.accessToken,
+        loginUrl: `${config.webUrl}/student/login?access=${auth.accessToken}`
+      };
+    }
+  }
+
   const createUser = db.prepare(`
     INSERT INTO users (full_name, username, password_hash, phone, monthly_salary, role, telegram_id, profile_image, created_at)
     VALUES (?, NULL, NULL, ?, 0, 'student', NULL, NULL, ?)
   `);
-  const userId = createUser.run(payload.fullName, payload.phone, now).lastInsertRowid;
+  const userId = createUser.run(payload.fullName, normalizedPhone, now).lastInsertRowid;
 
   const initialBalance = Number(payload.balance || 0);
   const requestedStatus = String(payload.status || "active").toLowerCase();
@@ -1623,10 +1660,6 @@ export function addStudent(payload, actorUserId = null) {
     : (isActiveFlow ? 0 : 3);
   const billingStartDate = normalizeBillingStartDate(payload.billingStartDate);
   const groupSchedule = payload.schedule || null;
-
-  if (!teacherCanTeachCourse(payload.teacherId, payload.courseId)) {
-    throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
-  }
 
   const studentId = db.prepare(`
     INSERT INTO students (user_id, course_id, teacher_id, balance, status, enrolled_at, billing_start_date, trial_required, payment_due_date, last_payment_date, group_schedule, created_at)
@@ -1646,7 +1679,7 @@ export function addStudent(payload, actorUserId = null) {
     now
   ).lastInsertRowid;
 
-  const auth = ensureStudentAuth(studentId, payload.phone, defaultPasswordHash);
+  const auth = ensureStudentAuth(studentId, normalizedPhone, defaultPasswordHash);
   db.prepare(`UPDATE students SET is_registered = 1 WHERE id = ?`).run(studentId);
   recalcStudentState(studentId);
   if (requestedStatus === "debtor") {
@@ -1831,13 +1864,49 @@ export async function addStudentAsync(payload, actorUserId = null) {
     throw new Error("Tanlangan o'qituvchi bu kursga biriktirilmagan");
   }
 
+  const normalizedPhone = normalizePhone(payload.phone);
+  if (!payload.imported) {
+    const duplicateResult = await pool.query(
+      `
+        SELECT s.id
+        FROM students s
+        JOIN users u ON u.id = s.user_id
+        WHERE u.role = 'student'
+          AND u.phone = $1
+          AND s.course_id = $2
+          AND s.teacher_id = $3
+          AND COALESCE(s.is_archived, FALSE) = FALSE
+          AND u.created_at >= $4::timestamp
+        ORDER BY u.created_at DESC, s.id DESC
+        LIMIT 1
+      `,
+      [
+        normalizedPhone,
+        payload.courseId,
+        payload.teacherId,
+        dayjs().subtract(2, "minute").format("YYYY-MM-DD HH:mm:ss")
+      ]
+    );
+    const existingStudent = duplicateResult.rows[0];
+    if (existingStudent) {
+      const auth = await ensureStudentAuthAsync(Number(existingStudent.id), normalizedPhone, defaultPasswordHash);
+      return {
+        studentId: Number(existingStudent.id),
+        phone: normalizedPhone,
+        defaultPassword: "12345678",
+        accessToken: auth.accessToken,
+        loginUrl: `${config.webUrl}/student/login?access=${auth.accessToken}`
+      };
+    }
+  }
+
   const userResult = await pool.query(
     `
       INSERT INTO users (full_name, username, password_hash, phone, monthly_salary, role, telegram_id, profile_image, created_at)
       VALUES ($1, NULL, NULL, $2, 0, 'student', NULL, NULL, $3)
       RETURNING id
     `,
-    [payload.fullName, payload.phone, now]
+    [payload.fullName, normalizedPhone, now]
   );
   const userId = Number(userResult.rows[0].id);
 
@@ -1863,7 +1932,7 @@ export async function addStudentAsync(payload, actorUserId = null) {
   );
   const studentId = Number(studentResult.rows[0].id);
 
-  const auth = await ensureStudentAuthAsync(studentId, payload.phone, defaultPasswordHash);
+  const auth = await ensureStudentAuthAsync(studentId, normalizedPhone, defaultPasswordHash);
   await pool.query(`UPDATE students SET is_registered = TRUE WHERE id = $1`, [studentId]);
   await recalcStudentStateAsync(studentId);
 
@@ -2068,6 +2137,93 @@ export function recordPayment(studentId, amount, method, status = "paid", extern
     );
   }
 
+  if (externalId) {
+    const externalPayment = db.prepare(`
+      SELECT
+        p.id,
+        p.amount,
+        p.method,
+        p.reason,
+        p.created_at as createdAt,
+        u.full_name as fullName,
+        u.phone,
+        c.title as courseTitle
+      FROM payments p
+      JOIN students s ON s.id = p.student_id
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN courses c ON c.id = s.course_id
+      WHERE p.external_id = ?
+      LIMIT 1
+    `).get(externalId);
+    if (externalPayment) {
+      const receipt = {
+        id: externalPayment.id,
+        studentId,
+        fullName: externalPayment.fullName,
+        phone: externalPayment.phone,
+        courseTitle: externalPayment.courseTitle,
+        amount: Number(externalPayment.amount || normalizedAmount),
+        method: externalPayment.method,
+        paidAt: externalPayment.createdAt,
+        reason: externalPayment.reason || null
+      };
+      return {
+        ...receipt,
+        duplicate: true,
+        receiptCaption: buildPaymentCaption(receipt)
+      };
+    }
+  }
+
+  const duplicatePayment = db.prepare(`
+    SELECT
+      p.id,
+      p.amount,
+      p.method,
+      p.reason,
+      p.created_at as createdAt,
+      u.full_name as fullName,
+      u.phone,
+      c.title as courseTitle
+    FROM payments p
+    JOIN students s ON s.id = p.student_id
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN courses c ON c.id = s.course_id
+    WHERE p.student_id = ?
+      AND p.amount = ?
+      AND p.method = ?
+      AND p.status = ?
+      AND COALESCE(p.received_by_user_id, 0) = COALESCE(?, 0)
+      AND p.created_at >= ?
+    ORDER BY p.created_at DESC, p.id DESC
+    LIMIT 1
+  `).get(
+    studentId,
+    normalizedAmount,
+    method,
+    status,
+    actorUserId || null,
+    dayjs().subtract(2, "minute").format("YYYY-MM-DD HH:mm:ss")
+  );
+  if (duplicatePayment) {
+    const receipt = {
+      id: duplicatePayment.id,
+      studentId,
+      fullName: duplicatePayment.fullName,
+      phone: duplicatePayment.phone,
+      courseTitle: duplicatePayment.courseTitle,
+      amount: Number(duplicatePayment.amount || normalizedAmount),
+      method: duplicatePayment.method,
+      paidAt: duplicatePayment.createdAt,
+      reason: duplicatePayment.reason || null
+    };
+    return {
+      ...receipt,
+      duplicate: true,
+      receiptCaption: buildPaymentCaption(receipt)
+    };
+  }
+
   const paymentId = db.prepare(`
     INSERT INTO payments (student_id, amount, method, status, external_id, received_by_user_id, reason, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -2174,6 +2330,66 @@ export async function recordPaymentAsync(studentId, amount, method, status = "pa
 
   if (monthlyFee > 0 && normalizedAmount < monthlyFee && !normalizedReason) {
     throw new Error(`Minimal to'lov ${monthlyFee.toLocaleString("ru-RU")} UZS. Kamroq summa uchun sabab yozing.`);
+  }
+
+  const duplicateResult = await pool.query(
+    `
+      SELECT
+        p.id,
+        p.amount,
+        p.method,
+        p.reason,
+        p.created_at as "createdAt",
+        u.full_name as "fullName",
+        u.phone,
+        c.title as "courseTitle"
+      FROM payments p
+      JOIN students s ON s.id = p.student_id
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN courses c ON c.id = s.course_id
+      WHERE (
+        ($1::text IS NOT NULL AND p.external_id = $1)
+        OR (
+          $1::text IS NULL
+          AND p.student_id = $2
+          AND p.amount = $3
+          AND p.method = $4
+          AND p.status = $5
+          AND COALESCE(p.received_by_user_id, 0) = COALESCE($6::integer, 0)
+          AND p.created_at >= $7::timestamp
+        )
+      )
+      ORDER BY p.created_at DESC, p.id DESC
+      LIMIT 1
+    `,
+    [
+      externalId || null,
+      studentId,
+      normalizedAmount,
+      method,
+      status,
+      actorUserId || null,
+      dayjs().subtract(2, "minute").format("YYYY-MM-DD HH:mm:ss")
+    ]
+  );
+  const duplicate = duplicateResult.rows[0];
+  if (duplicate) {
+    const receipt = {
+      id: Number(duplicate.id),
+      studentId,
+      fullName: duplicate.fullName,
+      phone: duplicate.phone,
+      courseTitle: duplicate.courseTitle,
+      amount: Number(duplicate.amount || normalizedAmount),
+      method: duplicate.method,
+      paidAt: dayjs(duplicate.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+      reason: duplicate.reason || null
+    };
+    return {
+      ...receipt,
+      duplicate: true,
+      receiptCaption: buildPaymentCaption(receipt)
+    };
   }
 
   const paymentResult = await pool.query(

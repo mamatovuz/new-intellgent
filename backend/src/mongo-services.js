@@ -1034,7 +1034,7 @@ export async function addStudentMongo(payload, actorUserId = null) {
   const now = new Date();
   const normalizedPhone = normalizePhone(payload.phone);
   if (!payload.imported) {
-    const duplicateWindowStart = new Date(Date.now() - 45_000);
+    const duplicateWindowStart = new Date(Date.now() - 120_000);
     const recentUsers = await User.find({
       role: "student",
       phone: normalizedPhone,
@@ -1096,7 +1096,7 @@ export async function addStudentMongo(payload, actorUserId = null) {
     createdAt: now
   });
 
-  const auth = await ensureStudentAuthMongo(studentId, payload.phone, bcrypt.hashSync("12345678", 10));
+  const auth = await ensureStudentAuthMongo(studentId, normalizedPhone, bcrypt.hashSync("12345678", 10));
   await Student.updateOne({ id: studentId }, { $set: { isRegistered: true } });
   await recalcStudentStateMongo(studentId);
   if (requestedStatus === "debtor") {
@@ -1219,8 +1219,29 @@ export async function recordPaymentMongo(studentId, amount, method, status = "pa
   if (monthlyFee > 0 && normalizedAmount < monthlyFee && !normalizedReason) {
     throw new Error(`Minimal to'lov ${monthlyFee.toLocaleString("ru-RU")} UZS. Kamroq summa uchun sabab yozing.`);
   }
+  if (externalId) {
+    const existingExternalPayment = await Payment.findOne({ externalId }).lean();
+    if (existingExternalPayment) {
+      const receipt = {
+        id: existingExternalPayment.id,
+        studentId: Number(studentId),
+        fullName: user?.fullName || "Student",
+        phone: user?.phone || "",
+        courseTitle: course?.title || "",
+        amount: Number(existingExternalPayment.amount || normalizedAmount),
+        method: existingExternalPayment.method || method,
+        paidAt: dayjs(existingExternalPayment.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+        reason: existingExternalPayment.reason || null
+      };
+      return {
+        ...receipt,
+        duplicate: true,
+        receiptCaption: buildPaymentCaption(receipt)
+      };
+    }
+  }
   if (!externalId) {
-    const duplicateWindowStart = new Date(Date.now() - 45_000);
+    const duplicateWindowStart = new Date(Date.now() - 120_000);
     const existingPayment = await Payment.findOne({
       studentId: Number(studentId),
       amount: normalizedAmount,

@@ -39,6 +39,7 @@ const userSchema = new Schema(
   },
   jsonOptions
 );
+userSchema.index({ role: 1, phone: 1, createdAt: -1 });
 
 const courseSchema = new Schema(
   {
@@ -74,6 +75,8 @@ const studentSchema = new Schema(
   },
   jsonOptions
 );
+studentSchema.index({ teacherId: 1, courseId: 1, isArchived: 1 });
+studentSchema.index({ courseId: 1, isArchived: 1, status: 1 });
 
 const paymentSchema = new Schema(
   {
@@ -90,6 +93,7 @@ const paymentSchema = new Schema(
   jsonOptions
 );
 paymentSchema.index({ studentId: 1, amount: 1, method: 1, status: 1, receivedByUserId: 1, createdAt: -1 });
+paymentSchema.index({ externalId: 1 });
 
 const attendanceSchema = new Schema(
   {

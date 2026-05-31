@@ -295,14 +295,9 @@ async function sendCabinetLink(ctx) {
 
   await safeReply(
     ctx,
-    `\u{1F510} Kabinet havolasi\n\nAgar tugma ochilmasa, mana shu link orqali kiring:\n${accessLink}`
-  );
-  await safeReply(
-    ctx,
-    "\u{1F510} Kabinet tayyor\n\nPastdagi tugma orqali student kabinetni Telegram ichida oching.",
+    `\u{1F510} Kabinet tayyor\n\nPastdagi tugma orqali student kabinetni Telegram ichida oching.\n\nAgar tugma ochilmasa, zaxira havola:\n${accessLink}`,
     buildCabinetInlineKeyboard(accessLink)
   );
-  await safeReply(ctx, "\u{1F310} Mini App tugmasi menyuda ham turibdi.", buildWebAppKeyboard(accessLink));
 }
 
 export function startBot() {
@@ -398,13 +393,14 @@ export function startBot() {
   bot.hears("\u{1F4D8} Kursim", sendCourseInfo);
   bot.hears("\u{1F4B3} Balansim", sendBalanceInfo);
   bot.hears("\u{1F9FE} To'lovim", sendPaymentInfo);
-  bot.hears(/kabinet/i, wrapBotHandler(sendCabinetLink));
+  bot.hears("\u{1F510} Kabinet havolasi", wrapBotHandler(sendCabinetLink));
+  bot.hears(/^kabinet$/i, wrapBotHandler(sendCabinetLink));
 
   bot.action("menu:home", wrapBotHandler(async (ctx) => {
     await ctx.answerCbQuery().catch(() => null);
     const student = await getStudentByTelegramIdUniversal(ctx.from.id);
     if (!student) {
-      await safeReply(ctx, "\u{1F4F1} Avval telefon raqamingizni yuborib akkauntni bog'lang.");
+      await safeReply(ctx, "\u{1F4F1} Avval telefon raqamingizni qo'lda yozib akkauntni bog'lang.\n\nMasalan: +998932303410");
       return;
     }
     await sendStudentWelcome(ctx, student);

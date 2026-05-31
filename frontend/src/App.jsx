@@ -1921,17 +1921,36 @@ function RoleLayout({ user, onLogout, children, token }) {
 				: 'Education CRM'
 	const [notifications, setNotifications] = useState([])
 	const [showNotifications, setShowNotifications] = useState(false)
+	const [notificationFilter, setNotificationFilter] = useState('all')
 	const unreadNotificationsCount = notifications.filter(item => item.status !== 'read').length
+	const filteredNotifications = useMemo(
+		() =>
+			notificationFilter === 'unread'
+				? notifications.filter(item => item.status !== 'read')
+				: notifications,
+		[notifications, notificationFilter],
+	)
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 	const [searchValue, setSearchValue] = useState('')
 	const location = useLocation()
 	const navigate = useNavigate()
 
 	useEffect(() => {
-		api
-			.getNotifications(token)
-			.then(setNotifications)
-			.catch(() => null)
+		let cancelled = false
+		async function loadNotifications() {
+			try {
+				const data = await api.getNotifications(token)
+				if (!cancelled && Array.isArray(data)) setNotifications(data)
+			} catch {
+				// Keep current notifications if polling fails.
+			}
+		}
+		loadNotifications()
+		const interval = window.setInterval(loadNotifications, 20000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token])
 
 	useEffect(() => {
@@ -1956,6 +1975,7 @@ function RoleLayout({ user, onLogout, children, token }) {
 	async function handleReadAllNotifications() {
 		await api.readAllNotifications(token)
 		setNotifications(items => items.map(item => ({ ...item, status: 'read' })))
+		setNotificationFilter('all')
 	}
 
 	function handleGlobalSearch(event) {
@@ -2069,9 +2089,25 @@ function RoleLayout({ user, onLogout, children, token }) {
 										) : null}
 									</div>
 								</div>
+								<div className='notification-filter-tabs'>
+									<button
+										type='button'
+										className={notificationFilter === 'all' ? 'active' : ''}
+										onClick={() => setNotificationFilter('all')}
+									>
+										Barchasi
+									</button>
+									<button
+										type='button'
+										className={notificationFilter === 'unread' ? 'active' : ''}
+										onClick={() => setNotificationFilter('unread')}
+									>
+										O'qilmagan
+									</button>
+								</div>
 								<div className='notifications-list'>
-									{notifications.length ? (
-										notifications.map(item => (
+									{filteredNotifications.length ? (
+										filteredNotifications.map(item => (
 											<button
 												key={item.id}
 												type='button'
@@ -4478,11 +4514,26 @@ function useReceptionData(token, query = {}) {
 
 	async function reload(next = query) {
 		const data = await api.getReceptionStudents(token, next)
-		setStudents(Array.isArray(data) ? data : [])
+		if (Array.isArray(data)) setStudents(data)
+		return data
 	}
 
 	useEffect(() => {
-		reload({ search, status, includeArchived }).catch(() => setStudents([]))
+		let cancelled = false
+		async function load() {
+			try {
+				const data = await api.getReceptionStudents(token, { search, status, includeArchived })
+				if (!cancelled && Array.isArray(data)) setStudents(data)
+			} catch {
+				// Keep the last good data visible if a refresh fails.
+			}
+		}
+		load()
+		const interval = window.setInterval(load, 15000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token, search, status, includeArchived])
 
 	return { students, reload, setStudents }
@@ -4490,10 +4541,29 @@ function useReceptionData(token, query = {}) {
 
 function usePaymentsData(token) {
 	const [payments, setPayments] = useState([])
+	const reload = async () => {
+		const data = await api.getAllPayments(token)
+		if (Array.isArray(data)) setPayments(data)
+		return data
+	}
 	useEffect(() => {
-		api.getAllPayments(token).then(setPayments)
+		let cancelled = false
+		async function load() {
+			try {
+				const data = await api.getAllPayments(token)
+				if (!cancelled && Array.isArray(data)) setPayments(data)
+			} catch {
+				// Keep current payments if a poll fails.
+			}
+		}
+		load()
+		const interval = window.setInterval(load, 15000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token])
-	return [payments, setPayments]
+	return [payments, setPayments, reload]
 }
 
 function StudentDashboardPage({ token }) {
@@ -5324,6 +5394,7 @@ function PaymentCollectionWorkspace({
 		reason: '',
 	})
 	const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+	const paymentSubmittingRef = useRef(false)
 
 	const visibleGroups = useMemo(() => {
 		const query = groupSearch.trim().toLowerCase()
@@ -5441,7 +5512,8 @@ function PaymentCollectionWorkspace({
 	async function handleSubmit(event) {
 		event.preventDefault()
 		if (!selectedStudent) return
-		if (paymentSubmitting) return
+		if (paymentSubmittingRef.current) return
+		paymentSubmittingRef.current = true
 		try {
 			setPaymentSubmitting(true)
 			const response = await api.createPayment(token, {
@@ -5449,6 +5521,7 @@ function PaymentCollectionWorkspace({
 				amount: enteredAmount,
 				method: paymentForm.method,
 				reason: paymentForm.allowDiscount ? paymentForm.reason : '',
+				externalId: `manual-${selectedStudent.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 			})
 			await Swal.fire({
 				title: "To'lov qabul qilindi",
@@ -5477,6 +5550,7 @@ function PaymentCollectionWorkspace({
 		} catch (err) {
 			await showError(err.message)
 		} finally {
+			paymentSubmittingRef.current = false
 			setPaymentSubmitting(false)
 		}
 	}
@@ -5730,6 +5804,7 @@ function ReceptionStudentsPage({ token, meta }) {
 	const [studentModal, setStudentModal] = useState(null)
 	const [historyModal, setHistoryModal] = useState(null)
 	const [studentSaving, setStudentSaving] = useState(false)
+	const studentSavingRef = useRef(false)
 	const studentBaseCount = Array.isArray(students) ? students.length : 0
 	const displayedStudents = useMemo(() => {
 		const query = search.trim().toLowerCase()
@@ -5784,7 +5859,8 @@ function ReceptionStudentsPage({ token, meta }) {
 
 	async function submitStudent(event, form) {
 		event.preventDefault()
-		if (studentSaving) return
+		if (studentSavingRef.current) return
+		studentSavingRef.current = true
 		try {
 			setStudentSaving(true)
 			if (!form.id) {
@@ -5821,6 +5897,7 @@ function ReceptionStudentsPage({ token, meta }) {
 		} catch (err) {
 			await showError(err.message)
 		} finally {
+			studentSavingRef.current = false
 			setStudentSaving(false)
 		}
 	}
@@ -6188,13 +6265,26 @@ function ReceptionDashboardPage({ token }) {
 				const fallback = await api.getReceptionStudents(token, { search: '', status: '', includeArchived: true })
 				if (!cancelled) setStudents(Array.isArray(fallback) ? fallback : [])
 			} catch {
-				if (!cancelled) setStudents([])
+				// Keep the last good dashboard numbers if a refresh fails.
+			}
+		}
+		async function loadContacts() {
+			try {
+				const data = await api.getReceptionContactRequests(token)
+				if (!cancelled && Array.isArray(data)) setContactRequests(data)
+			} catch {
+				// Keep current contact requests if polling fails.
 			}
 		}
 		loadStudents()
-		api.getReceptionContactRequests(token).then(setContactRequests).catch(() => setContactRequests([]))
+		loadContacts()
+		const interval = window.setInterval(() => {
+			loadStudents()
+			loadContacts()
+		}, 15000)
 		return () => {
 			cancelled = true
+			window.clearInterval(interval)
 		}
 	}, [token])
 
@@ -6593,7 +6683,7 @@ function groupStudentsForAttendance(students = []) {
 		const schedule = student.schedule || "Vaqt kiritilmagan"
 		const key = `${courseTitle}__${teacherName}__${schedule}`
 		if (!map.has(key)) {
-			map.set(key, { key, courseTitle, teacherName, label: `${courseTitle} · ${teacherName}`, members: [] })
+			map.set(key, { key, courseTitle, teacherName, label: `${courseTitle} - ${teacherName}`, members: [] })
 		}
 		map.get(key).members.push(student)
 	})
@@ -6629,6 +6719,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 	const [history, setHistory] = useState([])
 	const [groupModal, setGroupModal] = useState(null)
 	const [attendanceSaving, setAttendanceSaving] = useState(false)
+	const attendanceSavingRef = useRef(false)
 	const groups = useMemo(
 		() => (role === 'reception' ? buildReceptionTracks(students, meta) : groupStudentsForAttendance(students)),
 		[students, meta, role],
@@ -6636,7 +6727,21 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 	const editable = role === 'reception'
 
 	useEffect(() => {
-		api.getAttendanceHistory(token, { range: 'day', lessonDate }).then(setHistory).catch(() => setHistory([]))
+		let cancelled = false
+		async function loadHistory() {
+			try {
+				const data = await api.getAttendanceHistory(token, { range: 'day', lessonDate })
+				if (!cancelled && Array.isArray(data)) setHistory(data)
+			} catch {
+				// Keep the last visible attendance data if refresh fails.
+			}
+		}
+		loadHistory()
+		const interval = window.setInterval(loadHistory, 15000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token, lessonDate])
 
 	const historyMap = useMemo(() => {
@@ -6674,7 +6779,8 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 	})
 
 	async function handleSaveAttendance() {
-		if (attendanceSaving) return
+		if (attendanceSavingRef.current) return
+		attendanceSavingRef.current = true
 		try {
 			setAttendanceSaving(true)
 			await api.saveAttendanceBatch(token, {
@@ -6691,6 +6797,7 @@ function AttendanceManagerPage({ token, meta, role = 'reception' }) {
 		} catch (err) {
 			await showError(err.message)
 		} finally {
+			attendanceSavingRef.current = false
 			setAttendanceSaving(false)
 		}
 	}
@@ -6847,11 +6954,22 @@ function StudentImportSection({ token }) {
 	}
 
 	function buildPreviewSummary(rows = []) {
+		const phoneCounts = rows.reduce((acc, row) => {
+			const key = String(row.phone || '').replace(/\D/g, '')
+			if (key) acc[key] = (acc[key] || 0) + 1
+			return acc
+		}, {})
+		const duplicateRows = rows.filter(row => {
+			const key = String(row.phone || '').replace(/\D/g, '')
+			return key && phoneCounts[key] > 1
+		}).length
 		return {
 			totalRows: rows.length,
 			readyRows: rows.filter(row => row.ready).length,
 			errorRows: rows.filter(row => row.errors?.length).length,
 			warningRows: rows.filter(row => row.warnings?.length).length,
+			duplicateRows,
+			skipRows: rows.filter(row => !row.ready).length,
 		}
 	}
 
@@ -6901,10 +7019,26 @@ function StudentImportSection({ token }) {
 		}
 	}
 
+	function decorateImportRows(rows = []) {
+		const phoneCounts = rows.reduce((acc, row) => {
+			const key = String(row.phone || '').replace(/\D/g, '')
+			if (key) acc[key] = (acc[key] || 0) + 1
+			return acc
+		}, {})
+		return rows.map(row => {
+			const key = String(row.phone || '').replace(/\D/g, '')
+			const duplicateWarning = key && phoneCounts[key] > 1 ? 'Faylda telefon takrorlangan' : ''
+			const warnings = duplicateWarning && !(row.warnings || []).includes(duplicateWarning)
+				? [...(row.warnings || []), duplicateWarning]
+				: row.warnings || []
+			return { ...row, warnings }
+		})
+	}
+
 	function updatePreviewRows(updater) {
 		setPreview(current => {
 			if (!current) return current
-			const rows = updater(current.rows || []).map(validateImportRow)
+			const rows = decorateImportRows(updater(current.rows || []).map(validateImportRow))
 			return {
 				...current,
 				rows,
@@ -6960,7 +7094,7 @@ function StudentImportSection({ token }) {
 				fileName: selectedFile.name,
 				fileDataBase64,
 			})
-			const rows = (result.rows || []).map(validateImportRow)
+			const rows = decorateImportRows((result.rows || []).map(validateImportRow))
 			setPreview({ ...result, rows, summary: buildPreviewSummary(rows) })
 		} catch (error) {
 			await showError(error.message)
@@ -6976,7 +7110,7 @@ function StudentImportSection({ token }) {
 		}
 		try {
 			setImporting(true)
-			const result = await api.importStudentsBatch(token, preview.rows)
+			const result = await api.importStudentsBatch(token, preview.rows.filter(row => row.ready))
 			await showSuccess('Import yakunlandi', `${result.createdCount} ta o'quvchi qo'shildi`)
 			setSelectedFile(null)
 			setPreview(null)
@@ -7015,10 +7149,10 @@ function StudentImportSection({ token }) {
 						</div>
 					</label>
 					<div className='import-panel-actions'>
-						<ActionButton secondary icon='preview' onClick={handlePreview}>
+						<ActionButton secondary icon='preview' onClick={handlePreview} disabled={loading || importing}>
 							{loading ? 'Tekshirilmoqda...' : "Preview ko'rish"}
 						</ActionButton>
-						<ActionButton icon='upload_file' onClick={handleImport}>
+						<ActionButton icon='upload_file' onClick={handleImport} disabled={importing || loading || !preview?.summary?.readyRows}>
 							{importing ? 'Import qilinmoqda...' : 'Import qilish'}
 						</ActionButton>
 					</div>
@@ -7041,6 +7175,14 @@ function StudentImportSection({ token }) {
 							<div className='import-summary-card warning'>
 								<span>Ogohlantirish</span>
 								<strong>{preview.summary.warningRows}</strong>
+							</div>
+							<div className='import-summary-card warning'>
+								<span>Takror telefon</span>
+								<strong>{preview.summary.duplicateRows || 0}</strong>
+							</div>
+							<div className='import-summary-card danger'>
+								<span>O'tkaziladi</span>
+								<strong>{preview.summary.skipRows || 0}</strong>
 							</div>
 						</div>
 						<div className='table-shell responsive-cards top-space'>
@@ -7143,10 +7285,25 @@ function useTeacherStudents(token) {
 	const [students, setStudents] = useState([])
 	const reload = async () => {
 		const data = await api.getTeacherStudents(token)
-		setStudents(Array.isArray(data) ? data : [])
+		if (Array.isArray(data)) setStudents(data)
+		return data
 	}
 	useEffect(() => {
-		reload().catch(() => setStudents([]))
+		let cancelled = false
+		async function load() {
+			try {
+				const data = await api.getTeacherStudents(token)
+				if (!cancelled && Array.isArray(data)) setStudents(data)
+			} catch {
+				// Preserve the last good teacher dashboard data.
+			}
+		}
+		load()
+		const interval = window.setInterval(load, 15000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token])
 	return { students, reload }
 }
@@ -7169,7 +7326,21 @@ function TeacherAttendancePage({ token }) {
 	}, [groups, selectedGroup])
 
 	useEffect(() => {
-		api.getTeacherAttendanceHistory(token, 'day', lessonDate).then(setHistory)
+		let cancelled = false
+		async function loadHistory() {
+			try {
+				const data = await api.getTeacherAttendanceHistory(token, 'day', lessonDate)
+				if (!cancelled && Array.isArray(data)) setHistory(data)
+			} catch {
+				// Keep the visible attendance state if a refresh fails.
+			}
+		}
+		loadHistory()
+		const interval = window.setInterval(loadHistory, 15000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token, lessonDate])
 
 	const historyMap = useMemo(() => {
@@ -7191,10 +7362,8 @@ function TeacherAttendancePage({ token }) {
 		attendanceMembers[0]?.schedule || 'Jadval kiritilmagan'
 	const currentGroupAttendancePercent = attendanceMembers.length
 		? Math.round(
-				attendanceMembers.reduce(
-					(sum, student) => sum + Number(student.attendancePercent || 0),
-					0,
-				) / attendanceMembers.length,
+				(attendanceMembers.filter(student => (historyMap[student.id] || 'present') === 'present').length /
+					attendanceMembers.length) * 100,
 			)
 		: 0
 
@@ -7302,6 +7471,7 @@ function TeacherAttendancePage({ token }) {
 
 function TeacherGroupsPage({ token }) {
 	const { students } = useTeacherStudents(token)
+	const [history, setHistory] = useState([])
 	const teacherStudents = Array.isArray(students) ? students : []
 	const groups = useMemo(() => {
 		const map = new Map()
@@ -7315,6 +7485,42 @@ function TeacherGroupsPage({ token }) {
 			members,
 		}))
 	}, [teacherStudents])
+	useEffect(() => {
+		let cancelled = false
+		async function loadHistory() {
+			try {
+				const data = await api.getTeacherAttendanceHistory(token, 'month')
+				if (!cancelled && Array.isArray(data)) setHistory(data)
+			} catch {
+				// Keep the current group stats if polling fails.
+			}
+		}
+		loadHistory()
+		const interval = window.setInterval(loadHistory, 20000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
+	}, [token])
+
+	const groupHistoryStats = useMemo(() => {
+		const map = new Map()
+		history.forEach(item => {
+			const key = item.courseTitle || "Noma'lum guruh"
+			if (!map.has(key)) {
+				map.set(key, { present: 0, absent: 0, total: 0, trendBuckets: {} })
+			}
+			const stat = map.get(key)
+			stat.total += 1
+			if (item.status === 'present') stat.present += 1
+			if (item.status !== 'present') stat.absent += 1
+			const label = String(item.lessonDate || '').slice(5, 10)
+			if (!stat.trendBuckets[label]) stat.trendBuckets[label] = { label, present: 0, total: 0 }
+			stat.trendBuckets[label].total += 1
+			if (item.status === 'present') stat.trendBuckets[label].present += 1
+		})
+		return map
+	}, [history])
 
 	return (
 		<>
@@ -7324,14 +7530,25 @@ function TeacherGroupsPage({ token }) {
 			/>
 			<div className='group-cards'>
 				{groups.map((group, index) => {
-					const avg = group.members.length
-						? Math.round(
-								group.members.reduce(
-									(sum, item) => sum + Number(item.attendancePercent || 0),
-									0,
-								) / group.members.length,
-							)
-						: 0
+					const stat = groupHistoryStats.get(group.name)
+					const avg = stat?.total
+						? Math.round((stat.present / stat.total) * 100)
+						: group.members.length
+							? Math.round(
+									group.members.reduce(
+										(sum, item) => sum + Number(item.attendancePercent || 0),
+										0,
+									) / group.members.length,
+								)
+							: 0
+					const trendItems = stat
+						? Object.values(stat.trendBuckets)
+								.map(item => ({
+									label: item.label,
+									value: item.total ? Math.round((item.present / item.total) * 100) : 0,
+								}))
+								.slice(-7)
+						: []
 					return (
 						<div key={group.name} className='card group-card'>
 							<div className='group-card-top'>
@@ -7347,12 +7564,26 @@ function TeacherGroupsPage({ token }) {
 								<span>Davomat ko'rsatkichi</span>
 								<strong>{avg}%</strong>
 							</div>
+							<div className='group-attendance-breakdown'>
+								<span>Keldi: <strong>{stat?.present || 0}</strong></span>
+								<span>Kelmadi: <strong>{stat?.absent || 0}</strong></span>
+								<span>Yozuv: <strong>{stat?.total || 0}</strong></span>
+							</div>
 							<div className='progress-bar'>
 								<span
 									style={{ width: `${avg}%` }}
 									className={avg > 80 ? 'good' : 'warn'}
 								/>
 							</div>
+							{trendItems.length ? (
+								<MiniTrendChart
+									items={trendItems}
+									valueKey='value'
+									labelKey='label'
+									tone='green'
+									formatValue={value => `${Math.round(Number(value || 0))}%`}
+								/>
+							) : null}
 						</div>
 					)
 				})}
@@ -7376,22 +7607,39 @@ function TeacherDashboardPage({ token }) {
 	)
 	const studentsCount = Math.max(teacherStudents.length, historyStudentCount)
 	const groupsCount = Math.max(groups.length, historyGroupsCount)
+	const activeStudentsCount = teacherStudents.filter(student => student.status === 'active').length
 	const historyAttendanceAverage = history.length
 		? Math.round((history.filter(item => item.status === 'present').length / history.length) * 100)
 		: 0
-	const averageAttendance = teacherStudents.length
-		? Math.round(
-				teacherStudents.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) /
-					teacherStudents.length,
-			)
-		: historyAttendanceAverage
+	const averageAttendance = history.length
+		? historyAttendanceAverage
+		: teacherStudents.length
+			? Math.round(
+					teacherStudents.reduce((sum, item) => sum + Number(item.attendancePercent || 0), 0) /
+						teacherStudents.length,
+				)
+			: 0
 	const dayKeyMap = ['yak', 'du', 'se', 'chor', 'pay', 'juma', 'shan']
 	const todayKey = dayKeyMap[new Date().getDay()]
 	const todayLessonsCount = groups.filter(group =>
 		parseScheduleString(group.members[0]?.schedule || '').days.includes(todayKey),
 	).length
 	useEffect(() => {
-		api.getTeacherAttendanceHistory(token, 'month').then(setHistory)
+		let cancelled = false
+		async function loadHistory() {
+			try {
+				const data = await api.getTeacherAttendanceHistory(token, 'month')
+				if (!cancelled && Array.isArray(data)) setHistory(data)
+			} catch {
+				// Keep dashboard cards stable on temporary network issues.
+			}
+		}
+		loadHistory()
+		const interval = window.setInterval(loadHistory, 20000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token])
 	const attendanceTrend = useMemo(() => {
 		const buckets = {}
@@ -7418,7 +7666,7 @@ function TeacherDashboardPage({ token }) {
 				<StatCard
 					label='Studentlar'
 					value={`${studentsCount} ta`}
-					note={`${groupsCount} ta guruh`}
+					note={`${groupsCount} ta guruh - ${activeStudentsCount || studentsCount} ta faol`}
 					icon='group'
 				/>
 				<StatCard
@@ -7459,8 +7707,35 @@ function TeacherStatisticsPage({ token }) {
 	const teacherStudents = Array.isArray(students) ? students : []
 
 	useEffect(() => {
-		api.getTeacherAttendanceHistory(token, 'month').then(setHistory)
+		let cancelled = false
+		async function loadHistory() {
+			try {
+				const data = await api.getTeacherAttendanceHistory(token, 'month')
+				if (!cancelled && Array.isArray(data)) setHistory(data)
+			} catch {
+				// Keep statistics visible if polling fails.
+			}
+		}
+		loadHistory()
+		const interval = window.setInterval(loadHistory, 20000)
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
 	}, [token])
+
+	const studentAttendanceStats = useMemo(() => {
+		const map = new Map()
+		history.forEach(item => {
+			const key = Number(item.studentId)
+			if (!key) return
+			if (!map.has(key)) map.set(key, { present: 0, total: 0 })
+			const stat = map.get(key)
+			stat.total += 1
+			if (item.status === 'present') stat.present += 1
+		})
+		return map
+	}, [history])
 
 	return (
 		<>
@@ -7484,7 +7759,14 @@ function TeacherStatisticsPage({ token }) {
 									<tr key={student.id}>
 										<td data-label='Student'>{student.fullName}</td>
 										<td data-label='Kurs'>{student.courseTitle}</td>
-										<td data-label='Davomat' className='amount-cell'>{Number(student.attendancePercent || 0)}%</td>
+										<td data-label='Davomat' className='amount-cell'>
+											{(() => {
+												const stat = studentAttendanceStats.get(Number(student.id))
+												return stat?.total
+													? Math.round((stat.present / stat.total) * 100)
+													: Number(student.attendancePercent || 0)
+											})()}%
+										</td>
 									</tr>
 								))}
 							</tbody>
