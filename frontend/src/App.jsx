@@ -6122,7 +6122,7 @@ function ReceptionDashboardPage({ token }) {
 
 	useEffect(() => {
 		api
-			.getReceptionStudents(token, { includeArchived: true })
+			.getReceptionStudents(token, { search: '', status: '', includeArchived: false })
 			.then(setStudents)
 			.catch(() => setStudents([]))
 		api.getReceptionContactRequests(token).then(setContactRequests).catch(() => setContactRequests([]))
@@ -7110,14 +7110,15 @@ function TeacherAttendancePage({ token }) {
 	const currentGroup = groups.find(group => group.key === effectiveSelectedGroup) ||
 		groups[0] || { members: [], label: '' }
 	const currentMembers = Array.isArray(currentGroup.members) ? currentGroup.members : []
+	const attendanceMembers = currentMembers.length ? currentMembers : students
 	const currentSchedule =
-		currentMembers[0]?.schedule || 'Jadval kiritilmagan'
-	const currentGroupAttendancePercent = currentMembers.length
+		attendanceMembers[0]?.schedule || 'Jadval kiritilmagan'
+	const currentGroupAttendancePercent = attendanceMembers.length
 		? Math.round(
-				currentMembers.reduce(
+				attendanceMembers.reduce(
 					(sum, student) => sum + Number(student.attendancePercent || 0),
 					0,
-				) / currentMembers.length,
+				) / attendanceMembers.length,
 			)
 		: 0
 
@@ -7150,7 +7151,7 @@ function TeacherAttendancePage({ token }) {
 					</div>
 					<div>
 						<span>Jami o'quvchilar</span>
-						<strong>{currentMembers.length}</strong>
+						<strong>{attendanceMembers.length}</strong>
 					</div>
 				</section>
 				<section className='card mini-stat-card'>
@@ -7164,7 +7165,7 @@ function TeacherAttendancePage({ token }) {
 				</section>
 				<section className='next-lesson-card'>
 					<span>Tanlangan guruh</span>
-					<strong>{currentGroup.label || 'Guruh tanlanmagan'}</strong>
+					<strong>{currentGroup.label || (attendanceMembers.length ? "Barcha o'quvchilar" : 'Guruh tanlanmagan')}</strong>
 					<p>{currentSchedule}</p>
 				</section>
 			</div>
@@ -7172,9 +7173,9 @@ function TeacherAttendancePage({ token }) {
 			<section className='card attendance-card'>
 				<div className='card-head-row'>
 					<h3>{currentGroup.label || "Davomat ko'rinishi"}</h3>
-					<span>{currentMembers.length} o'quvchi ro'yxatda</span>
+					<span>{attendanceMembers.length} o'quvchi ro'yxatda</span>
 				</div>
-				{currentMembers.length ? (
+				{attendanceMembers.length ? (
 					<div className='table-shell responsive-cards'>
 						<table>
 							<thead>
@@ -7185,7 +7186,7 @@ function TeacherAttendancePage({ token }) {
 								</tr>
 							</thead>
 							<tbody>
-								{currentMembers.map((student, index) => {
+								{attendanceMembers.map((student, index) => {
 									const current = historyMap[student.id] || 'present'
 									const meta = getAttendanceStatusMeta(current)
 									return (
