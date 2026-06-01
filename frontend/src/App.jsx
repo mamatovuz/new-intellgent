@@ -2448,8 +2448,6 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 	const [form, setForm] = useState({
 		...initialData,
 		scheduleDays: initialSchedule.days,
-		startTime: initialSchedule.startTime,
-		endTime: initialSchedule.endTime,
 	})
 	return (
 		<Modal
@@ -2468,11 +2466,7 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 					try {
 						await onSubmit(event, {
 							...form,
-							schedule: buildScheduleString(
-								form.scheduleDays,
-								form.startTime,
-								form.endTime,
-							),
+							schedule: buildScheduleString(form.scheduleDays),
 						})
 					} finally {
 						setSubmitting(false)
@@ -2523,22 +2517,6 @@ function CourseModal({ initialData, onClose, onSubmit }) {
 								</button>
 							))}
 						</div>
-					</div>
-					<div>
-						<label>Boshlanish vaqti</label>
-						<input
-							type='time'
-							value={form.startTime}
-							onChange={e => setForm({ ...form, startTime: e.target.value })}
-						/>
-					</div>
-					<div>
-						<label>Tugash vaqti</label>
-						<input
-							type='time'
-							value={form.endTime}
-							onChange={e => setForm({ ...form, endTime: e.target.value })}
-						/>
 					</div>
 				</div>
 				<div className='modal-actions'>
@@ -3097,7 +3075,7 @@ function HomePage() {
 							>
 								<div className='landing-pro-course-icon'><Icon name={getCourseIconByTitle(course.title)} /></div>
 								<h3>{course.title}</h3>
-								<p>{course.schedule || "Jadval va guruh ma'lumotlari reception orqali aniqlashtiriladi."}</p>
+								<p>{course.description || "Jadval va guruh ma'lumotlari reception orqali aniqlashtiriladi."}</p>
 								<div className='landing-pro-course-bottom'>
 									<span>Oylik to'lov</span>
 									<strong>{formatMoney(course.monthlyFee)}</strong>
@@ -3280,7 +3258,7 @@ function HomePage() {
 						</div>
 						<span className='landing-course-modal-kicker'>Kurs haqida</span>
 						<h2 id='landing-course-modal-title'>{selectedCourse.title}</h2>
-						<p>{selectedCourse.description || selectedCourse.schedule || "Reception bu kurs bo'yicha jadval, guruh va dars boshlanish vaqtini tushuntirib beradi."}</p>
+						<p>{selectedCourse.description || "Reception bu kurs bo'yicha jadval, guruh va dars boshlanish vaqtini tushuntirib beradi."}</p>
 						<div className='landing-course-modal-grid'>
 							<div>
 								<span>Oylik to'lov</span>
@@ -3288,7 +3266,7 @@ function HomePage() {
 							</div>
 							<div>
 								<span>Jadval</span>
-								<strong>{selectedCourse.schedule || 'Reception orqali'}</strong>
+								<strong>Reception orqali</strong>
 							</div>
 							<div>
 								<span>Ustoz</span>
@@ -5327,6 +5305,8 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 		trialRequired: Number(initialData.trialRequired || 3),
 		billingStartDate: initialData.billingStartDate || '',
 		scheduleDays: initialSchedule.days,
+		startTime: initialSchedule.startTime,
+		endTime: initialSchedule.endTime,
 	})
 	const selectedCourse = meta.courses.find(
 		course => Number(course.id) === Number(form.courseId),
@@ -5351,6 +5331,8 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 		setForm(current => ({
 			...current,
 			scheduleDays: current.scheduleDays?.length ? current.scheduleDays : parsed.days,
+			startTime: current.startTime || parsed.startTime || '',
+			endTime: current.endTime || parsed.endTime || '',
 		}))
 	}, [selectedCourse?.id])
 
@@ -5381,8 +5363,8 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 							trialRequired: form.status === 'active' ? 0 : Number(form.trialRequired || 3),
 							schedule: buildScheduleString(
 								form.scheduleDays,
-								selectedCourseSchedule.startTime,
-								selectedCourseSchedule.endTime,
+								form.startTime,
+								form.endTime,
 							),
 						})
 					} finally {
@@ -5507,6 +5489,23 @@ function StudentFormModal({ meta, initialData, onClose, onSubmit }) {
 								)
 							})}
 						</div>
+					</div>
+					<div>
+						<label>Dars boshlanish vaqti</label>
+						<input
+							type='time'
+							value={form.startTime}
+							onChange={e => setForm({ ...form, startTime: e.target.value })}
+							required
+						/>
+					</div>
+					<div>
+						<label>Dars tugash vaqti</label>
+						<input
+							type='time'
+							value={form.endTime}
+							onChange={e => setForm({ ...form, endTime: e.target.value })}
+						/>
 					</div>
 					<div>
 						<label>Oylik boshlanish sanasi</label>

@@ -18313,6 +18313,26 @@ body.theme-dark .loading-screen {
   }
 }
 
+/* Student schedule readability repair: today card must be visible in light mode. */
+.app-shell:not(.theme-dark) .schedule-day-card.today {
+  background: #f7faff !important;
+  border-color: #bfd0ea !important;
+  color: #0b2144 !important;
+  box-shadow: 0 12px 28px rgba(16, 35, 63, .06) !important;
+}
+
+.app-shell:not(.theme-dark) .schedule-day-card.today .schedule-day-top strong,
+.app-shell:not(.theme-dark) .schedule-day-card.today .schedule-day-time,
+.app-shell:not(.theme-dark) .schedule-day-card.today .schedule-day-time .material-symbols-outlined {
+  color: #0f2a5f !important;
+}
+
+.app-shell:not(.theme-dark) .schedule-day-card.today .schedule-day-top span {
+  background: #e7f8ef !important;
+  border: 1px solid #b9ecd1 !important;
+  color: #078142 !important;
+}
+
 /* Fullscreen revenue chart: scrollable canvas + draggable pan for diagnostics. */
 .app-shell .chart-card-fullscreen {
   overflow: auto !important;
