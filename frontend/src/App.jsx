@@ -3075,7 +3075,7 @@ function HomePage() {
 							>
 								<div className='landing-pro-course-icon'><Icon name={getCourseIconByTitle(course.title)} /></div>
 								<h3>{course.title}</h3>
-								<p>{course.description || "Jadval va guruh ma'lumotlari reception orqali aniqlashtiriladi."}</p>
+								<p>{course.description || ""}</p>
 								<div className='landing-pro-course-bottom'>
 									<span>Oylik to'lov</span>
 									<strong>{formatMoney(course.monthlyFee)}</strong>
@@ -3258,7 +3258,7 @@ function HomePage() {
 						</div>
 						<span className='landing-course-modal-kicker'>Kurs haqida</span>
 						<h2 id='landing-course-modal-title'>{selectedCourse.title}</h2>
-						
+						<p>{selectedCourse.description || "Reception bu kurs bo'yicha jadval, guruh va dars boshlanish vaqtini tushuntirib beradi."}</p>
 						<div className='landing-course-modal-grid'>
 							<div>
 								<span>Oylik to'lov</span>
