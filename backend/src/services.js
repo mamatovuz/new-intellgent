@@ -2779,7 +2779,7 @@ function getNextLessonDateFromSchedule(schedule) {
   const daysPart = schedule.split(",")[0] || "";
   const dayKeys = daysPart
     .split("-")
-    .map((item) => item.trim().toLowerCase())
+    .map(normalizeScheduleDayKey)
     .filter(Boolean)
     .map((item) => dayMap[item])
     .filter((item) => item !== undefined);
@@ -2793,6 +2793,47 @@ function getNextLessonDateFromSchedule(schedule) {
     }
   }
   return null;
+}
+
+function normalizeScheduleDayKey(value = "") {
+  const normalized = String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/['`']/g, "")
+    .replace(/\s+/g, "");
+  const aliases = {
+    du: "du",
+    dush: "du",
+    dushanba: "du",
+    mon: "du",
+    monday: "du",
+    se: "se",
+    sesh: "se",
+    seshanba: "se",
+    tue: "se",
+    tuesday: "se",
+    chor: "chor",
+    chorshanba: "chor",
+    wed: "chor",
+    wednesday: "chor",
+    pay: "pay",
+    payshanba: "pay",
+    thu: "pay",
+    thursday: "pay",
+    juma: "juma",
+    jum: "juma",
+    fri: "juma",
+    friday: "juma",
+    shan: "shan",
+    shanba: "shan",
+    sat: "shan",
+    saturday: "shan",
+    yak: "yak",
+    yakshanba: "yak",
+    sun: "yak",
+    sunday: "yak"
+  };
+  return aliases[normalized] || "";
 }
 
 export function getStudentDashboard(userId) {
@@ -2991,7 +3032,7 @@ export function getStudentSchedule(userId) {
     yak: "Yakshanba"
   };
   const [daysPart = "", timePart = ""] = schedule.split(",");
-  const dayKeys = daysPart.split("-").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const dayKeys = daysPart.split("-").map(normalizeScheduleDayKey).filter(Boolean);
   const todayIndex = dayjs().day();
   const numericMap = { du: 1, se: 2, chor: 3, pay: 4, juma: 5, shan: 6, yak: 0 };
   return {
@@ -3022,7 +3063,7 @@ export async function getStudentScheduleAsync(userId) {
     yak: "Yakshanba"
   };
   const [daysPart = "", timePart = ""] = schedule.split(",");
-  const dayKeys = daysPart.split("-").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const dayKeys = daysPart.split("-").map(normalizeScheduleDayKey).filter(Boolean);
   const todayIndex = dayjs().day();
   const numericMap = { du: 1, se: 2, chor: 3, pay: 4, juma: 5, shan: 6, yak: 0 };
   return {

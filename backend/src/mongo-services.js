@@ -1625,7 +1625,7 @@ export async function getStudentDashboardMongo(userId) {
   const schedule = profile.schedule || "";
   const dayMap = { du: 1, se: 2, chor: 3, pay: 4, juma: 5, shan: 6, yak: 0 };
   const [daysPart = ""] = schedule.split(",");
-  const dayKeys = daysPart.split("-").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const dayKeys = daysPart.split("-").map(normalizeScheduleDayKeyMongo).filter(Boolean);
   let nextLessonDate = null;
   for (let offset = 0; offset < 8; offset += 1) {
     const candidate = dayjs().add(offset, "day");
@@ -1646,6 +1646,47 @@ export async function getStudentDashboardMongo(userId) {
     monthlyFee: profile.monthlyFee,
     paymentDueDate: profile.paymentDueDate
   };
+}
+
+function normalizeScheduleDayKeyMongo(value = "") {
+  const normalized = String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/['`']/g, "")
+    .replace(/\s+/g, "");
+  const aliases = {
+    du: "du",
+    dush: "du",
+    dushanba: "du",
+    mon: "du",
+    monday: "du",
+    se: "se",
+    sesh: "se",
+    seshanba: "se",
+    tue: "se",
+    tuesday: "se",
+    chor: "chor",
+    chorshanba: "chor",
+    wed: "chor",
+    wednesday: "chor",
+    pay: "pay",
+    payshanba: "pay",
+    thu: "pay",
+    thursday: "pay",
+    juma: "juma",
+    jum: "juma",
+    fri: "juma",
+    friday: "juma",
+    shan: "shan",
+    shanba: "shan",
+    sat: "shan",
+    saturday: "shan",
+    yak: "yak",
+    yakshanba: "yak",
+    sun: "yak",
+    sunday: "yak"
+  };
+  return aliases[normalized] || "";
 }
 
 export async function getStudentAttendanceMongo(userId) {
@@ -1728,7 +1769,7 @@ export async function getStudentScheduleMongo(userId) {
     yak: "Yakshanba"
   };
   const [daysPart = "", timePart = ""] = schedule.split(",");
-  const dayKeys = daysPart.split("-").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const dayKeys = daysPart.split("-").map(normalizeScheduleDayKeyMongo).filter(Boolean);
   const todayIndex = dayjs().day();
   const numericMap = { du: 1, se: 2, chor: 3, pay: 4, juma: 5, shan: 6, yak: 0 };
   return {
@@ -1761,7 +1802,7 @@ export async function getStudentProfilePanelMongo(userId) {
   const dayKeys = schedule
     .split(",")[0]
     .split("-")
-    .map((item) => item.trim().toLowerCase())
+    .map(normalizeScheduleDayKeyMongo)
     .filter(Boolean);
   let nextLessonDate = null;
   for (let offset = 0; offset < 8; offset += 1) {

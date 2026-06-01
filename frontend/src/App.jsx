@@ -1088,11 +1088,52 @@ const WEEKDAY_OPTIONS = [
 	{ key: 'shan', label: 'Shanba' },
 ]
 
+function normalizeScheduleDayKey(value = '') {
+	const normalized = String(value)
+		.trim()
+		.toLowerCase()
+		.replace(/['`']/g, '')
+		.replace(/\s+/g, '')
+	const aliases = {
+		du: 'du',
+		dush: 'du',
+		dushanba: 'du',
+		mon: 'du',
+		monday: 'du',
+		se: 'se',
+		sesh: 'se',
+		seshanba: 'se',
+		tue: 'se',
+		tuesday: 'se',
+		chor: 'chor',
+		chorshanba: 'chor',
+		wed: 'chor',
+		wednesday: 'chor',
+		pay: 'pay',
+		payshanba: 'pay',
+		thu: 'pay',
+		thursday: 'pay',
+		juma: 'juma',
+		jum: 'juma',
+		fri: 'juma',
+		friday: 'juma',
+		shan: 'shan',
+		shanba: 'shan',
+		sat: 'shan',
+		saturday: 'shan',
+		yak: 'yak',
+		yakshanba: 'yak',
+		sun: 'yak',
+		sunday: 'yak',
+	}
+	return aliases[normalized] || ''
+}
+
 function parseScheduleString(value = '') {
 	const [daysPart = '', timePart = ''] = String(value).split(',')
 	const days = daysPart
 		.split('-')
-		.map(item => item.trim().toLowerCase())
+		.map(normalizeScheduleDayKey)
 		.filter(Boolean)
 	const [startTime = '', endTime = ''] = timePart
 		.split('-')
