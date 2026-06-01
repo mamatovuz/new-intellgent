@@ -3258,7 +3258,7 @@ function HomePage() {
 						</div>
 						<span className='landing-course-modal-kicker'>Kurs haqida</span>
 						<h2 id='landing-course-modal-title'>{selectedCourse.title}</h2>
-						<p>{selectedCourse.description || "Reception bu kurs bo'yicha jadval, guruh va dars boshlanish vaqtini tushuntirib beradi."}</p>
+						
 						<div className='landing-course-modal-grid'>
 							<div>
 								<span>Oylik to'lov</span>
